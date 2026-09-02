@@ -1,0 +1,831 @@
+import React, { useState, useMemo } from 'react';
+import {
+  Sparkles,
+  Upload,
+  FileText,
+  Building2,
+  Factory,
+  Database,
+  Layers,
+  CheckCircle2,
+  AlertTriangle,
+  HelpCircle,
+  ArrowRight,
+  RefreshCw,
+  X,
+  Copy,
+  Check,
+  Zap,
+  Sliders,
+  Calendar,
+  ThumbsUp,
+  ThumbsDown,
+  Info,
+  RotateCcw,
+  FileCheck2,
+  FileQuestion,
+  FileSpreadsheet
+} from 'lucide-react';
+import { ProjectScenario, OracleModule, UploadedProposal } from '../../types';
+import { ORACLE_MODULE_CATALOG } from '../../data/oraclePhases';
+import {
+  extractBlueprintWithAiFallback,
+  BLUEPRINT_SAMPLES,
+  BlueprintSample,
+  generateExecutiveSowMemo
+} from '../../utils/blueprintAutoFillEngine';
+import {
+  parseComprehensiveIntel,
+  INTEL_PACKAGE_PRESETS,
+  IntelPackagePreset,
+  ComprehensiveIntelParseResult
+} from '../../utils/intelIngestionParser';
+import { parseProposalDocument, SAMPLE_PROPOSAL_TEMPLATES } from '../../utils/proposalParser';
+
+export type AgentInputMode = 'upload_rfp' | 'paste_intel' | 'quick_blueprint' | 'presets';
+
+interface AIScopingAgentModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  scenario: ProjectScenario;
+  onUpdateScenario: (updater: (prev: ProjectScenario) => ProjectScenario) => void;
+  onOpenClientQa?: () => void;
+  onOpenComplexityStudio?: () => void;
+  initialMode?: AgentInputMode;
+}
+
+export const AIScopingAgentModal: React.FC<AIScopingAgentModalProps> = ({
+  isOpen,
+  onClose,
+  scenario,
+  onUpdateScenario,
+  onOpenClientQa,
+  onOpenComplexityStudio,
+  initialMode = 'upload_rfp'
+}) => {
+  const [activeMode, setActiveMode] = useState<AgentInputMode>(initialMode);
+  
+  // Shared State
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [mergeMode, setMergeMode] = useState<'merge' | 'overwrite'>('merge');
+  const [copiedMemo, setCopiedMemo] = useState(false);
+  const [appliedNotification, setAppliedNotification] = useState<string | null>(null);
+
+  // Mode 1: Document Upload / RFP Text
+  const [uploadedFileName, setUploadedFileName] = useState('Enterprise_RFP_Requirements.pdf');
+  const [uploadedFileSize, setUploadedFileSize] = useState('340 KB');
+  const [rfpText, setRfpText] = useState('');
+
+  // Mode 2: Paste Intel / RFP Memo / 3-Stream Intel
+  const [clientIntelText, setClientIntelText] = useState(scenario.clientIntel?.rawText || '');
+  const [industryIntelText, setIndustryIntelText] = useState(scenario.industryIntel?.rawText || '');
+  const [specSheetText, setSpecSheetText] = useState(scenario.specSheetIntel?.rawText || '');
+  const [intelTab, setIntelTab] = useState<'client' | 'industry' | 'spec'>('client');
+
+  // Mode 3: Quick Blueprint Prompt
+  const [blueprintPrompt, setBlueprintPrompt] = useState('');
+  const [selectedBlueprintSampleId, setSelectedBlueprintSampleId] = useState<string | null>(null);
+
+  // Result Cache
+  const [intelResult, setIntelResult] = useState<ComprehensiveIntelParseResult | null>(null);
+  const [rfpResult, setRfpResult] = useState<any | null>(null);
+  const [blueprintResult, setBlueprintResult] = useState<any | null>(null);
+
+  if (!isOpen) return null;
+
+  // Handler: RFP File Upload
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadedFileName(file.name);
+      setUploadedFileSize(`${(file.size / 1024).toFixed(1)} KB`);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        setRfpText(content || '');
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  // Handler: Analyze RFP
+  const handleAnalyzeRfp = () => {
+    const textToAnalyze = rfpText.trim() || SAMPLE_PROPOSAL_TEMPLATES[0].content;
+    setIsAnalyzing(true);
+    setTimeout(() => {
+      const parsed = parseProposalDocument(textToAnalyze);
+      setRfpResult(parsed);
+      setIsAnalyzing(false);
+    }, 400);
+  };
+
+  // Handler: Synthesize Intel
+  const handleSynthesizeIntel = () => {
+    const cText = clientIntelText.trim() || INTEL_PACKAGE_PRESETS[0].clientIntel;
+    const iText = industryIntelText.trim() || INTEL_PACKAGE_PRESETS[0].industryIntel;
+    const sText = specSheetText.trim() || INTEL_PACKAGE_PRESETS[0].specSheet;
+
+    setIsAnalyzing(true);
+    setTimeout(() => {
+      const result = parseComprehensiveIntel(cText, iText, sText);
+      setIntelResult(result);
+      setIsAnalyzing(false);
+    }, 400);
+  };
+
+  // Handler: Quick Blueprint Generation
+  const handleGenerateBlueprint = async (customText?: string) => {
+    const text = customText || blueprintPrompt.trim() || BLUEPRINT_SAMPLES[0].rawText;
+    setIsAnalyzing(true);
+    const result = await extractBlueprintWithAiFallback(text, scenario);
+    setBlueprintResult(result);
+    setIsAnalyzing(false);
+  };
+
+  // Handler: Preset Selection
+  const handleSelectPreset = (preset: IntelPackagePreset) => {
+    setClientIntelText(preset.clientIntel);
+    setIndustryIntelText(preset.industryIntel);
+    setSpecSheetText(preset.specSheet);
+    setIsAnalyzing(true);
+    setTimeout(() => {
+      const result = parseComprehensiveIntel(preset.clientIntel, preset.industryIntel, preset.specSheet);
+      setIntelResult(result);
+      setIsAnalyzing(false);
+      setActiveMode('paste_intel');
+    }, 350);
+  };
+
+  // Unified Snapshot Helper
+  const captureSnapshot = (actionName: string) => {
+    try {
+      const stored = localStorage.getItem(`fusion_snapshots_${scenario.id}`);
+      const existingSnaps = stored ? JSON.parse(stored) : [];
+      const newSnap = {
+        id: `snap_ai_${Date.now()}`,
+        name: `Pre-Scoping Agent: ${actionName}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' }),
+        actionSource: 'ai_ingest',
+        scenarioState: JSON.parse(JSON.stringify(scenario)),
+        summary: `Auto-captured before AI Scoping Ingestion (${scenario.selectedModules.length} modules, ${scenario.projectWeeks}w)`,
+        metrics: {
+          totalHours: 0,
+          timelineWeeks: scenario.projectWeeks,
+          moduleCount: scenario.selectedModules.length
+        }
+      };
+      localStorage.setItem(`fusion_snapshots_${scenario.id}`, JSON.stringify([newSnap, ...existingSnaps].slice(0, 15)));
+    } catch {
+      // ignore
+    }
+  };
+
+  // Apply RFP Result
+  const handleApplyRfp = () => {
+    if (!rfpResult) return;
+    captureSnapshot('RFP Ingestion');
+
+    onUpdateScenario(prev => {
+      const currentScale = { ...prev.scaleDrivers, ...(rfpResult.extractedScaleDrivers || {}) };
+      const currentAnswers = { ...(prev.moduleQuestionAnswers || {}), ...(rfpResult.questionAnswers || {}) };
+      const currentMeta = { ...(prev.questionConfidenceMeta || {}), ...(rfpResult.questionConfidenceMeta || {}) };
+
+      const proposalRecord: UploadedProposal = {
+        id: `prop_${Date.now()}`,
+        fileName: uploadedFileName,
+        uploadedAt: new Date().toISOString(),
+        fileSize: uploadedFileSize,
+        rawText: rfpText.slice(0, 1000) + '...',
+        analyzedStatus: 'analyzed',
+        inferredModules: rfpResult.inferredModules,
+        highConfidenceCount: rfpResult.stats.highConfidenceCount,
+        mediumConfidenceCount: rfpResult.stats.mediumConfidenceCount,
+        lowConfidenceCount: rfpResult.stats.lowConfidenceCount,
+        extractedScaleDrivers: rfpResult.extractedScaleDrivers,
+        summaryFindings: rfpResult.summaryFindings,
+        clientClarificationsNeeded: rfpResult.clientClarificationsNeeded
+      };
+
+      return {
+        ...prev,
+        selectedModules: mergeMode === 'overwrite' 
+          ? rfpResult.inferredModules 
+          : Array.from(new Set([...prev.selectedModules, ...rfpResult.inferredModules])),
+        scaleDrivers: currentScale,
+        moduleQuestionAnswers: currentAnswers,
+        questionConfidenceMeta: currentMeta,
+        uploadedProposals: [proposalRecord, ...(prev.uploadedProposals || []).slice(0, 4)]
+      };
+    });
+
+    onClose();
+  };
+
+  // Apply Intel Result
+  const handleApplyIntel = () => {
+    if (!intelResult) return;
+    captureSnapshot('Intel Synthesis');
+
+    onUpdateScenario(prev => {
+      const payload = intelResult.updatedScenarioPayload;
+      const mergedScale = { ...prev.scaleDrivers, ...(payload.scaleDrivers || {}) };
+      const mergedModifiers = { ...prev.clientModifiers, ...(payload.clientModifiers || {}) };
+      const mergedAnswers = { ...(prev.moduleQuestionAnswers || {}), ...(payload.moduleQuestionAnswers || {}) };
+      const mergedMeta = { ...(prev.questionConfidenceMeta || {}), ...(payload.questionConfidenceMeta || {}) };
+
+      return {
+        ...prev,
+        name: payload.name || prev.name,
+        description: payload.description || prev.description,
+        selectedModules: mergeMode === 'overwrite' 
+          ? payload.selectedModules 
+          : Array.from(new Set([...prev.selectedModules, ...payload.selectedModules])),
+        scaleDrivers: mergedScale,
+        clientModifiers: mergedModifiers,
+        moduleQuestionAnswers: mergedAnswers,
+        questionConfidenceMeta: mergedMeta,
+        technicalIntegrations: payload.technicalIntegrations || prev.technicalIntegrations,
+        blackoutPeriods: payload.blackoutPeriods?.length ? payload.blackoutPeriods : prev.blackoutPeriods,
+        clientIntel: intelResult.clientIntel,
+        industryIntel: intelResult.industryIntel,
+        specSheetIntel: intelResult.specSheetIntel,
+        intelSynthesis: intelResult.synthesis
+      };
+    });
+
+    onClose();
+  };
+
+  // Apply Blueprint Result
+  const handleApplyBlueprint = () => {
+    if (!blueprintResult) return;
+    captureSnapshot('Blueprint Ingestion');
+
+    onUpdateScenario(prev => {
+      let finalModules = prev.selectedModules;
+      if (mergeMode === 'overwrite') {
+        finalModules = blueprintResult.detectedModules;
+      } else {
+        const set = new Set([...prev.selectedModules, ...blueprintResult.detectedModules]);
+        (blueprintResult.excludedModules || []).forEach((ex: string) => set.delete(ex as any));
+        finalModules = Array.from(set);
+      }
+
+      return {
+        ...prev,
+        selectedModules: finalModules,
+        scaleDrivers: { ...prev.scaleDrivers, ...blueprintResult.scaleDrivers },
+        clientModifiers: { ...prev.clientModifiers, ...blueprintResult.clientModifiers },
+        aiExtractionMeta: {
+          lastExtractedAt: new Date().toISOString(),
+          source: 'AI Scoping Agent',
+          rawInputLength: blueprintPrompt.length,
+          detectedCount: blueprintResult.detectedModules.length,
+          confidenceScore: blueprintResult.confidenceScore,
+          matchedAttributes: blueprintResult.attributes
+        }
+      };
+    });
+
+    onClose();
+  };
+
+  // Memo Copy Helper
+  const handleCopySowMemo = () => {
+    const memo = generateExecutiveSowMemo(scenario, blueprintResult || {
+      detectedModules: scenario.selectedModules,
+      excludedModules: [],
+      scaleDrivers: scenario.scaleDrivers,
+      clientModifiers: scenario.clientModifiers,
+      rationaleNotes: ['Generated directly from active scoping scenario baseline.']
+    });
+    navigator.clipboard.writeText(memo);
+    setCopiedMemo(true);
+    setTimeout(() => setCopiedMemo(false), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white border border-slate-300 rounded-sm shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+        {/* Modal Header */}
+        <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-sm bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+              <Sparkles size={20} className="text-amber-300 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 uppercase rounded-xs">
+                  Unified AI Agent
+                </span>
+                <h3 className="font-bold text-base text-white tracking-tight">
+                  AI Scoping & Ingestion Agent
+                </h3>
+              </div>
+              <p className="text-xs text-slate-300">
+                One-stop ingestion for RFPs, Client Notes, RFP Memos, and Intelligent Blueprint Auto-Fill.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCopySowMemo}
+              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-sm border border-slate-700 transition flex items-center gap-1.5 cursor-pointer"
+              title="Copy formatted Executive RFP Scope Memo to clipboard"
+            >
+              {copiedMemo ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+              <span>{copiedMemo ? 'Copied RFP Memo!' : 'Copy RFP Memo'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 text-slate-400 hover:text-white transition cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Mode Navigation Bar */}
+        <div className="flex items-center justify-between px-6 border-b border-slate-200 bg-slate-50 shrink-0">
+          <div className="flex gap-1 overflow-x-auto py-2">
+            <button
+              type="button"
+              onClick={() => setActiveMode('upload_rfp')}
+              className={`px-3.5 py-2 text-xs font-bold transition flex items-center gap-2 rounded-sm cursor-pointer ${
+                activeMode === 'upload_rfp'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
+              }`}
+            >
+              <Upload size={14} />
+              <span>1. Upload RFP / Proposal</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveMode('paste_intel')}
+              className={`px-3.5 py-2 text-xs font-bold transition flex items-center gap-2 rounded-sm cursor-pointer ${
+                activeMode === 'paste_intel'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
+              }`}
+            >
+              <FileText size={14} />
+              <span>2. Paste Intel & RFP Text</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveMode('quick_blueprint')}
+              className={`px-3.5 py-2 text-xs font-bold transition flex items-center gap-2 rounded-sm cursor-pointer ${
+                activeMode === 'quick_blueprint'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
+              }`}
+            >
+              <Zap size={14} />
+              <span>3. Quick Blueprint Auto-Fill</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveMode('presets')}
+              className={`px-3.5 py-2 text-xs font-bold transition flex items-center gap-2 rounded-sm cursor-pointer ${
+                activeMode === 'presets'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
+              }`}
+            >
+              <Layers size={14} />
+              <span>Industry Presets ({INTEL_PACKAGE_PRESETS.length})</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+            <span>Merge:</span>
+            <div className="flex items-center bg-slate-200 p-0.5 rounded-sm">
+              <button
+                type="button"
+                onClick={() => setMergeMode('merge')}
+                className={`px-2 py-0.5 text-[10px] font-bold rounded-xs cursor-pointer ${
+                  mergeMode === 'merge' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
+                }`}
+              >
+                Merge (Add)
+              </button>
+              <button
+                type="button"
+                onClick={() => setMergeMode('overwrite')}
+                className={`px-2 py-0.5 text-[10px] font-bold rounded-xs cursor-pointer ${
+                  mergeMode === 'overwrite' ? 'bg-white text-rose-700 shadow-2xs' : 'text-slate-600'
+                }`}
+              >
+                Overwrite
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-6 overflow-y-auto flex-1 space-y-5 bg-slate-50/50">
+          
+          {/* MODE 1: UPLOAD RFP / PROPOSAL */}
+          {activeMode === 'upload_rfp' && (
+            <div className="space-y-4">
+              <div className="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-sm p-8 text-center bg-white hover:bg-indigo-50/30 transition">
+                <input
+                  type="file"
+                  id="agent-rfp-upload"
+                  accept=".pdf,.docx,.doc,.txt,.json,.md,.csv"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="agent-rfp-upload"
+                  className="cursor-pointer flex flex-col items-center justify-center space-y-3"
+                >
+                  <div className="p-3 bg-indigo-50 rounded-full border border-indigo-200 text-indigo-600">
+                    <Upload size={24} />
+                  </div>
+                  <div>
+                    <span className="text-sm font-bold text-slate-800 block">
+                      Drop client RFP / Architecture PDF here or Browse
+                    </span>
+                    <span className="text-xs text-slate-500 mt-1 block">
+                      Auto-extracts Oracle ERP/HCM/SCM footprint, legal entities, OIC counts, and timeline targets.
+                    </span>
+                  </div>
+                  <span className="inline-block px-3 py-1 bg-indigo-600 text-white text-xs font-bold rounded-sm">
+                    Select Document
+                  </span>
+                </label>
+              </div>
+
+              {rfpText && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-sm flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                    <span className="text-xs font-semibold text-emerald-900">
+                      Loaded file: <strong>{uploadedFileName}</strong> ({uploadedFileSize})
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAnalyzeRfp}
+                    disabled={isAnalyzing}
+                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-sm flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    {isAnalyzing ? <RefreshCw size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                    <span>Run RFP Extraction</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Sample Quick Loader */}
+              <div className="bg-white border border-slate-200 p-3.5 rounded-sm space-y-2">
+                <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                  <span>Or test with an Industry Sample RFP:</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {SAMPLE_PROPOSAL_TEMPLATES.map((sample, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setUploadedFileName(`${sample.name.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`);
+                        setRfpText(sample.content);
+                      }}
+                      className="p-2.5 text-left border border-slate-200 hover:border-indigo-400 bg-slate-50 hover:bg-indigo-50/40 rounded-sm transition cursor-pointer"
+                    >
+                      <div className="font-bold text-xs text-slate-900">{sample.name}</div>
+                      <div className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{sample.description}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* RFP Extraction Results Preview */}
+              {rfpResult && (
+                <div className="bg-white border border-indigo-200 rounded-sm p-4 space-y-4 shadow-xs">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                    <div className="flex items-center gap-2 text-indigo-900 font-bold text-xs">
+                      <CheckCircle2 size={16} className="text-emerald-600" />
+                      <span>RFP Analysis Complete — {rfpResult.inferredModules.length} Modules Identified</span>
+                    </div>
+                    <span className="text-xs font-mono font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-xs">
+                      {rfpResult.stats.overallConfidencePercentage}% Confidence
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {rfpResult.inferredModules.map((modId: string) => (
+                      <span key={modId} className="px-2 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs font-semibold rounded-xs">
+                        {modId}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="text-xs text-slate-700 space-y-1">
+                    <div className="font-bold text-slate-900">Extracted Findings:</div>
+                    <ul className="list-disc pl-4 space-y-0.5 text-[11px]">
+                      {rfpResult.summaryFindings.map((f: string, i: number) => (
+                        <li key={i}>{f}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* MODE 2: PASTE INTEL & RFP TEXT */}
+          {activeMode === 'paste_intel' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                <button
+                  type="button"
+                  onClick={() => setIntelTab('client')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-sm transition cursor-pointer flex items-center gap-1.5 ${
+                    intelTab === 'client' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border border-slate-200'
+                  }`}
+                >
+                  <Building2 size={13} />
+                  <span>1. Client Notes {clientIntelText.trim() && '✓'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIntelTab('industry')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-sm transition cursor-pointer flex items-center gap-1.5 ${
+                    intelTab === 'industry' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border border-slate-200'
+                  }`}
+                >
+                  <Factory size={13} />
+                  <span>2. Industry Mandates {industryIntelText.trim() && '✓'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIntelTab('spec')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-sm transition cursor-pointer flex items-center gap-1.5 ${
+                    intelTab === 'spec' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border border-slate-200'
+                  }`}
+                >
+                  <Database size={13} />
+                  <span>3. Tech Spec / Scope Manifest {specSheetText.trim() && '✓'}</span>
+                </button>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-sm p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800">
+                    {intelTab === 'client' && 'Client Background, Org Complexity & Objectives:'}
+                    {intelTab === 'industry' && 'Industry Standards & Regulatory Requirements:'}
+                    {intelTab === 'spec' && 'Technical Spec Sheet & Interface Inventories:'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (intelTab === 'client') setClientIntelText(INTEL_PACKAGE_PRESETS[0].clientIntel);
+                      if (intelTab === 'industry') setIndustryIntelText(INTEL_PACKAGE_PRESETS[0].industryIntel);
+                      if (intelTab === 'spec') setSpecSheetText(INTEL_PACKAGE_PRESETS[0].specSheet);
+                    }}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer"
+                  >
+                    Load Sample Text
+                  </button>
+                </div>
+
+                <textarea
+                  rows={8}
+                  value={intelTab === 'client' ? clientIntelText : intelTab === 'industry' ? industryIntelText : specSheetText}
+                  onChange={(e) => {
+                    if (intelTab === 'client') setClientIntelText(e.target.value);
+                    if (intelTab === 'industry') setIndustryIntelText(e.target.value);
+                    if (intelTab === 'spec') setSpecSheetText(e.target.value);
+                  }}
+                  placeholder="Paste discovery call transcripts, RFP clauses, or architecture notes..."
+                  className="w-full p-3 font-mono text-xs text-slate-800 bg-slate-50 border border-slate-300 rounded-sm focus:outline-hidden focus:ring-1 focus:ring-indigo-600 focus:bg-white"
+                />
+
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[11px] text-slate-500 font-mono">
+                    Streams populated: {(clientIntelText ? 1 : 0) + (industryIntelText ? 1 : 0) + (specSheetText ? 1 : 0)} of 3
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleSynthesizeIntel}
+                    disabled={isAnalyzing}
+                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-sm transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    {isAnalyzing ? <RefreshCw className="animate-spin" size={13} /> : <Zap size={13} />}
+                    <span>Synthesize Intel Streams</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Intel Synthesis Result */}
+              {intelResult && (
+                <div className="bg-white border border-indigo-200 rounded-sm p-4 space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                    <div className="font-bold text-xs text-indigo-950 flex items-center gap-2">
+                      <CheckCircle2 size={16} className="text-emerald-600" />
+                      <span>{intelResult.updatedScenarioPayload.name}</span>
+                    </div>
+                    <span className="text-xs font-mono font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-xs">
+                      {intelResult.synthesis.confidenceSummary.overallScore}% Conf.
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+                    <div className="p-2 bg-slate-50 border border-slate-200 rounded-xs">
+                      <span className="text-slate-400 block text-[10px]">Modules</span>
+                      <span className="font-bold text-slate-900">{intelResult.updatedScenarioPayload.selectedModules.length} Modules</span>
+                    </div>
+                    <div className="p-2 bg-slate-50 border border-slate-200 rounded-xs">
+                      <span className="text-slate-400 block text-[10px]">Legal Entities</span>
+                      <span className="font-bold text-slate-900">{intelResult.updatedScenarioPayload.scaleDrivers.fin_ent || 4} Entities</span>
+                    </div>
+                    <div className="p-2 bg-slate-50 border border-slate-200 rounded-xs">
+                      <span className="text-slate-400 block text-[10px]">OIC Integrations</span>
+                      <span className="font-bold text-indigo-700">{intelResult.updatedScenarioPayload.technicalIntegrations.length} Feeds</span>
+                    </div>
+                    <div className="p-2 bg-slate-50 border border-slate-200 rounded-xs">
+                      <span className="text-slate-400 block text-[10px]">Conversions</span>
+                      <span className="font-bold text-emerald-700">{intelResult.updatedScenarioPayload.scaleDrivers.tech_conversion_cycles || 3} Cycles</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* MODE 3: QUICK BLUEPRINT AUTO-FILL */}
+          {activeMode === 'quick_blueprint' && (
+            <div className="space-y-4">
+              <div className="bg-white border border-slate-200 rounded-sm p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800">
+                    Describe your client context in natural language:
+                  </span>
+                  <span className="text-[11px] text-slate-400 font-mono">One-Sentence Generator</span>
+                </div>
+
+                <textarea
+                  rows={4}
+                  value={blueprintPrompt}
+                  onChange={(e) => setBlueprintPrompt(e.target.value)}
+                  placeholder="e.g. Mid-sized industrial discrete manufacturer in North America migrating from SAP ECC to Oracle Cloud ERP and SCM across 4 plants and 6 warehouses in 14 months."
+                  className="w-full p-3 font-mono text-xs text-slate-800 bg-slate-50 border border-slate-300 rounded-sm focus:outline-hidden focus:ring-1 focus:ring-indigo-600 focus:bg-white"
+                />
+
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Quick Blueprints:</span>
+                    {BLUEPRINT_SAMPLES.slice(0, 3).map((sample) => (
+                      <button
+                        key={sample.id}
+                        type="button"
+                        onClick={() => {
+                          setBlueprintPrompt(sample.rawText);
+                          handleGenerateBlueprint(sample.rawText);
+                        }}
+                        className="px-2 py-1 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 rounded-xs text-[10px] font-bold transition cursor-pointer"
+                      >
+                        {sample.name}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateBlueprint()}
+                    disabled={isAnalyzing}
+                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-sm transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    {isAnalyzing ? <RefreshCw className="animate-spin" size={13} /> : <Zap size={13} />}
+                    <span>Generate Blueprint</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Blueprint Extraction Result */}
+              {blueprintResult && (
+                <div className="bg-white border border-indigo-200 rounded-sm p-4 space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                    <div className="font-bold text-xs text-indigo-950 flex items-center gap-2">
+                      <CheckCircle2 size={16} className="text-emerald-600" />
+                      <span>Blueprint Extraction Matrix</span>
+                    </div>
+                    <span className="text-xs font-mono font-bold px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-xs">
+                      {blueprintResult.detectedModules.length} Modules Detected
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {blueprintResult.detectedModules.map((m: string) => (
+                      <span key={m} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-xs border border-indigo-200">
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="text-xs text-slate-600 italic">
+                    {blueprintResult.rationaleNotes?.[0] || 'Optimized scale drivers and risk modifiers configured.'}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* MODE 4: PRESET PACKAGES */}
+          {activeMode === 'presets' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {INTEL_PACKAGE_PRESETS.map((preset) => (
+                <div
+                  key={preset.id}
+                  className="p-4 bg-white border border-slate-200 hover:border-indigo-500 transition rounded-sm shadow-xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-700 font-mono text-[10px] font-bold uppercase border border-slate-200 rounded-xs">
+                        {preset.industry}
+                      </span>
+                      <span className="text-[10px] font-mono text-indigo-600 font-bold">
+                        Pre-Calibrated
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-slate-900 text-sm">{preset.name}</h4>
+                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">{preset.tagline}</p>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-slate-400">Complete Spec Included</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPreset(preset)}
+                      className="px-3 py-1.5 bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold rounded-sm transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>Load & Synthesize</span>
+                      <ArrowRight size={12} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="bg-white border-t border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer"
+          >
+            Cancel
+          </button>
+
+          <div className="flex items-center gap-3">
+            {activeMode === 'upload_rfp' && rfpResult && (
+              <button
+                type="button"
+                onClick={handleApplyRfp}
+                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-sm text-xs font-bold flex items-center gap-2 shadow-xs transition cursor-pointer"
+              >
+                <CheckCircle2 size={15} />
+                <span>Apply RFP Scoping Baseline</span>
+              </button>
+            )}
+
+            {activeMode === 'paste_intel' && intelResult && (
+              <button
+                type="button"
+                onClick={handleApplyIntel}
+                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-sm text-xs font-bold flex items-center gap-2 shadow-xs transition cursor-pointer"
+              >
+                <CheckCircle2 size={15} />
+                <span>Apply Synthesized Intel Updates</span>
+              </button>
+            )}
+
+            {activeMode === 'quick_blueprint' && blueprintResult && (
+              <button
+                type="button"
+                onClick={handleApplyBlueprint}
+                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-sm text-xs font-bold flex items-center gap-2 shadow-xs transition cursor-pointer"
+              >
+                <CheckCircle2 size={15} />
+                <span>Apply Blueprint Baseline</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

@@ -1,0 +1,505 @@
+specification:
+  name: Oracle Cloud Project Plan Generation Standard
+  version: '1.0'
+  purpose: Generate consistent, traceable, Smartsheet-ready Oracle Cloud implementation project plans for every proposal.
+  scope:
+    included:
+    - project plan generation
+    - schedule generation
+    - WBS selection
+    - scope expansion
+    - dependencies
+    - guardrails
+    - Smartsheet-ready output
+    excluded:
+    - effort estimation
+    - pricing
+    - resource costing
+    - monthly effort distribution
+  operating_principles:
+  - Methodology determines structure.
+  - Proposal scope determines applicable WBS activities.
+  - Scheduling rules determine dates.
+  - The approved WBS library determines activities and dependencies.
+  - Consistency and traceability take priority over creativity.
+  - Do not invent tasks when an approved WBS library is available.
+  - Use deterministic application code for dates, durations, hierarchy, calendars and predecessors.
+  - Use the AI model for proposal extraction, label normalization, explanations and recommendations.
+ai_role:
+  role: Oracle Cloud Transformation Project Planning Engine
+  instructions:
+  - Extract planning inputs from each proposal and normalize them into the input schema.
+  - Generate plans only from this methodology and the approved WBS master data.
+  - Do not omit mandatory phases, governance controls or stage gates.
+  - If proposal information is missing, create an explicit assumption and warning; never hide assumed values.
+  - Return both human-readable summaries and machine-readable Smartsheet rows.
+input_schema:
+  program:
+    program_start_date:
+      type: date
+      required: true
+      format: YYYY-MM-DD
+      rule: Normalize to Monday or record approval-required warning.
+    program_tenure_months:
+      type: integer
+      required: true
+      minimum: 1
+    number_of_post_ed_waves:
+      type: integer
+      required: true
+      minimum: 1
+      maximum: 5
+    deployment_approach:
+      type: string
+      allowed:
+      - BIG_BANG
+      - PHASED
+      - UNKNOWN
+    countries:
+      type: array
+      default: []
+    business_units:
+      type: array
+      default: []
+  calendar:
+    working_days:
+      default:
+      - MONDAY
+      - TUESDAY
+      - WEDNESDAY
+      - THURSDAY
+      - FRIDAY
+    exclude_weekends:
+      type: boolean
+      default: true
+    holidays:
+      type: array
+      default: []
+    blackout_dates:
+      type: array
+      default: []
+    mark_holidays:
+      type: boolean
+      default: true
+    mark_blackout_dates:
+      type: boolean
+      default: true
+  waves:
+    fields:
+    - wave_id
+    - wave_name
+    - duration_months
+    - schedule_adjustment_type
+    - schedule_adjustment_months
+    - include_in_plan
+    - sit_rounds
+    - uat_rounds
+    schedule_adjustment_type_allowed:
+    - NONE
+    - START_EARLY
+    - START_LATE
+    sit_rounds_allowed:
+    - 1
+    - 2
+    uat_rounds_allowed:
+    - 1
+    - 2
+  functional_modules:
+    fields:
+    - domain
+    - module_code
+    - module_name
+    - assigned_wave
+    - complexity
+    - include_in_plan
+    default: []
+  technical_components:
+    fields:
+    - component_id
+    - component_name
+    - workstream
+    - component_type
+    - complexity
+    - assigned_wave
+    - include_in_plan
+    workstreams:
+    - INTEGRATIONS
+    - REPORTS
+    - CONVERSIONS
+    - EXTENSIONS
+    - LOCALIZATIONS
+    default: []
+  plan_options:
+    plan_type:
+      allowed:
+      - INTERNAL
+      - CLIENT
+      - COMBINED
+      default: COMBINED
+    guardrail_mode:
+      allowed:
+      - FIT_TASK_IN_SUBPHASE
+      - FLAG_ANOMALY
+      - FIT_AND_FLAG
+      default: FLAG_ANOMALY
+methodology:
+  hierarchy:
+    '1': Wave
+    '2': Phase
+    '3': Sub-phase
+    '4': Summary activity or epic group
+    '5': Detailed activity, deliverable, workshop, template, module or component
+    '6': Optional child task
+  wave_0:
+    mandatory: true
+    maximum_occurrences: 1
+    phases:
+      MOBILIZE:
+      - TEAM MOBILIZATION (CORE)
+      - KICK-OFF ACTIVITIES
+      - BUSINESS ONBOARDING
+      ENTERPRISE DESIGN:
+      - FOUNDATION DESIGN
+      - WORKSTREAM DESIGN
+      - RE-BASELINE PROJECT
+  post_ed_wave:
+    repeat_for: Each included Wave 1 through Wave 5
+    phases:
+      TRANSFORM - DETAILED DESIGN:
+      - TEAM MOBILIZATION (WAVE)
+      - DESIGN DOCUMENTATION
+      TRANSFORM - BUILD:
+      - BUILD PLANNING
+      - BUILD PREPARATION
+      - BUILD EXECUTION
+      VALIDATE - SIT:
+      - SIT PLANNING
+      - SIT PREPARATION
+      - SIT EXECUTION
+      VALIDATE - UAT:
+      - UAT PLANNING
+      - UAT PREPARATION
+      - UAT EXECUTION
+      DEPLOY:
+      - CUTOVER PLANNING
+      - CUTOVER PREPARATION
+      - CUTOVER EXECUTION
+      - HYPERCARE PLANNING
+      - HYPERCARE PREPARATION
+      - HYPERCARE EXECUTION
+      - TRANSITION PLANNING
+      - TRANSITION PREPARATION
+      - TRANSITION TO RUN TEAM
+    round_expansion:
+      SIT: If sit_rounds is 2, generate SIT 1 and SIT 2 planning, preparation and execution sub-phases.
+      UAT: If uat_rounds is 2, generate UAT 1 and UAT 2 planning, preparation and execution sub-phases.
+  mandatory_cross_workstreams:
+  - GOVERNANCE
+  - PMO
+  - ARCHITECTURE
+  - SECURITY
+  - TESTING
+  - DATA
+  - OCM
+  - TRAINING
+  - DEPLOYMENT
+  - HYPERCARE
+  - TRANSITION
+  phase_removal_rule: Do not remove mandatory phases. Scope may filter detailed activities, not the standard delivery backbone.
+default_subphase_distribution:
+  wave_0:
+    TEAM MOBILIZATION (CORE): 10
+    KICK-OFF ACTIVITIES: 10
+    BUSINESS ONBOARDING: 10
+    FOUNDATION DESIGN: 13
+    WORKSTREAM DESIGN: 50
+    RE-BASELINE PROJECT: 7
+  post_ed_wave:
+    TEAM MOBILIZATION (WAVE): 4
+    DESIGN DOCUMENTATION: 11
+    BUILD PLANNING: 5
+    BUILD PREPARATION: 5
+    BUILD EXECUTION: 50
+    SIT PLANNING: 5
+    SIT PREPARATION: 5
+    SIT EXECUTION: 11
+    UAT PLANNING: 5
+    UAT PREPARATION: 5
+    UAT EXECUTION: 11
+    CUTOVER PLANNING: 5
+    CUTOVER PREPARATION: 1
+    CUTOVER EXECUTION: 1
+    HYPERCARE PLANNING: 5
+    HYPERCARE PREPARATION: 5
+    HYPERCARE EXECUTION: 11
+    TRANSITION PLANNING: 2
+    TRANSITION PREPARATION: 2
+    TRANSITION TO RUN TEAM: 5
+  note: Percentages are configurable positioning guidance. Intentional overlaps are permitted; do not force every sub-phase
+    to be sequential.
+wbs_master_schema:
+  required_fields:
+  - wbs_id
+  - parent_wbs_id
+  - template_id
+  - wave_type
+  - phase
+  - sub_phase
+  - task_name
+  - assigned_role
+  - level_id
+  - category
+  - workstream
+  - domain
+  - module_code
+  - pull_tag
+  - schedule_method
+  - start_position
+  - end_position
+  - fixed_duration
+  - predecessor_wbs_ids
+  - applicability_rule
+  - internal_client_classification
+  stable_id_rule: Dependencies must use stable WBS or generated component IDs, never temporary output row numbers.
+wbs_selection_rules:
+- Select applicable common governance, PMO, architecture, testing, security, infrastructure, data and OCM tasks.
+- Select functional tasks only for included modules assigned to the relevant wave.
+- Select technical tasks only where the relevant technical workstream contains included components in the relevant wave.
+- Omit rows that fail their applicability rule.
+- Preserve master WBS sequence and hierarchy.
+- Retain a parent summary row whenever at least one retained child requires it.
+scope_expansion:
+  functional:
+    rule: Generate one applicable row per selected functional module or epic when the WBS template is repeatable.
+    hierarchy:
+    - Module
+    - Process Area
+    - Epic
+    - Activity
+    pull_tag_rule: For functional pull tags, generate component naming at module level when defined by the WBS template.
+  technical:
+    INTEGRATIONS:
+    - DESIGN
+    - BUILD
+    - TESTING
+    - DEPLOYMENT
+    REPORTS:
+    - DESIGN
+    - DEVELOPMENT
+    - TESTING
+    - DEPLOYMENT
+    CONVERSIONS:
+    - MAPPING
+    - EXTRACTION
+    - TRANSFORMATION
+    - LOADING
+    - RECONCILIATION
+    EXTENSIONS:
+    - DESIGN
+    - DEVELOPMENT
+    - TESTING
+    - DEPLOYMENT
+    LOCALIZATIONS:
+    - ASSESSMENT
+    - DESIGN
+    - CONFIGURATION
+    - TESTING
+    - DEPLOYMENT
+  placeholder_rule: Replace generic list placeholders with actual component ID and component name.
+scheduling:
+  wave_rules:
+  - Set Wave 0 start equal to normalized program start date.
+  - Calculate Wave 0 end from approved duration.
+  - For each included post-ED wave, start from the preceding included wave end and apply the configured adjustment.
+  - START_EARLY moves the wave before its normal sequential start.
+  - START_LATE moves the wave after its normal sequential start.
+  - Remove excluded waves before detailed generation.
+  - Calculate tenure_gap_days as generated program end minus requested program end.
+  task_schedule_methods:
+    ALIGN_TO_SUBPHASE: Use the full parent sub-phase start and end dates.
+    PERCENT_POSITION_ALIGN:
+      description: Position the task inside the sub-phase using start and end percentages.
+      start_formula: sub_phase_start + round(sub_phase_working_duration * start_position / 100)
+      end_formula: sub_phase_start + round(sub_phase_working_duration * end_position / 100)
+    START_LATE: Shift the start to the right from the wave or sub-phase start.
+    LEFT_SHIFT_FROM_END: Calculate backwards from the sub-phase end.
+    FIXED_DURATION: Use specified duration and derive end date from start date.
+    BLANK_FOR_ROLLUP: Derive summary dates from earliest child start and latest child end.
+  calendar_rule: Calculate with working days unless a template explicitly permits calendar days.
+  holiday_rule: Move forward-scheduled work to the next valid working day and backward-scheduled work to the previous valid
+    working day.
+  recalculation_rule: Recalculate affected successors after calendar or guardrail changes.
+dependencies:
+  rules:
+  - Read predecessor IDs from the approved WBS master.
+  - Map retained WBS and generated component IDs to final task IDs.
+  - Remove predecessor references to excluded rows and issue a warning where sequencing is affected.
+  - For expanded rows, map dependencies to the corresponding module, component or parent according to the template.
+  - Do not create artificial summary-row dependencies unless explicitly configured.
+  - Prevent circular dependencies.
+  - Verify every predecessor exists in the generated plan.
+  - Convert stable IDs to Smartsheet row references only during final integration if required.
+  minimum_sequence:
+  - DESIGN
+  - BUILD
+  - SIT
+  - UAT
+  - DEPLOYMENT
+  - HYPERCARE
+  controls:
+  - Testing cannot precede the required build output.
+  - Deployment cannot precede the applicable UAT sign-off or go/no-go control.
+plan_type_filtering:
+  INTERNAL:
+    include:
+    - Internal Activity
+    - Internal Deliverable
+    - Internal Template
+    - Applicable common rows
+  CLIENT:
+    exclude:
+    - Internal Activity
+    - Internal Deliverable
+    - Internal Template
+    include:
+    - Client Activity
+    - Client Deliverable
+    - Workshops
+    - Applicable common delivery rows
+  COMBINED:
+    include:
+    - All applicable internal and client rows
+guardrails:
+  boundary_test: task_start_date < sub_phase_start_date OR task_end_date > sub_phase_end_date
+  modes:
+    FIT_TASK_IN_SUBPHASE: Adjust start and/or end to the sub-phase boundary and record guardrail_applied.
+    FLAG_ANOMALY: Keep calculated dates and record anomaly flag and reason.
+    FIT_AND_FLAG: Adjust dates, retain original dates for audit, and record anomaly flag and reason.
+  anomaly_reasons:
+  - TASK_START_BEFORE_SUBPHASE
+  - TASK_END_AFTER_SUBPHASE
+  - BOTH
+  audit_rule: Never silently overwrite a calculated date.
+validation:
+  blocking_errors:
+  - Missing or invalid program start date
+  - Missing or invalid program tenure
+  - No post-ED wave
+  - Missing included-wave duration
+  - Scope not frozen or validated
+  - No functional or technical scope selected
+  - Missing required WBS master data
+  - Circular dependency
+  - Predecessor references nonexistent task
+  - Child row has no retained parent
+  warnings:
+  - Program start normalized to Monday
+  - Enterprise Design duration is one month or less
+  - Post-ED wave duration is four months or less
+  - Generated end differs materially from requested tenure
+  - Task falls outside sub-phase
+  - Phase contains no detailed activities
+  - Scoped component has no matching WBS template
+  - WBS task has no assigned standard role
+  - Holiday or blackout change affects a milestone
+  message_schema:
+  - severity
+  - rule_id
+  - message
+  - affected_task_id_or_wave_id
+  - suggested_correction
+execution_sequence:
+- validateProgramInputs
+- normalizeProgramStartDate
+- generateWaveSchedule
+- validateWaveSchedule
+- generatePhaseSchedule
+- generateSubPhaseSchedule
+- validateScope
+- selectApplicableWbsRows
+- expandFunctionalModules
+- expandTechnicalComponents
+- buildHierarchy
+- calculateTaskDates
+- mapDependencies
+- applyWorkingCalendar
+- applyGuardrails
+- rollUpSummaryDates
+- revalidateDependencies
+- generateSmartsheetRows
+- generateValidationSummary
+output_schema:
+  sections:
+  - executive_summary
+  - schedule_assumptions
+  - plan_summary
+  - waves
+  - phases
+  - sub_phases
+  - milestones
+  - detailed_plan
+  - dependency_list
+  - validation_messages
+  plan_summary_fields:
+  - program_start_date
+  - program_end_date
+  - requested_tenure_months
+  - generated_tenure_days
+  - tenure_gap_days
+  - number_of_included_waves
+  - total_generated_rows
+  - validation_status
+  smartsheet_columns_in_order:
+  - Task Name
+  - ASSIGNED TO ROLE
+  - Status
+  - Start Date
+  - End Date
+  - Task Progress
+  - Predecessors
+  - Duration
+  - Type
+  - Workstream
+  - Comments
+  - Allocation
+  - LEVEL-ID
+  - Complete
+  - TASK_NUMBER
+  - CATEGORY
+  - WBS-ID
+  - TEMPLATE-ID
+  - Parent WBS ID
+  - Wave
+  - Phase
+  - Sub-Phase
+  - Domain
+  - Module Code
+  - Module Name
+  - Component ID
+  - Component Name
+  - Schedule Method
+  - Anomaly Flag
+  - Anomaly Reason
+  defaults:
+    Status: NOT STARTED
+    Task Progress: GREEN
+    Complete: 0
+    Allocation: null
+  date_format: YYYY-MM-DD
+  response_format: JSON object matching this schema
+generation_contract:
+  traceability:
+  - Every task must trace to WBS-ID or generated component ID.
+  - Every date must trace to a wave, sub-phase, schedule method, calendar adjustment or predecessor.
+  - Every output row must retain hierarchy and dependency integrity.
+  prohibited_behaviors:
+  - Do not invent activities outside the approved WBS library.
+  - Do not omit mandatory governance or stage-gate activities.
+  - Do not use the language model as the date-calculation engine.
+  - Do not silently resolve missing proposal data.
+  - Do not return a final plan when blocking validation errors remain.
+ai_studio_runtime_prompt: Read the proposal and convert it into the input_schema defined in this YAML. Then execute the execution_sequence
+  in order. Apply the methodology, WBS selection, scope expansion, scheduling, dependency, calendar, plan filtering and guardrail
+  rules exactly as configured. Use only approved WBS activities. Record missing proposal information as assumptions or validation
+  messages. Return the output_schema as valid JSON. Do not calculate dates through free-form reasoning; call deterministic
+  scheduling functions. Do not return a final project plan if blocking validation errors remain.
