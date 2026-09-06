@@ -28,7 +28,7 @@ import {
   ROLE_RATES,
   ORACLE_PATCH_COHORTS
 } from '../data/oraclePhases';
-import { MODULE_TOP_20_QUESTIONS } from '../data/moduleScopingQuestions';
+import { MODULE_TOP_20_QUESTIONS, getQuestionsForModule, calculateModuleScopingMetrics, isQuestionMandatory } from '../data/moduleScopingQuestions';
 import { ENTERPRISE_ROLLOUT_QUESTIONS } from '../data/rolloutQuestions';
 import { calculateLeadershipGaps } from '../data/leadershipGapsData';
 import { calculateDeliveryAssurance } from './deliveryAssuranceCalculator';
@@ -41,6 +41,7 @@ import {
   CONVERSION_MOCK_SLIDING_SCALE,
   getMockCumulativeMultiplier
 } from '../data/technicalScopingData';
+import { getEffectiveSmcCounts } from './technicalSync';
 import {
   DEFAULT_ROLE_RATE_CARDS,
   calculateMasterBlendedRate
@@ -74,6 +75,9 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
     contingencyPctOverride
   } = scenario;
 
+  const scopeMode = scenario.scopeMode || 'full_implementation';
+  const isIntegrationsOnly = scopeMode === 'integrations_only';
+
   // 1. Module Base Effort & Detailed 20-Question T-Shirt Complexity Calculation
   const allAvailableModules = [...ORACLE_MODULE_CATALOG, ...(scenario.customModules || [])];
   const selectedModDefs = allAvailableModules.filter(m => selectedModules.includes(m.id));
@@ -82,47 +86,36 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   let moduleBaseHours = 0;
   const moduleScopingHours = 0; // Question answers determine T-Shirt sizing directly rather than adding individual hour increments
 
-  selectedModules.forEach(modId => {
-    const modDef = allAvailableModules.find(m => m.id === modId) || {
-      id: modId,
-      name: modId,
-      pillar: 'ERP',
-      description: '',
-      baseEffortHours: 400,
-      complexityFactor: 1.0
-    };
+  if (!isIntegrationsOnly) {
+    selectedModules.forEach(modId => {
+      const modDef = allAvailableModules.find(m => m.id === modId) || {
+        id: modId,
+        name: modId,
+        pillar: 'ERP',
+        description: '',
+        baseEffortHours: 400,
+        complexityFactor: 1.0
+      };
 
-    const customQuestionsForMod = scenario.customModuleQuestions?.[modId];
-    const qList = (customQuestionsForMod && customQuestionsForMod.length > 0)
-      ? customQuestionsForMod
-      : (MODULE_TOP_20_QUESTIONS[modId] || []);
-    const answers = moduleQuestionAnswers[modId] || Array(qList.length > 0 ? qList.length : 20).fill(1); // Default Level 2 (index 1)
-    let totalScore = 0;
+      const customQuestionsForMod = scenario.customModuleQuestions?.[modId];
+      const qList = (customQuestionsForMod && customQuestionsForMod.length > 0)
+        ? customQuestionsForMod
+        : (MODULE_TOP_20_QUESTIONS[modId] || getQuestionsForModule(modId));
+      const answers = moduleQuestionAnswers[modId];
 
-    qList.forEach((q, qIdx) => {
-      const optIdx = answers[qIdx] !== undefined ? answers[qIdx] : 1;
-      const opt = q.options[optIdx] || q.options[0];
-      totalScore += opt.score;
+      const scopingMetrics = calculateModuleScopingMetrics(qList, answers, {
+        tShirtOverride: scenario.moduleTShirtOverrides?.[modId],
+        modComplexityFactor: modDef.complexityFactor
+      });
+
+      const activeSize = scenario.moduleTShirtOverrides?.[modId] || scopingMetrics.calculatedTShirt;
+      const baseTShirtHrs = T_SHIRT_BASE_HOURS[activeSize] || 640;
+      const calculatedBase = Math.round(baseTShirtHrs * modDef.complexityFactor);
+
+      moduleComplexityScores[modId] = { avgScore: scopingMetrics.avgScore, additionalHours: 0 };
+      moduleBaseHours += calculatedBase;
     });
-
-    const avgScore = qList.length > 0 ? Number((totalScore / qList.length).toFixed(2)) : 2.0;
-
-    // Derived T-Shirt size from 20-Question composite average score:
-    let derivedSize: TShirtSize = 'M';
-    if (avgScore < 1.60) derivedSize = 'XS';
-    else if (avgScore < 2.35) derivedSize = 'S';
-    else if (avgScore < 3.05) derivedSize = 'M';
-    else if (avgScore < 3.65) derivedSize = 'L';
-    else if (avgScore < 3.90) derivedSize = 'XL';
-    else derivedSize = 'XXL';
-
-    const activeSize = scenario.moduleTShirtOverrides?.[modId] || derivedSize;
-    const baseTShirtHrs = T_SHIRT_BASE_HOURS[activeSize] || 640;
-    const calculatedBase = Math.round(baseTShirtHrs * modDef.complexityFactor);
-
-    moduleComplexityScores[modId] = { avgScore, additionalHours: 0 };
-    moduleBaseHours += calculatedBase;
-  });
+  }
 
   // 2. Physical Scale Drivers Effort & Data Conversion Sizing (TBD 5-Tier T-Shirt & 4-Mock Sliding Scale)
   const dataObjects = scaleDrivers.tech_data_objects || 0;
@@ -180,34 +173,89 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   });
 
   let scaleBaseHours = 0;
-  // SCM
-  scaleBaseHours += (scaleDrivers.scm_plants || 0) * 450;
-  scaleBaseHours += (scaleDrivers.scm_wh || 0) * 250;
-  scaleBaseHours += (scaleDrivers.scm_inv || 0) * 80;
-  // Financials
-  scaleBaseHours += (scaleDrivers.fin_ent || 0) * 180;
-  scaleBaseHours += (scaleDrivers.fin_led || 0) * 350;
-  scaleBaseHours += (scaleDrivers.fin_bu || 2) * 90; // Business Units & Shared Services configuration
-  scaleBaseHours += (scaleDrivers.fin_cur || 0) * 60;
-  scaleBaseHours += (scaleDrivers.fin_tax || 0) * 120;
-  scaleBaseHours += Math.max(0, (scaleDrivers.fin_coa_segments || 0) - 4) * 60;
-  scaleBaseHours += (scaleDrivers.fin_secondary_ledgers || 0) * 220; // Secondary Statutory / Multi-GAAP Ledgers
-  scaleBaseHours += (scaleDrivers.fin_sla_rules || 0) * 85; // Custom Subledger Accounting Derivation Rules
-  scaleBaseHours += (scaleDrivers.fin_intercompany_pairs || 0) * 110; // AGIS Intercompany Balancing & Trading Pairs
-  // HCM
-  const hc = scaleDrivers.hcm_hc || 0;
-  scaleBaseHours += Math.min(2500, Math.sqrt(hc) * 22); // Damped sublinear scaling for headcount
-  scaleBaseHours += (scaleDrivers.hcm_pay_countries || 0) * 380;
-  scaleBaseHours += (scaleDrivers.hcm_union_groups || 0) * 220;
-  // Tech & CEMLI
-  scaleBaseHours += (scaleDrivers.tech_oic || 0) * 120;
-  scaleBaseHours += (scaleDrivers.tech_paas || 0) * 650;
-  scaleBaseHours += baseConversionHours; // Dynamic conversion hours driven by data objects, conversion mock cycles, and history depth
-  scaleBaseHours += (scaleDrivers.tech_reports_bip || 0) * 45;
-  scaleBaseHours += (scaleDrivers.tech_reports_otbi || 0) * 18;
-  scaleBaseHours += (scaleDrivers.tech_fast_formulas || 0) * 75;
-  scaleBaseHours += (scaleDrivers.tech_workflows || 0) * 65;
-  scaleBaseHours += (scaleDrivers.tech_bpm_approval_groups || 0) * 55; // Advanced BPM / AME Matrix Approval Routing Groups
+
+  if (!isIntegrationsOnly) {
+    // SCM
+    scaleBaseHours += (scaleDrivers.scm_plants || 0) * 450;
+    scaleBaseHours += (scaleDrivers.scm_wh || 0) * 250;
+    scaleBaseHours += (scaleDrivers.scm_inv || 0) * 80;
+    // Financials
+    scaleBaseHours += (scaleDrivers.fin_ent || 0) * 180;
+    scaleBaseHours += (scaleDrivers.fin_led || 0) * 350;
+    scaleBaseHours += (scaleDrivers.fin_bu || 0) * 90; // Business Units & Shared Services configuration
+    scaleBaseHours += (scaleDrivers.fin_cur || 0) * 60;
+    scaleBaseHours += (scaleDrivers.fin_tax || 0) * 120;
+    scaleBaseHours += Math.max(0, (scaleDrivers.fin_coa_segments || 0) - 4) * 60;
+    scaleBaseHours += (scaleDrivers.fin_secondary_ledgers || 0) * 220; // Secondary Statutory / Multi-GAAP Ledgers
+    scaleBaseHours += (scaleDrivers.fin_sla_rules || 0) * 85; // Custom Subledger Accounting Derivation Rules
+    scaleBaseHours += (scaleDrivers.fin_intercompany_pairs || 0) * 110; // AGIS Intercompany Balancing & Trading Pairs
+    // HCM
+    const hc = scaleDrivers.hcm_hc || 0;
+    scaleBaseHours += hc > 0 ? Math.min(2500, Math.sqrt(hc) * 22) : 0; // Damped sublinear scaling for headcount
+    scaleBaseHours += (scaleDrivers.hcm_pay_countries || 0) * 380;
+    scaleBaseHours += (scaleDrivers.hcm_union_groups || 0) * 220;
+    // Tech & CEMLI (honoring SMC complexity overrides and itemized technical integrations)
+    const intRows = TECHNICAL_OBJECT_SMC_CATALOG.filter(r => r.category === 'integrations');
+    const hasIntSmcOverrides = intRows.some(r => scenario.technicalSmcOverrides?.[r.typeId] !== undefined);
+    let totalIntegrationBaseHours = 0;
+
+    if (hasIntSmcOverrides) {
+      intRows.forEach(r => {
+        const stats = getEffectiveSmcCounts(r, scenario);
+        totalIntegrationBaseHours += stats.totalHours;
+      });
+    } else if (scenario.technicalIntegrations && scenario.technicalIntegrations.length > 0) {
+      totalIntegrationBaseHours = scenario.technicalIntegrations.reduce((sum, it) => sum + (it.calculatedHours || 80), 0);
+    } else {
+      const effectiveOicForScale = scenario.technicalIntegrations !== undefined
+        ? scenario.technicalIntegrations.length
+        : (scaleDrivers.tech_oic !== undefined ? scaleDrivers.tech_oic : 15);
+      totalIntegrationBaseHours = effectiveOicForScale * 120;
+    }
+    scaleBaseHours += totalIntegrationBaseHours;
+    scaleBaseHours += (scaleDrivers.tech_paas || 0) * 650;
+    scaleBaseHours += baseConversionHours; // Dynamic conversion hours driven by data objects, conversion mock cycles, and history depth
+    scaleBaseHours += (scaleDrivers.tech_reports_bip || 0) * 45;
+    scaleBaseHours += (scaleDrivers.tech_reports_otbi || 0) * 18;
+    scaleBaseHours += (scaleDrivers.tech_fast_formulas || 0) * 75;
+    scaleBaseHours += (scaleDrivers.tech_workflows || 0) * 65;
+    scaleBaseHours += (scaleDrivers.tech_bpm_approval_groups || 0) * 55; // Advanced BPM / AME Matrix Approval Routing Groups
+  } else {
+    // STANDALONE INTEGRATIONS-ONLY BASE EFFORT
+    const intOptions = scenario.integrationScopingOptions;
+    let directIntegrationHours = 0;
+
+    const intRows = TECHNICAL_OBJECT_SMC_CATALOG.filter(r => r.category === 'integrations');
+    const hasIntSmcOverrides = intRows.some(r => scenario.technicalSmcOverrides?.[r.typeId] !== undefined);
+
+    if (hasIntSmcOverrides) {
+      intRows.forEach(r => {
+        const stats = getEffectiveSmcCounts(r, scenario);
+        directIntegrationHours += stats.totalHours;
+      });
+    } else if (intOptions && (intOptions.simpleCount !== undefined || intOptions.mediumCount !== undefined || intOptions.complexCount !== undefined || intOptions.extraLargeCount !== undefined)) {
+      const s = intOptions.simpleCount || 0;
+      const m = intOptions.mediumCount || 0;
+      const c = intOptions.complexCount || 0;
+      const xl = intOptions.extraLargeCount || 0;
+      directIntegrationHours = (s * 35) + (m * 70) + (c * 140) + (xl * 220);
+    } else if (scenario.technicalIntegrations && scenario.technicalIntegrations.length > 0) {
+      directIntegrationHours = scenario.technicalIntegrations.reduce((sum, it) => sum + (it.calculatedHours || 80), 0);
+    } else {
+      const totalIntCount = scaleDrivers.tech_oic || 15;
+      directIntegrationHours = totalIntCount * 75;
+    }
+
+    // Technical options & framework accelerators
+    const errorFrameworkHours = intOptions?.includeErrorFramework ? 160 : 0;
+    const cdmHours = intOptions?.includeCanonicalDataModel ? 120 : 0;
+    const b2bHours = intOptions?.includeB2BEdiSupport ? 80 : 0;
+    const partnerTestingHours = intOptions?.includePartnerCoTesting ? Math.round(directIntegrationHours * 0.25) : 0;
+    const securityRolesHours = (scaleDrivers.tech_security_roles || 4) * 35;
+    const cutoverConnectivityHours = 80;
+
+    scaleBaseHours = directIntegrationHours + errorFrameworkHours + cdmHours + b2bHours + partnerTestingHours + securityRolesHours + cutoverConnectivityHours;
+  }
 
   // 2.5 Enterprise Rollout Questionnaire Complexity & Schedule Variance Calculation
   const rolloutQuestionAnswers = scenario.rolloutQuestionAnswers || {};
@@ -263,7 +311,8 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
     });
   }
 
-  const totalBaseHours = Math.max(800, moduleBaseHours + moduleScopingHours + scaleBaseHours + rolloutScopingHours + customScopingHours + customDriversHours);
+  const rawBaseHours = moduleBaseHours + moduleScopingHours + scaleBaseHours + rolloutScopingHours + customScopingHours + customDriversHours;
+  const totalBaseHours = rawBaseHours === 0 ? 0 : Math.max(100, rawBaseHours);
 
   // 3. Complexity Scores per Strategic Pillar (0-100 scale)
   const pillarScores: Record<string, number> = {};
@@ -286,7 +335,9 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   }, 0);
 
   // Non-linear complexity multiplier: ranges from ~0.80 (very low) to ~1.85 (very high)
-  const complexMultiplier = 0.75 + Math.pow(weightedComplexityScore / 100, 1.35) * 1.10;
+  const complexMultiplier = isIntegrationsOnly
+    ? 0.85 + Math.pow((((pillarScores.technical || 50) * 0.7) + ((pillarScores.governance || 50) * 0.3)) / 100, 1.25) * 0.45
+    : (0.75 + Math.pow(weightedComplexityScore / 100, 1.35) * 1.10);
 
   // 4. Net Client Modifier (7 Core Standardized Dimensions)
   const netClientModifier = Number((
@@ -311,7 +362,9 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
 
   // Dynamic rollout questionnaire calibration factor (ranges from 0.88 for simple to 1.25 for extreme multi-wave friction)
   const rolloutQuestionFactor = 0.88 + (rolloutComplexityScore / 100) * 0.37;
-  const rolloutMultiplier = Number((baseRolloutMultiplier * rolloutQuestionFactor).toFixed(3));
+  const rolloutMultiplier = isIntegrationsOnly
+    ? 1.0
+    : Number((baseRolloutMultiplier * rolloutQuestionFactor).toFixed(3));
 
   // 6. Schedule Modifiers, Methodology & Velocity Analysis
   const scheduleModifiers = scenario.scheduleModifiers || {
@@ -337,10 +390,18 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   // Granular Complexity-Driven Schedule Breakdown
   const complexityDriversBreakdown: Array<{ name: string; impactWeeks: number; rationale: string }> = [];
 
+  // Zero-scope clean slate detection: If no modules and no technical objects/integrations are selected, duration and staffing are 0
+  const intOptionsCount = (scenario.integrationScopingOptions?.simpleCount || 0) + (scenario.integrationScopingOptions?.mediumCount || 0) + (scenario.integrationScopingOptions?.complexCount || 0) + (scenario.integrationScopingOptions?.extraLargeCount || 0);
+  const hasTechnicalIntegrations = (scenario.technicalIntegrations && scenario.technicalIntegrations.length > 0) || (scaleDrivers.tech_oic || 0) > 0 || intOptionsCount > 0;
+  const isZeroScope = isIntegrationsOnly
+    ? (totalBaseHours === 0 && !hasTechnicalIntegrations)
+    : ((totalBaseHours === 0 && !hasTechnicalIntegrations) ||
+       (selectedModules.length === 0 && !hasTechnicalIntegrations && (scaleDrivers.tech_data_objects || 0) === 0 && (scaleDrivers.tech_reports_bip || 0) === 0 && (scaleDrivers.tech_paas || 0) === 0));
+
   // Phase 1: Enablement
   const envLead = scheduleModifiers.envReadinessLeadWeeks || 0;
-  const enablementWeeks = 2 + (envLead > 2 ? 1 : 0);
-  if (envLead > 0) {
+  const enablementWeeks = isZeroScope ? 0 : (2 + (envLead > 2 ? 1 : 0));
+  if (!isZeroScope && envLead > 0) {
     complexityDriversBreakdown.push({
       name: 'Environment & Sandbox Provisioning Lead',
       impactWeeks: envLead > 2 ? 1 : 0,
@@ -355,11 +416,11 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   const cloudMindsetImpact = (clientModifiers.cloudMindset > 1.05) ? 1.5 : 0;
   const decisionDelayImpact = (scheduleModifiers.clientDecisionSLA === 'delayed_10d') ? 2.0 : (scheduleModifiers.clientDecisionSLA === 'rapid_3d' ? -1.0 : 0);
 
-  const baseDesignWeeks = Math.max(5, Math.round(
+  const baseDesignWeeks = isZeroScope ? 0 : Math.max(5, Math.round(
     (5 + (selectedModules.length * 0.35) + ledgersImpact + coaImpact + entitiesImpact + cloudMindsetImpact + decisionDelayImpact) / velocityMultiplier
   ));
 
-  if (ledgersImpact > 0 || coaImpact > 0) {
+  if (!isZeroScope && (ledgersImpact > 0 || coaImpact > 0)) {
     complexityDriversBreakdown.push({
       name: 'Financial Accounting Matrix (COA & Multi-Ledger)',
       impactWeeks: Math.round((ledgersImpact + coaImpact) * 10) / 10,
@@ -424,26 +485,28 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   const buildFastTrackPct = scheduleModifiers.fastTrackingOverlapPct || 15;
   const buildFastTrackSavingsWeeks = Math.round(totalRawBuildWeeks * (buildFastTrackPct / 100) * 0.40);
   
-  const recommendedBuildWeeks = Math.max(8, Math.round((totalRawBuildWeeks - buildFastTrackSavingsWeeks) / velocityMultiplier));
+  const recommendedBuildWeeks = isZeroScope ? 0 : Math.max(8, Math.round((totalRawBuildWeeks - buildFastTrackSavingsWeeks) / velocityMultiplier));
   const baseBuildWeeks = recommendedBuildWeeks;
 
   const buildDurationBreakdown = {
-    baseConfigWeeks,
-    oicIntegrationsWeeks: Math.round(oicIntegrationsWeeks * 10) / 10,
-    reportsWeeks: Math.round(reportsWeeks * 10) / 10,
-    paasExtensionsWeeks: Math.round(paasExtensionsWeeks * 10) / 10,
-    workflowsAndRulesWeeks: Math.round(workflowsAndRulesWeeks * 10) / 10,
-    mock1ConversionWeeks,
-    stringTestingWeeks,
-    totalRawBuildWeeks,
-    fastTrackingSavingsWeeks: buildFastTrackSavingsWeeks,
+    baseConfigWeeks: isZeroScope ? 0 : baseConfigWeeks,
+    oicIntegrationsWeeks: isZeroScope ? 0 : Math.round(oicIntegrationsWeeks * 10) / 10,
+    reportsWeeks: isZeroScope ? 0 : Math.round(reportsWeeks * 10) / 10,
+    paasExtensionsWeeks: isZeroScope ? 0 : Math.round(paasExtensionsWeeks * 10) / 10,
+    workflowsAndRulesWeeks: isZeroScope ? 0 : Math.round(workflowsAndRulesWeeks * 10) / 10,
+    mock1ConversionWeeks: isZeroScope ? 0 : mock1ConversionWeeks,
+    stringTestingWeeks: isZeroScope ? 0 : stringTestingWeeks,
+    totalRawBuildWeeks: isZeroScope ? 0 : totalRawBuildWeeks,
+    fastTrackingSavingsWeeks: isZeroScope ? 0 : buildFastTrackSavingsWeeks,
     recommendedBuildWeeks,
-    totalTechnicalDevDays,
-    recommendedDevSquadFTE,
-    rationale: `Derived from ${totalTechnicalDevDays} Technical Person-Days (${oicCount} OIC interfaces, ${reportsCount} reports, ${paasCount} PaaS extensions) + ${baseConfigWeeks}w functional configuration sprints + ${stringTestingWeeks}w string testing/SIT gateway, delivered by a ${recommendedDevSquadFTE}-FTE developer squad.`
+    totalTechnicalDevDays: isZeroScope ? 0 : totalTechnicalDevDays,
+    recommendedDevSquadFTE: isZeroScope ? 0 : recommendedDevSquadFTE,
+    rationale: isZeroScope 
+      ? 'Clean slate: 0 functional modules, 0 technical objects, and 0 conversion objects selected.'
+      : `Derived from ${totalTechnicalDevDays} Technical Person-Days (${oicCount} OIC interfaces, ${reportsCount} reports, ${paasCount} PaaS extensions) + ${baseConfigWeeks}w functional configuration sprints + ${stringTestingWeeks}w string testing/SIT gateway, delivered by a ${recommendedDevSquadFTE}-FTE developer squad.`
   };
 
-  if (totalTechnicalDevDays > 80 || recommendedBuildWeeks > 8) {
+  if (!isZeroScope && (totalTechnicalDevDays > 80 || recommendedBuildWeeks > 8)) {
     complexityDriversBreakdown.push({
       name: `Technical Inventory Build Runway (${totalTechnicalDevDays} Person-Days across ${recommendedDevSquadFTE} Devs)`,
       impactWeeks: Math.max(0, recommendedBuildWeeks - 8),
@@ -455,9 +518,9 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   const dataDebtImpact = scheduleModifiers.dataReadinessScore === 3 ? 2.5 : (scheduleModifiers.dataReadinessScore === 2 ? 1.0 : 0);
   const conversionCyclesImpact = conversionCycles >= 4 ? (conversionCycles - 3) * 0.75 : (conversionCycles <= 1 ? -0.5 : 0);
   const sitOicImpact = oicCount > 15 ? (oicCount - 15) * 0.08 : 0;
-  const baseTest1Weeks = Math.max(4, Math.round((4 + (selectedModules.length * 0.2) + sitOicImpact + dataDebtImpact + conversionCyclesImpact) / velocityMultiplier));
+  const baseTest1Weeks = isZeroScope ? 0 : Math.max(4, Math.round((4 + (selectedModules.length * 0.2) + sitOicImpact + dataDebtImpact + conversionCyclesImpact) / velocityMultiplier));
 
-  if (dataDebtImpact > 0 || conversionCyclesImpact !== 0) {
+  if (!isZeroScope && (dataDebtImpact > 0 || conversionCyclesImpact !== 0)) {
     complexityDriversBreakdown.push({
       name: `Legacy Data Cleansing & ${conversionCycles} Mock Conversion Cycles`,
       impactWeeks: Math.round((dataDebtImpact + conversionCyclesImpact) * 10) / 10,
@@ -474,9 +537,9 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   const unionImpact = unionCount > 1 ? unionCount * 0.4 : 0;
   const changeResistImpact = clientModifiers.changeResistance > 1.1 ? 1.5 : 0;
 
-  const baseTest2Weeks = Math.max(4, Math.round((4 + (selectedModules.length * 0.15) + hcImpact + payImpact + unionImpact + changeResistImpact) / velocityMultiplier));
+  const baseTest2Weeks = isZeroScope ? 0 : Math.max(4, Math.round((4 + (selectedModules.length * 0.15) + hcImpact + payImpact + unionImpact + changeResistImpact) / velocityMultiplier));
 
-  if (payImpact > 0 || unionImpact > 0 || hcImpact > 0) {
+  if (!isZeroScope && (payImpact > 0 || unionImpact > 0 || hcImpact > 0)) {
     complexityDriversBreakdown.push({
       name: 'Workforce Scale, Payroll Parallel & Union Rules UAT',
       impactWeeks: Math.round((hcImpact + payImpact + unionImpact) * 10) / 10,
@@ -487,9 +550,9 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   // Phase 6: Cutover & Go-Live
   const dataObjectsCount = scaleDrivers.tech_data_objects || 0;
   const cutoverRehearsalWeeks = conversionCycles >= 4 ? 1 : 0;
-  const baseCutoverWeeks = Math.max(2, Math.round(2 + (dataObjectsCount > 20 ? 1 : 0) + cutoverRehearsalWeeks + (rolloutWaves > 1 ? 1 : 0)));
+  const baseCutoverWeeks = isZeroScope ? 0 : Math.max(2, Math.round(2 + (dataObjectsCount > 20 ? 1 : 0) + cutoverRehearsalWeeks + (rolloutWaves > 1 ? 1 : 0)));
 
-  if (cutoverRehearsalWeeks > 0) {
+  if (!isZeroScope && cutoverRehearsalWeeks > 0) {
     complexityDriversBreakdown.push({
       name: `Dedicated Cutover Dress Rehearsal (${conversionCycles} Total Mocks)`,
       impactWeeks: cutoverRehearsalWeeks,
@@ -499,19 +562,19 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
 
   // Phase 7: Hypercare
   const plantsCount = scaleDrivers.scm_plants || 0;
-  const baseHypercareWeeks = Math.max(4, Math.round(4 + (weightedComplexityScore > 60 ? 2 : 0) + (plantsCount > 4 ? 1 : 0)));
+  const baseHypercareWeeks = isZeroScope ? 0 : Math.max(4, Math.round(4 + (weightedComplexityScore > 60 ? 2 : 0) + (plantsCount > 4 ? 1 : 0)));
 
   // Fast-tracking compression factor:
   const fastTrackOverlapPct = scheduleModifiers.fastTrackingOverlapPct || 15;
   const totalRawWeeks = enablementWeeks + baseDesignWeeks + baseBuildWeeks + baseTest1Weeks + baseTest2Weeks + baseCutoverWeeks + baseHypercareWeeks;
-  const fastTrackSavingsWeeks = Math.round(totalRawWeeks * (fastTrackOverlapPct / 100) * 0.30);
+  const fastTrackSavingsWeeks = isZeroScope ? 0 : Math.round(totalRawWeeks * (fastTrackOverlapPct / 100) * 0.30);
 
-  let coreCycleWeeks = totalRawWeeks - fastTrackSavingsWeeks + rolloutScheduleImpactWeeks;
-  if (rolloutWaves > 1) {
+  let coreCycleWeeks = isZeroScope ? 0 : (totalRawWeeks - fastTrackSavingsWeeks + rolloutScheduleImpactWeeks);
+  if (!isZeroScope && rolloutWaves > 1) {
     coreCycleWeeks += (rolloutWaves - 1) * Math.max(6, 12 - rolloutOverlapWeeks);
   }
 
-  if (fastTrackSavingsWeeks > 0) {
+  if (!isZeroScope && fastTrackSavingsWeeks > 0) {
     complexityDriversBreakdown.push({
       name: `Fast-Tracking & Stream Overlap (${fastTrackOverlapPct}%)`,
       impactWeeks: -fastTrackSavingsWeeks,
@@ -520,51 +583,73 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   }
 
   // Rollout Questionnaire drivers impacting schedule
-  rolloutComplexityBreakdown
-    .filter(item => Math.abs(item.scheduleWeeks) >= 0.5)
-    .forEach(item => {
-      complexityDriversBreakdown.push({
-        name: `Rollout Driver: ${item.title.replace(/^\d+\.\s*/, '')}`,
-        impactWeeks: item.scheduleWeeks,
-        rationale: `${item.selectedOptionLabel}. ${item.rationale}`
+  if (!isZeroScope) {
+    rolloutComplexityBreakdown
+      .filter(item => Math.abs(item.scheduleWeeks) >= 0.5)
+      .forEach(item => {
+        complexityDriversBreakdown.push({
+          name: `Rollout Driver: ${item.title.replace(/^\d+\.\s*/, '')}`,
+          impactWeeks: item.scheduleWeeks,
+          rationale: `${item.selectedOptionLabel}. ${item.rationale}`
+        });
       });
-    });
+  }
 
-  const recommendedDurationWeeks = Math.max(20, Math.min(104, Math.round(coreCycleWeeks)));
+  let recommendedDurationWeeks = 0;
+  if (isZeroScope) {
+    recommendedDurationWeeks = 0;
+  } else if (isIntegrationsOnly) {
+    const squadSize = scenario.integrationScopingOptions?.devSquadSize || 4;
+    const weeklySquadCapacity = squadSize * 40 * 0.75;
+    const buildHours = (totalBaseHours * 0.45) * complexMultiplier;
+    const devWeeks = Math.max(4, Math.ceil(buildHours / weeklySquadCapacity));
+    const archWeeks = Math.max(2, Math.min(5, Math.ceil(devWeeks * 0.35)));
+    const sitWeeks = Math.max(3, Math.min(6, Math.ceil(devWeeks * 0.40)));
+    const cutoverWeeks = 1;
+    const hypercareWeeks = Math.max(2, Math.min(4, Math.ceil(devWeeks * 0.25)));
+    recommendedDurationWeeks = Math.max(10, Math.min(48, archWeeks + devWeeks + sitWeeks + cutoverWeeks + hypercareWeeks - 2));
+  } else {
+    recommendedDurationWeeks = Math.max(20, Math.min(104, Math.round(coreCycleWeeks)));
+  }
 
   // --- Industry Benchmark Calculation (Oracle True Cloud Method & Tier-1 SI Data) ---
-  let industryBenchmarkDurationWeeks = 32;
-  let industryBenchmarkLabel = 'Core Financials & Procurement (Oracle MBP Standard)';
-  if (selectedModules.some(m => m.startsWith('scm_')) && selectedModules.some(m => m.startsWith('erp_'))) {
+  let industryBenchmarkDurationWeeks = isZeroScope ? 0 : (isIntegrationsOnly ? recommendedDurationWeeks : 32);
+  let industryBenchmarkLabel = isZeroScope 
+    ? 'Awaiting Scope Definition (Clean Slate)' 
+    : (isIntegrationsOnly 
+        ? 'Oracle Integration Cloud (OIC) Standalone Middleware Track'
+        : 'Core Financials & Procurement (Oracle MBP Standard)');
+  if (!isZeroScope && !isIntegrationsOnly && selectedModules.some(m => m.startsWith('scm_')) && selectedModules.some(m => m.startsWith('erp_'))) {
     industryBenchmarkDurationWeeks = 44;
     industryBenchmarkLabel = 'Integrated ERP & Supply Chain (Discrete / WMS / Planning)';
   }
-  if (selectedModules.some(m => m.startsWith('hcm_payroll')) || (scaleDrivers.hcm_pay_countries || 0) > 1) {
+  if (!isZeroScope && !isIntegrationsOnly && (selectedModules.some(m => m.startsWith('hcm_payroll')) || (scaleDrivers.hcm_pay_countries || 0) > 1)) {
     industryBenchmarkDurationWeeks = 48;
     industryBenchmarkLabel = 'Global HCM, Multi-Country Payroll & Time Cloud';
   }
-  if (selectedModules.length >= 14 || rolloutWaves >= 3 || (scaleDrivers.tech_oic || 0) >= 30) {
+  if (!isZeroScope && !isIntegrationsOnly && (selectedModules.length >= 14 || rolloutWaves >= 3 || (scaleDrivers.tech_oic || 0) >= 30)) {
     industryBenchmarkDurationWeeks = 56;
     industryBenchmarkLabel = 'Global Multi-Wave Enterprise Transformation (Tier-1 SI Standard)';
   }
 
   const industryBenchmarkBreakdown: Record<string, number> = {
-    phase_enablement: 2,
-    phase_design: Math.round(industryBenchmarkDurationWeeks * 0.20),
-    phase_build: Math.round(industryBenchmarkDurationWeeks * 0.32),
-    phase_test_1: Math.round(industryBenchmarkDurationWeeks * 0.18),
-    phase_test_2: Math.round(industryBenchmarkDurationWeeks * 0.15),
-    phase_cutover: Math.max(2, Math.round(industryBenchmarkDurationWeeks * 0.05)),
-    phase_hypercare: Math.max(4, Math.round(industryBenchmarkDurationWeeks * 0.08))
+    phase_enablement: isZeroScope ? 0 : 2,
+    phase_design: isZeroScope ? 0 : Math.round(industryBenchmarkDurationWeeks * 0.20),
+    phase_build: isZeroScope ? 0 : Math.round(industryBenchmarkDurationWeeks * 0.32),
+    phase_test_1: isZeroScope ? 0 : Math.round(industryBenchmarkDurationWeeks * 0.18),
+    phase_test_2: isZeroScope ? 0 : Math.round(industryBenchmarkDurationWeeks * 0.15),
+    phase_cutover: isZeroScope ? 0 : Math.max(2, Math.round(industryBenchmarkDurationWeeks * 0.05)),
+    phase_hypercare: isZeroScope ? 0 : Math.max(4, Math.round(industryBenchmarkDurationWeeks * 0.08))
   };
 
-  const crashDurationWeeks = Math.max(18, Math.round(recommendedDurationWeeks * 0.72));
+  const crashDurationWeeks = isZeroScope ? 0 : Math.max(18, Math.round(recommendedDurationWeeks * 0.72));
 
   // --- Forward vs Backward Calculation from Go-Live Date ---
   const startDateObj = new Date(targetStartDateStr);
   const clientTargetGoLiveObj = new Date(clientTargetGoLiveDateStr);
 
-  const goLiveWeekIndex = Math.round(projectWeeks * 0.90);
+  const effectiveWeeksForGoLive = projectWeeks > 0 ? projectWeeks : recommendedDurationWeeks;
+  const goLiveWeekIndex = Math.round(effectiveWeeksForGoLive * 0.90);
   const calculatedGoLiveObj = new Date(startDateObj.getTime() + (goLiveWeekIndex * 7 * 24 * 3600 * 1000));
   const calculatedGoLiveDate = calculatedGoLiveObj.toISOString().split('T')[0];
 
@@ -572,29 +657,35 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   const requiredKickoffDate = requiredKickoffObj.toISOString().split('T')[0];
 
   const varianceMs = clientTargetGoLiveObj.getTime() - calculatedGoLiveObj.getTime();
-  const varianceWeeks = Math.round(varianceMs / (7 * 24 * 3600 * 1000));
+  const varianceWeeks = isZeroScope ? 0 : Math.round(varianceMs / (7 * 24 * 3600 * 1000));
 
   let isFeasible = varianceWeeks >= -2;
   let feasibilityRating: 'Optimal' | 'Manageable' | 'Aggressive' | 'Critical Deficit' = 'Optimal';
   let compressionPct = 0;
 
-  if (varianceWeeks >= 3) {
+  if (isZeroScope) {
+    feasibilityRating = 'Optimal';
+    compressionPct = 0;
+    isFeasible = true;
+  } else if (varianceWeeks >= 3) {
     feasibilityRating = 'Optimal';
   } else if (varianceWeeks >= -2) {
     feasibilityRating = 'Manageable';
-    compressionPct = Math.max(0, Math.round((Math.abs(varianceWeeks) / projectWeeks) * 100));
+    compressionPct = Math.max(0, Math.round((Math.abs(varianceWeeks) / Math.max(1, projectWeeks)) * 100));
   } else if (varianceWeeks >= -6) {
     feasibilityRating = 'Aggressive';
-    compressionPct = Math.round((Math.abs(varianceWeeks) / projectWeeks) * 100);
+    compressionPct = Math.round((Math.abs(varianceWeeks) / Math.max(1, projectWeeks)) * 100);
     isFeasible = false;
   } else {
     feasibilityRating = 'Critical Deficit';
-    compressionPct = Math.round((Math.abs(varianceWeeks) / projectWeeks) * 100);
+    compressionPct = Math.round((Math.abs(varianceWeeks) / Math.max(1, projectWeeks)) * 100);
     isFeasible = false;
   }
 
   const recommendations: string[] = [];
-  if (varianceWeeks < 0) {
+  if (isZeroScope) {
+    recommendations.push('Awaiting functional module selection or technical integrations to size timeline and evaluate schedule feasibility.');
+  } else if (varianceWeeks < 0) {
     recommendations.push(`Back-date calculation reveals a ${Math.abs(varianceWeeks)}-week schedule deficit against client's ask Go-Live target of ${new Date(clientTargetGoLiveDateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`);
     if (varianceWeeks >= -4) {
       recommendations.push(`Increase Fast-Tracking Overlap from ${fastTrackOverlapPct}% to 25% or advance Kickoff to ${new Date(requiredKickoffDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`);
@@ -857,49 +948,21 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
     const customQuestionsForMod = scenario.customModuleQuestions?.[modId];
     const qList = (customQuestionsForMod && customQuestionsForMod.length > 0)
       ? customQuestionsForMod
-      : (MODULE_TOP_20_QUESTIONS[modId] || []);
-    const answers = moduleQuestionAnswers[modId] || Array(qList.length > 0 ? qList.length : 20).fill(1);
+      : (MODULE_TOP_20_QUESTIONS[modId] || getQuestionsForModule(modId));
+    const answers = moduleQuestionAnswers[modId];
 
-    let totalScore = 0;
-    const questionDrivers: string[] = [];
-
-    qList.forEach((q, qIdx) => {
-      const optIdx = answers[qIdx] !== undefined ? answers[qIdx] : 1;
-      const opt = q.options[optIdx] || q.options[0];
-      if (opt) {
-        totalScore += opt.score;
-        if (opt.score >= 3 && questionDrivers.length < 2) {
-          questionDrivers.push(`${q.question}: ${opt.label}`);
-        }
-      }
+    const scopingMetrics = calculateModuleScopingMetrics(qList, answers, {
+      tShirtOverride: scenario.moduleTShirtOverrides?.[modId],
+      modComplexityFactor: modDef.complexityFactor
     });
 
-    const questionnaireAvgScore = qList.length > 0 ? Number((totalScore / qList.length).toFixed(2)) : 2.0;
+    const questionnaireAvgScore = scopingMetrics.avgScore;
+    const questionDrivers = scopingMetrics.primaryDrivers;
     const { hours: scaleAttributedHours, drivers: scaleDriversList } = getModuleScaleAttribution(modId, scaleDrivers);
 
-    // Direct T-Shirt Sizing from 20-Question Average Score (with user override support):
-    let calculatedTShirtSize: TShirtSize = 'M';
-    let tShirtScore = 3.0;
-
-    if (questionnaireAvgScore < 1.60) {
-      calculatedTShirtSize = 'XS';
-      tShirtScore = 1.0 + ((questionnaireAvgScore - 1.0) / 0.60) * 0.9;
-    } else if (questionnaireAvgScore < 2.35) {
-      calculatedTShirtSize = 'S';
-      tShirtScore = 2.0 + ((questionnaireAvgScore - 1.60) / 0.75) * 0.9;
-    } else if (questionnaireAvgScore < 3.05) {
-      calculatedTShirtSize = 'M';
-      tShirtScore = 3.0 + ((questionnaireAvgScore - 2.35) / 0.70) * 0.9;
-    } else if (questionnaireAvgScore < 3.65) {
-      calculatedTShirtSize = 'L';
-      tShirtScore = 4.0 + ((questionnaireAvgScore - 3.05) / 0.60) * 0.9;
-    } else if (questionnaireAvgScore < 3.90) {
-      calculatedTShirtSize = 'XL';
-      tShirtScore = 5.0 + ((questionnaireAvgScore - 3.65) / 0.25) * 0.9;
-    } else {
-      calculatedTShirtSize = 'XXL';
-      tShirtScore = 6.0;
-    }
+    // Direct T-Shirt Sizing from Weighted Module Scoping Metrics (with user override support):
+    const calculatedTShirtSize: TShirtSize = scopingMetrics.calculatedTShirt;
+    let tShirtScore = scopingMetrics.tShirtScore;
 
     const userOverride = scenario.moduleTShirtOverrides?.[modId];
     const tShirtSize: TShirtSize = userOverride || calculatedTShirtSize;
@@ -975,40 +1038,65 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   moduleEstimates.sort((a, b) => b.finalP80Hours - a.finalP80Hours);
 
   // 9. Dedicated Technical & Testing Workstreams Detailed Sizing
-  const technicalIntegrations = scenario.technicalIntegrations || DEFAULT_TECHNICAL_INTEGRATIONS;
+  const technicalIntegrations = scenario.technicalIntegrations !== undefined
+    ? scenario.technicalIntegrations
+    : (scenario.scaleDrivers.tech_oic === 0 ? [] : DEFAULT_TECHNICAL_INTEGRATIONS);
   const itemizedIntegrationHours = technicalIntegrations.reduce((sum, item) => sum + (item.calculatedHours || 80), 0);
   
-  // If user calibrated tech_oic scale driver explicitly, blend with itemized list
-  const effectiveOicCount = scenario.scaleDrivers.tech_oic !== undefined ? scenario.scaleDrivers.tech_oic : technicalIntegrations.length;
+  // Single source of truth: if technicalIntegrations is provided, its length is effective count
+  const effectiveOicCount = scenario.technicalIntegrations !== undefined
+    ? scenario.technicalIntegrations.length
+    : (scenario.scaleDrivers.tech_oic !== undefined ? scenario.scaleDrivers.tech_oic : technicalIntegrations.length);
   const avgHoursPerIntegration = technicalIntegrations.length > 0 ? (itemizedIntegrationHours / technicalIntegrations.length) : 95;
-  const techOicHours = effectiveOicCount > 0 ? Math.round(effectiveOicCount * avgHoursPerIntegration) : itemizedIntegrationHours;
+  const techOicHours = effectiveOicCount === 0 ? 0 : (technicalIntegrations.length === effectiveOicCount ? itemizedIntegrationHours : Math.round(effectiveOicCount * avgHoursPerIntegration));
 
   const techPaasHours = (scaleDrivers.tech_paas || 0) * 550;
   const techReportsBipHours = (scaleDrivers.tech_reports_bip || 0) * 45;
   const techReportsOtbiHours = (scaleDrivers.tech_reports_otbi || 0) * 18;
   const techFastFormulasHours = (scaleDrivers.tech_fast_formulas || 0) * 75;
   const techWorkflowsHours = (scaleDrivers.tech_workflows || 0) * 55;
-  const techSecurityRolesHours = (scaleDrivers.tech_security_roles || 12) * 35;
-  const techCutoverHours = 160 + (scaleDrivers.tech_cutover_dr_runs || 1) * 60;
+  const techSecurityRolesHours = (scaleDrivers.tech_security_roles || 0) * 35;
+  const hasTechScope = effectiveOicCount > 0 || techPaasHours > 0 || techReportsBipHours > 0 || techReportsOtbiHours > 0 || (scaleDrivers.tech_data_objects || 0) > 0 || selectedModules.length > 0;
+  const techCutoverHours = hasTechScope ? (160 + (scaleDrivers.tech_cutover_dr_runs || 0) * 60) : 0;
   const rawTechnicalHours = techOicHours + techPaasHours + techReportsBipHours + techReportsOtbiHours + techFastFormulasHours + techWorkflowsHours + techSecurityRolesHours + techCutoverHours;
-  const finalTechnicalP80Hours = Math.max(280, Math.round(rawTechnicalHours * netClientModifier * (1 + contingencyPct)));
+  const finalTechnicalP80Hours = rawTechnicalHours === 0 ? 0 : Math.max(80, Math.round(rawTechnicalHours * netClientModifier * (1 + contingencyPct)));
 
   let techTShirt: TShirtSize = 'M';
-  if (finalTechnicalP80Hours < 800) techTShirt = 'XS';
+  if (finalTechnicalP80Hours === 0) techTShirt = 'XS';
+  else if (finalTechnicalP80Hours < 800) techTShirt = 'XS';
   else if (finalTechnicalP80Hours < 1600) techTShirt = 'S';
   else if (finalTechnicalP80Hours < 3000) techTShirt = 'M';
   else if (finalTechnicalP80Hours < 5000) techTShirt = 'L';
   else if (finalTechnicalP80Hours < 8000) techTShirt = 'XL';
   else techTShirt = 'XXL';
 
-  const simpleIntCount = technicalIntegrations.filter(i => i.complexity === 'S').length;
-  const mediumIntCount = technicalIntegrations.filter(i => i.complexity === 'M').length;
-  const complexIntCount = technicalIntegrations.filter(i => i.complexity === 'C' || i.complexity === 'XL').length;
+  const intOptions = scenario.integrationScopingOptions;
+  const isCustomCounts = intOptions && (intOptions.simpleCount !== undefined || intOptions.mediumCount !== undefined || intOptions.complexCount !== undefined || intOptions.extraLargeCount !== undefined);
+
+  const simpleIntCount = isCustomCounts ? (intOptions?.simpleCount || 0) : technicalIntegrations.filter(i => i.complexity === 'S').length;
+  const mediumIntCount = isCustomCounts ? (intOptions?.mediumCount || 0) : technicalIntegrations.filter(i => i.complexity === 'M').length;
+  const complexIntCount = isCustomCounts ? (intOptions?.complexCount || 0) : technicalIntegrations.filter(i => i.complexity === 'C').length;
+  const xlIntCount = isCustomCounts ? (intOptions?.extraLargeCount || 0) : technicalIntegrations.filter(i => i.complexity === 'XL').length;
+
+  const technicalDeliverables: string[] = isIntegrationsOnly ? [
+    `${effectiveOicCount} OIC Cloud Integrations (${simpleIntCount}S / ${mediumIntCount}M / ${complexIntCount}C${xlIntCount > 0 ? ` / ${xlIntCount}XL` : ''})`,
+    ...(intOptions?.includeErrorFramework ? ['OIC Global Fault Handling & Automated Alert Framework (160h)'] : []),
+    ...(intOptions?.includeCanonicalDataModel ? ['Canonical Data Model (CDM) Standard Payloads (120h)'] : []),
+    ...(intOptions?.includeB2BEdiSupport ? ['B2B Trading Partner AS2 Gateway & EDI Mappings (80h)'] : []),
+    ...(intOptions?.includePartnerCoTesting ? ['Joint 3rd-Party Endpoint Co-Testing & Staging Support'] : []),
+    `Connected Endpoints: ${(intOptions?.targetSystems && intOptions.targetSystems.length > 0) ? intOptions.targetSystems.join(', ') : 'Enterprise SaaS & Core Platforms'}`
+  ] : [
+    `${effectiveOicCount} OIC Cloud Integrations (${simpleIntCount}S / ${mediumIntCount}M / ${complexIntCount}C)`,
+    `${scaleDrivers.tech_paas || 0} PaaS / VBCS Custom Extensions`,
+    `${(scaleDrivers.tech_reports_bip || 0) + (scaleDrivers.tech_reports_otbi || 0)} Operational BIP & OTBI Analytics Reports`,
+    `${scaleDrivers.tech_security_roles || 0} Custom Security Roles & SOD Governance Matrices`,
+    `${scaleDrivers.tech_workflows || 0} BPM Workflow Approval Hierarchies`
+  ];
 
   const technicalWorkstreamEstimate = {
     totalHours: finalTechnicalP80Hours,
     personMonths: Number((finalTechnicalP80Hours / 160).toFixed(1)),
-    avgFTE: Number((finalTechnicalP80Hours / (projectWeeks * 40)).toFixed(2)),
+    avgFTE: finalTechnicalP80Hours === 0 ? 0 : Number((finalTechnicalP80Hours / (Math.max(1, projectWeeks) * 40)).toFixed(2)),
     tShirtSize: techTShirt,
     integrationsHours: Math.round(techOicHours * netClientModifier * (1 + contingencyPct)),
     paasHours: Math.round(techPaasHours * netClientModifier * (1 + contingencyPct)),
@@ -1016,45 +1104,39 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
     fastFormulasHours: Math.round(techFastFormulasHours * netClientModifier * (1 + contingencyPct)),
     workflowsHours: Math.round(techWorkflowsHours * netClientModifier * (1 + contingencyPct)),
     securityRolesHours: Math.round(techSecurityRolesHours * netClientModifier * (1 + contingencyPct)),
-    deliverables: [
-      `${effectiveOicCount} OIC Cloud Integrations (${simpleIntCount}S / ${mediumIntCount}M / ${complexIntCount}C)`,
-      `${scaleDrivers.tech_paas || 0} PaaS / VBCS Custom Extensions`,
-      `${(scaleDrivers.tech_reports_bip || 0) + (scaleDrivers.tech_reports_otbi || 0)} Operational BIP & OTBI Analytics Reports`,
-      `${scaleDrivers.tech_security_roles || 12} Custom Security Roles & SOD Governance Matrices`,
-      `${scaleDrivers.tech_workflows || 0} BPM Workflow Approval Hierarchies`
-    ]
+    deliverables: technicalDeliverables
   };
 
   // Testing & Quality Assurance Workstream Sizing (Transparent SIT & UAT Engineering)
-  const sitCycles = scaleDrivers.test_sit_cycles !== undefined ? Math.max(1, scaleDrivers.test_sit_cycles) : 2;
-  const uatCycles = scaleDrivers.test_uat_cycles !== undefined ? Math.max(1, scaleDrivers.test_uat_cycles) : 1;
-  const testScripts = scaleDrivers.test_scripts_count !== undefined ? Math.max(50, scaleDrivers.test_scripts_count) : Math.max(120, selectedModules.length * 26);
-  const testAutoPct = scaleDrivers.test_automation_pct !== undefined ? scaleDrivers.test_automation_pct : 25;
-  const perfRuns = scaleDrivers.test_perf_runs !== undefined ? scaleDrivers.test_perf_runs : 1;
+  const sitCycles = scaleDrivers.test_sit_cycles !== undefined ? scaleDrivers.test_sit_cycles : (isZeroScope ? 0 : 2);
+  const uatCycles = scaleDrivers.test_uat_cycles !== undefined ? scaleDrivers.test_uat_cycles : (isZeroScope ? 0 : 1);
+  const testScripts = scaleDrivers.test_scripts_count !== undefined ? scaleDrivers.test_scripts_count : (selectedModules.length > 0 ? Math.max(120, selectedModules.length * 26) : (effectiveOicCount > 0 ? effectiveOicCount * 8 : 0));
+  const testAutoPct = scaleDrivers.test_automation_pct !== undefined ? scaleDrivers.test_automation_pct : (isZeroScope ? 0 : 25);
+  const perfRuns = scaleDrivers.test_perf_runs !== undefined ? scaleDrivers.test_perf_runs : (isZeroScope ? 0 : 1);
   const payrollParallels = scaleDrivers.test_payroll_parallels !== undefined ? scaleDrivers.test_payroll_parallels : (selectedModules.some(m => m.startsWith('hcm_')) ? 2 : 0);
 
   // Business Testing 1 - SIT Arithmetic
   const sitFuncScriptHours = Math.round(sitCycles * testScripts * 0.70);
-  const sitOicIntHours = Math.round(sitCycles * (scaleDrivers.tech_oic || 8) * 16);
-  const sitMockDataHours = Math.round((scaleDrivers.tech_data_objects || 10) * 8 * (sitCycles >= 2 ? 1.5 : 1.0));
+  const sitOicIntHours = Math.round(sitCycles * effectiveOicCount * 16);
+  const sitMockDataHours = Math.round((scaleDrivers.tech_data_objects || 0) * 8 * (sitCycles >= 2 ? 1.5 : 1.0));
   const sitDefectTriageHours = Math.round((sitFuncScriptHours + sitOicIntHours + sitMockDataHours) * 0.25);
   const rawSitHours = sitFuncScriptHours + sitOicIntHours + sitMockDataHours + sitDefectTriageHours;
 
   // Business Testing 2 - UAT Arithmetic
   const uatScenarioHours = Math.round(uatCycles * testScripts * 0.45);
   const uatCrpSimHours = Math.round(uatCycles * selectedModules.length * 28);
-  const uatEnablementHours = 80; // Tester training, environment orientation & test data prep
+  const uatEnablementHours = (selectedModules.length > 0 || effectiveOicCount > 0) ? 80 : 0; // Tester training, environment orientation & test data prep
   const uatDefectRetestHours = Math.round((uatScenarioHours + uatCrpSimHours) * 0.20);
   const rawUatHours = uatScenarioHours + uatCrpSimHours + uatEnablementHours + uatDefectRetestHours;
 
   // Automation & Non-Functional Testing (NFT)
-  const testStrategyHours = 120;
+  const testStrategyHours = (selectedModules.length > 0 || effectiveOicCount > 0) ? 120 : 0;
   const rawAutomationHours = Math.round((testAutoPct / 100) * testScripts * 10);
   const rawPerformanceHours = Math.round(perfRuns * 140);
   const rawPayrollParallelHours = Math.round(payrollParallels * 240);
 
   const rawTestingHours = testStrategyHours + rawSitHours + rawUatHours + rawAutomationHours + rawPerformanceHours + rawPayrollParallelHours;
-  const finalTestingP80Hours = Math.max(240, Math.round(rawTestingHours * netClientModifier * (1 + contingencyPct)));
+  const finalTestingP80Hours = rawTestingHours === 0 ? 0 : Math.max(80, Math.round(rawTestingHours * netClientModifier * (1 + contingencyPct)));
 
   const finalSitHours = Math.round(rawSitHours * netClientModifier * (1 + contingencyPct));
   const finalUatHours = Math.round(rawUatHours * netClientModifier * (1 + contingencyPct));
@@ -1179,7 +1261,7 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   const testingWorkstreamEstimate = {
     totalHours: finalTestingP80Hours,
     personMonths: Number((finalTestingP80Hours / 160).toFixed(1)),
-    avgFTE: Number((finalTestingP80Hours / (projectWeeks * 40)).toFixed(2)),
+    avgFTE: finalTestingP80Hours === 0 ? 0 : Number((finalTestingP80Hours / (Math.max(1, projectWeeks) * 40)).toFixed(2)),
     tShirtSize: testingTShirt,
     strategyHours: finalStrategyHours,
     // Business Testing 1 - SIT
@@ -1242,6 +1324,18 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   let govShare = 0.07;
   let pmoShare = 0.05;
 
+  if (isIntegrationsOnly) {
+    erpShare = 0.03;  // Interface Functional Mapping SME & Business Validation
+    scmShare = 0.00;
+    hcmShare = 0.00;
+    techShare = 0.55; // Core OIC Architecture, Flow Development & Unit Testing
+    dataShare = 0.02; // Sample Payload Files & Test Data Staging
+    qaShare = 0.22;   // Joint Partner Endpoint SIT & End-to-End String Testing
+    ocmShare = 0.02;  // Partner Operational Runbook & Cutover Handover
+    govShare = 0.08;  // Technical Architecture Review Board (ARB) & SteerCo Oversight
+    pmoShare = 0.08;  // Technical Release PMO, Endpoint Coordination & RAID
+  }
+
   const totalShares = erpShare + scmShare + hcmShare + techShare + dataShare + qaShare + ocmShare + govShare + pmoShare;
 
   const workstreamHours = WORKSTREAMS_CATALOG.map(ws => {
@@ -1257,11 +1351,11 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
     if (ws.id === 'ws_pmo_gov') assignedShare = pmoShare / totalShares;
 
     const isParallelTrack = ws.isParallel || ws.id === 'ws_gov_steerco' || ws.id === 'ws_pmo_gov' || ws.id === 'ws_ocm_train';
-    const startWeek = isParallelTrack ? 1 : Math.max(1, Math.round(ws.startPct * projectWeeks));
-    const endWeek = isParallelTrack ? projectWeeks : Math.max(startWeek + 1, Math.round(ws.endPct * projectWeeks));
+    const startWeek = (targetHours === 0 || projectWeeks === 0) ? 0 : (isParallelTrack ? 1 : Math.max(1, Math.round(ws.startPct * projectWeeks)));
+    const endWeek = (targetHours === 0 || projectWeeks === 0) ? 0 : (isParallelTrack ? projectWeeks : Math.max(startWeek + 1, Math.round(ws.endPct * projectWeeks)));
     const hours = targetHours * assignedShare;
-    const durationWeeks = Math.max(1, endWeek - startWeek + 1);
-    const avgFTE = hours / (durationWeeks * 40);
+    const durationWeeks = (targetHours === 0 || projectWeeks === 0) ? 0 : Math.max(1, endWeek - startWeek + 1);
+    const avgFTE = (targetHours === 0 || durationWeeks === 0) ? 0 : hours / (durationWeeks * 40);
 
     return {
       ...ws,
@@ -1278,7 +1372,15 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   const phaseDeliveryModel: PhaseDeliveryModel = scenario.phaseDeliveryModel || (rolloutWaves > 1 ? 'hypercare_overlap' : 'sequential');
   const phaseOverrides: Record<string, PhaseOverride> = scenario.phaseOverrides || {};
 
-  const phaseEffortDistribution: Record<string, number> = {
+  const phaseEffortDistribution: Record<string, number> = isIntegrationsOnly ? {
+    phase_enablement: 0.05,
+    phase_design: 0.18,
+    phase_build: 0.42,
+    phase_test_1: 0.18,
+    phase_test_2: 0.08,
+    phase_cutover: 0.04,
+    phase_hypercare: 0.05
+  } : {
     phase_enablement: 0.04,
     phase_design: 0.18,
     phase_build: 0.34,
@@ -1291,6 +1393,16 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   const baselineHypercareStartWeek = Math.round(projectWeeks * 0.90);
 
   const phaseHours = IMPLEMENTATION_PHASES.map((ph) => {
+    if (targetHours === 0 || isZeroScope || projectWeeks === 0) {
+      return {
+        ...ph,
+        startWeek: 0,
+        endWeek: 0,
+        hours: 0,
+        durationWeeks: 0
+      };
+    }
+
     let startWeek = 1;
     let endWeek = 2;
     let durationWeeks = 2;
@@ -1330,8 +1442,37 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
     const share = phaseEffortDistribution[ph.id] || 0.14;
     const hours = targetHours * share;
 
+    let phaseName = ph.name;
+    let phaseDesc = ph.description;
+    if (isIntegrationsOnly) {
+      if (ph.id === 'phase_enablement') {
+        phaseName = 'Enablement & Connectivity';
+        phaseDesc = 'OIC Provisioning, Agent/mTLS Connectivity, Security Certificates & VPN Setup';
+      } else if (ph.id === 'phase_design') {
+        phaseName = 'Interface Architecture & Specs';
+        phaseDesc = 'Interface Architecture, Canonical Models, FDD/TDD Specifications & Endpoint Contracts';
+      } else if (ph.id === 'phase_build') {
+        phaseName = 'OIC Build & Flow Orchestration';
+        phaseDesc = 'OIC Integrations, Exception Framework, Custom Adapters, DVMs & Unit Testing';
+      } else if (ph.id === 'phase_test_1') {
+        phaseName = 'Joint System Integration Testing';
+        phaseDesc = 'Joint System Integration Testing (SIT) with External 3rd-Party Endpoints';
+      } else if (ph.id === 'phase_test_2') {
+        phaseName = 'End-to-End Flow Validation';
+        phaseDesc = 'Business Process Transaction Simulation, Payload Volume & Exception Replay';
+      } else if (ph.id === 'phase_cutover') {
+        phaseName = 'Production Cutover & Activation';
+        phaseDesc = 'Production Endpoint Activation, Credential Switch & Live Runbook Rehearsal';
+      } else if (ph.id === 'phase_hypercare') {
+        phaseName = 'Hypercare & Interface Stabilization';
+        phaseDesc = 'Interface Monitoring, Error Hospital Stabilization & AMS Handover';
+      }
+    }
+
     return {
       ...ph,
+      name: phaseName,
+      description: phaseDesc,
       startWeek,
       endWeek,
       hours,
@@ -1344,7 +1485,8 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   const wavesCount = Math.max(1, rolloutWaves);
   const waveDuration = Math.max(16, Math.round(projectWeeks / (wavesCount > 1 ? 1.6 : 1)));
 
-  for (let w = 1; w <= wavesCount; w++) {
+  if (!isZeroScope && targetHours > 0 && projectWeeks > 0) {
+    for (let w = 1; w <= wavesCount; w++) {
     const waveName = scenario.waveDescriptions && scenario.waveDescriptions[w - 1]
       ? scenario.waveDescriptions[w - 1]
       : `Wave ${w} (${w === 1 ? 'Core Financials & Foundation' : w === 2 ? 'SCM & Operations' : 'HCM & Global Payroll'})`;
@@ -1397,19 +1539,31 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
       overlapWeeks
     });
   }
+}
 
   // 11. Commercials, Role Staffing & P&L
+  // Two-tier Delivery Mix (Onshore & Offshore) - Nearshore is omitted for Phase 1
+  const rawOnshore = deliveryMix?.onshore ?? 20;
+  const safeDeliveryMix = {
+    onshore: rawOnshore,
+    nearshore: 0,
+    offshore: 100 - rawOnshore
+  };
   const activeRoleCards = scenario.benchmarkMasterConfig?.roleRateCards || DEFAULT_ROLE_RATE_CARDS;
   const masterBlendedCalc = calculateMasterBlendedRate(
     targetHours,
-    deliveryMix,
+    safeDeliveryMix,
     activeRoleCards
   );
 
+  const roundedOnshoreHours = Math.round(targetHours * (safeDeliveryMix.onshore / 100));
+  const roundedNearshoreHours = 0;
+  const roundedOffshoreHours = targetHours - roundedOnshoreHours;
+
   const hoursByRegion = {
-    onshore: targetHours * (deliveryMix.onshore / 100),
-    nearshore: targetHours * (deliveryMix.nearshore / 100),
-    offshore: targetHours * (deliveryMix.offshore / 100)
+    onshore: roundedOnshoreHours,
+    nearshore: 0,
+    offshore: roundedOffshoreHours
   };
 
   const deliveryCost = masterBlendedCalc.cost;
@@ -1419,17 +1573,8 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   const blendedBillRate = masterBlendedCalc.blendedBillRate;
   const blendedCostRate = masterBlendedCalc.blendedCostRate;
 
-  const costByRegion = {
-    onshore: hoursByRegion.onshore * (masterBlendedCalc.blendedCostRate || 68),
-    nearshore: hoursByRegion.nearshore * (masterBlendedCalc.blendedCostRate * 0.75 || 48),
-    offshore: hoursByRegion.offshore * (masterBlendedCalc.blendedCostRate * 0.45 || 28)
-  };
-
-  const revenueByRegion = {
-    onshore: hoursByRegion.onshore * (masterBlendedCalc.blendedBillRate * 1.5 || 240),
-    nearshore: hoursByRegion.nearshore * (masterBlendedCalc.blendedBillRate * 0.95 || 145),
-    offshore: hoursByRegion.offshore * (masterBlendedCalc.blendedBillRate * 0.55 || 85)
-  };
+  const costByRegion = masterBlendedCalc.costByRegion;
+  const revenueByRegion = masterBlendedCalc.revenueByRegion;
 
   // 12. Governance & DoA Classification
   let doaTier: 1 | 2 | 3 = 1;
@@ -1602,9 +1747,9 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
     p95_ConservativeHours,
     targetHours,
     targetPersonMonths,
-    totalFTE: targetHours / (projectWeeks * 40),
-    avgTotalFTE: targetHours / (projectWeeks * 40),
-    peakFTE: Math.max(...workstreamHours.map(w => w.avgFTE), targetHours / (projectWeeks * 40)),
+    totalFTE: (targetHours === 0 || projectWeeks === 0) ? 0 : targetHours / (projectWeeks * 40),
+    avgTotalFTE: (targetHours === 0 || projectWeeks === 0) ? 0 : targetHours / (projectWeeks * 40),
+    peakFTE: targetHours === 0 ? 0 : Math.max(...workstreamHours.map(w => w.avgFTE), targetHours / (Math.max(1, projectWeeks) * 40)),
     contingencyPct,
     conversionMetrics: {
       dataObjects,
@@ -1635,6 +1780,7 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
     hoursByRegion,
     costByRegion,
     revenueByRegion,
+    masterBlendedCalc,
     doaTier,
     doaClassification,
     doaColor,
@@ -1672,7 +1818,9 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
       workstreamHours,
       blendedBillRate,
       blendedCostRate
-    )
+    ),
+    scopeMode: scenario.scopeMode || 'full_implementation',
+    isIntegrationsOnly
   };
 }
 

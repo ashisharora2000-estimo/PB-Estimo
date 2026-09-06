@@ -21,13 +21,16 @@ import {
   Copy,
   Check,
   Lock,
-  ShieldCheck
+  ShieldCheck,
+  Headphones,
+  Cloud
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData, OracleModule } from '../types';
 import { PRESET_SCENARIOS } from '../data/templates';
 import { exportWbsToCsv, exportCommercialsToCsv, exportProjectJson } from '../utils/exporter';
 import { generateExecutiveSlideDeck } from '../utils/executivePptxGenerator';
 import { UniversalSnapshotManager } from './common/UniversalSnapshotManager';
+import { CloudDatabaseSyncModal } from './modals/CloudDatabaseSyncModal';
 
 interface NavbarProps {
   scenario: ProjectScenario;
@@ -46,6 +49,8 @@ interface NavbarProps {
   onOpenNewProposal?: () => void;
   onOpenSmartsheetExport?: () => void;
   onOpenSlideDeck?: () => void;
+  onOpenNotebookLmPodcast?: () => void;
+  isPodcastPlaying?: boolean;
   customScenarios?: ProjectScenario[];
   onDeleteCustomScenario?: (id: string) => void;
 }
@@ -67,12 +72,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNewProposal,
   onOpenSmartsheetExport,
   onOpenSlideDeck,
+  onOpenNotebookLmPodcast,
+  isPodcastPlaying,
   customScenarios = [],
   onDeleteCustomScenario
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [cloudSyncOpen, setCloudSyncOpen] = useState(false);
   const [riskPopoverOpen, setRiskPopoverOpen] = useState(false);
   const [copiedSummary, setCopiedSummary] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -388,6 +396,28 @@ export const Navbar: React.FC<NavbarProps> = ({
                     Advanced Deal Tools
                   </div>
 
+                  {onOpenNotebookLmPodcast && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenNotebookLmPodcast();
+                        setToolsOpen(false);
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-2 transition"
+                    >
+                      <Headphones size={13} className="text-indigo-600" />
+                      <div>
+                        <div className="font-bold flex items-center gap-1.5">
+                          <span>Listen Podcast</span>
+                          <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-2xs bg-indigo-100 text-indigo-800">
+                            Deep Dive
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-normal">2-host audio overview of proposal</div>
+                      </div>
+                    </button>
+                  )}
+
                   {onOpenComplexityStudio && (
                     <button
                       type="button"
@@ -545,23 +575,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             />
           )}
 
-          {/* Ask Estimo Agent Trigger */}
-          {onOpenAshishCopilot && (
-            <button
-              type="button"
-              onClick={onOpenAshishCopilot}
-              className="px-2 py-1.5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 hover:from-slate-800 hover:to-indigo-900 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border border-indigo-400/40 shadow-xs transition cursor-pointer rounded-sm shrink-0"
-              title="Ask Estimo Agent (Oracle Sizing & Architecture Copilot)"
-            >
-              <div className="w-4 h-4 rounded-full bg-gradient-to-tr from-amber-400 to-indigo-400 flex items-center justify-center text-[8px] font-mono font-bold text-slate-950">
-                EA
-              </div>
-              <span className="font-bold tracking-normal text-xs text-white hidden sm:inline">Ask Agent</span>
-              <span className="text-[8px] font-mono font-bold px-1 py-0.2 bg-amber-400 text-slate-950 uppercase rounded-xs">
-                AI
-              </span>
-            </button>
-          )}
+          {/* Ask Estimo Agent Trigger - Hidden to avoid token usage */}
+          {/* Note: Kept hidden per requirement to prevent external token consumption */}
 
           {/* Direct Smartsheet Plan Trigger in Top Bar (Compact & High Readability) */}
           {onOpenSmartsheetExport && (
@@ -586,6 +601,41 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </button>
           )}
+
+          {/* Listen Podcast Button in Top Bar */}
+          {onOpenNotebookLmPodcast && (
+            <button
+              type="button"
+              onClick={onOpenNotebookLmPodcast}
+              className={`px-2.5 py-1.5 rounded-sm text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs border shrink-0 group ${
+                isPodcastPlaying
+                  ? 'bg-gradient-to-r from-indigo-900 via-indigo-700 to-purple-800 text-white border-indigo-400 ring-2 ring-indigo-400/40 shadow-sm'
+                  : 'bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 hover:from-slate-800 hover:to-indigo-900 text-white border-indigo-500/40'
+              }`}
+              title="Listen Podcast (2-Host AI Audio Overview & Deep Dive)"
+            >
+              <Headphones size={13} className={`text-indigo-300 ${isPodcastPlaying ? 'animate-bounce' : 'group-hover:scale-110'} transition-transform`} />
+              <span className="font-bold tracking-tight">Listen Podcast</span>
+              <span className="text-[8px] font-mono px-1.5 py-0.2 rounded-2xs font-bold uppercase bg-indigo-500/40 text-indigo-100 border border-indigo-300/30 flex items-center gap-1">
+                {isPodcastPlaying && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+                AUDIO
+              </span>
+            </button>
+          )}
+
+          {/* Cloud Database Sync & Multi-System Retrieval Trigger */}
+          <button
+            type="button"
+            onClick={() => setCloudSyncOpen(true)}
+            className="px-2.5 py-1.5 rounded-sm text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs border shrink-0 bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border-indigo-300 group"
+            title="Cloud Database Sync: Persist and retrieve Oracle project plans across systems via Cloud Firestore"
+          >
+            <Cloud size={13} className="text-indigo-600 group-hover:scale-110 transition-transform" />
+            <span className="font-bold tracking-tight">Cloud DB</span>
+            <span className="text-[8px] font-mono px-1 py-0.2 rounded-2xs font-bold uppercase bg-indigo-200/80 text-indigo-900">
+              SYNC
+            </span>
+          </button>
 
           {/* Point 1: Executive Risk Score & Margin Guard Pill */}
           <div ref={riskPopoverRef} className="relative shrink-0">
@@ -883,6 +933,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             onChange={handleFileChange}
             accept=".json"
             className="hidden"
+          />
+
+          {/* Cloud Database Sync Modal */}
+          <CloudDatabaseSyncModal
+            isOpen={cloudSyncOpen}
+            onClose={() => setCloudSyncOpen(false)}
+            currentScenario={scenario}
+            onLoadScenario={onSelectScenario}
           />
         </div>
       </div>

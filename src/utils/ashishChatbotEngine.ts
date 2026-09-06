@@ -38,7 +38,11 @@ export async function askAshishArora(
     totalHours: Math.round(calculatedData.targetHours || calculatedData.p80_DefensibleHours || 0),
     blendedRate: Math.round(calculatedData.blendedBillRate || 135),
     grossMarginPct: Math.round(calculatedData.grossMarginPct || 42),
-    peakFte: (calculatedData.peakFTE || calculatedData.avgTotalFTE || 14.5).toFixed(1),
+    peakFte: (typeof calculatedData.peakFTE === 'number'
+      ? calculatedData.peakFTE
+      : (typeof calculatedData.avgTotalFTE === 'number'
+        ? calculatedData.avgTotalFTE
+        : ((calculatedData.targetHours || 0) > 0 ? 14.5 : 0))).toFixed(1),
     legalEntities: scenario.scaleDrivers.fin_ent || 3,
     ledgers: scenario.scaleDrivers.fin_led || 2,
     plants: scenario.scaleDrivers.scm_plants || 4,

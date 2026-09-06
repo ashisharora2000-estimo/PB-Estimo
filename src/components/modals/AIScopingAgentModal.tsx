@@ -24,8 +24,10 @@ import {
   RotateCcw,
   FileCheck2,
   FileQuestion,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Trash2
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { ProjectScenario, OracleModule, UploadedProposal } from '../../types';
 import { ORACLE_MODULE_CATALOG } from '../../data/oraclePhases';
 import {
@@ -41,6 +43,11 @@ import {
   ComprehensiveIntelParseResult
 } from '../../utils/intelIngestionParser';
 import { parseProposalDocument, SAMPLE_PROPOSAL_TEMPLATES } from '../../utils/proposalParser';
+import {
+  parseIntegrationInventory,
+  parseExcelWorkbook,
+  IntegrationInventoryParseResult
+} from '../../utils/integrationInventoryParser';
 
 export type AgentInputMode = 'upload_rfp' | 'paste_intel' | 'quick_blueprint' | 'presets';
 
@@ -90,21 +97,90 @@ export const AIScopingAgentModal: React.FC<AIScopingAgentModalProps> = ({
   const [intelResult, setIntelResult] = useState<ComprehensiveIntelParseResult | null>(null);
   const [rfpResult, setRfpResult] = useState<any | null>(null);
   const [blueprintResult, setBlueprintResult] = useState<any | null>(null);
+  const [parsedExcelInventory, setParsedExcelInventory] = useState<IntegrationInventoryParseResult | null>(null);
 
   if (!isOpen) return null;
 
-  // Handler: RFP File Upload
+  // Clear all pasted data & reset ingestion state
+  const handleClearPastedData = () => {
+    setRfpText('');
+    setUploadedFileName('');
+    setUploadedFileSize('');
+    setParsedExcelInventory(null);
+    setRfpResult(null);
+    setClientIntelText('');
+    setIndustryIntelText('');
+    setSpecSheetText('');
+    setIntelResult(null);
+    setBlueprintPrompt('');
+    setBlueprintResult(null);
+    setSelectedBlueprintSampleId(null);
+    setAppliedNotification('Pasted data and loaded files cleared.');
+    setTimeout(() => setAppliedNotification(null), 3000);
+  };
+
+  // Handler: RFP / Excel Inventory File Upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setUploadedFileName(file.name);
       setUploadedFileSize(`${(file.size / 1024).toFixed(1)} KB`);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const content = event.target?.result as string;
-        setRfpText(content || '');
-      };
-      reader.readAsText(file);
+
+      const isSpreadsheet = /\.(xlsx|xls|csv|tsv)$/i.test(file.name);
+
+      if (isSpreadsheet) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const buffer = event.target?.result as ArrayBuffer;
+            
+            // 1. Attempt deep integration inventory parsing
+            let invResult: IntegrationInventoryParseResult | null = null;
+            try {
+              const workbookParsed = parseExcelWorkbook(buffer);
+              if (workbookParsed && workbookParsed.result && workbookParsed.result.items.length > 0) {
+                invResult = workbookParsed.result;
+              }
+            } catch (invErr) {
+              console.warn('Direct parseExcelWorkbook note:', invErr);
+            }
+
+            // 2. Read full workbook sheet rows into textual representation
+            const workbook = XLSX.read(buffer, { type: 'array' });
+            let combinedText = `### SPREADSHEET INVENTORY: ${file.name}\n\n`;
+
+            workbook.SheetNames.forEach((sheetName) => {
+              const worksheet = workbook.Sheets[sheetName];
+              const csv = XLSX.utils.sheet_to_csv(worksheet);
+              if (csv.trim()) {
+                combinedText += `\n--- SHEET: ${sheetName} ---\n${csv}\n`;
+              }
+            });
+
+            setParsedExcelInventory(invResult && invResult.items.length > 0 ? invResult : null);
+            setRfpText(combinedText.trim());
+
+            if (invResult && invResult.items.length > 0) {
+              setAppliedNotification(
+                `Successfully parsed Excel inventory: ${invResult.totalCount} items (${invResult.summaryByComplexity.simple}S / ${invResult.summaryByComplexity.medium}M / ${invResult.summaryByComplexity.complex}C / ${invResult.summaryByComplexity.extraLarge}XL).`
+              );
+              setTimeout(() => setAppliedNotification(null), 6000);
+            }
+          } catch (err) {
+            console.error('Error processing spreadsheet file', err);
+            setRfpText(`Error reading spreadsheet: ${(err as Error).message}`);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const content = event.target?.result as string;
+          setRfpText(content || '');
+          setParsedExcelInventory(null);
+        };
+        reader.readAsText(file);
+      }
     }
   };
 
@@ -206,12 +282,54 @@ export const AIScopingAgentModal: React.FC<AIScopingAgentModalProps> = ({
         clientClarificationsNeeded: rfpResult.clientClarificationsNeeded
       };
 
+      // Deep Excel Inventory Synchronization
+      let updatedScale = currentScale;
+      let updatedIntegrations = prev.technicalIntegrations;
+      let updatedSmc = prev.technicalSmcOverrides;
+      let updatedIntegrationOpts = prev.integrationScopingOptions;
+
+      if (parsedExcelInventory && parsedExcelInventory.items.length > 0) {
+        updatedIntegrations = parsedExcelInventory.items;
+        updatedScale = {
+          ...currentScale,
+          tech_oic: parsedExcelInventory.totalCount,
+          tech_reports_bip: parsedExcelInventory.ricefwCounts?.reports_bip || currentScale.tech_reports_bip,
+          tech_data_objects: parsedExcelInventory.ricefwCounts?.conversions || currentScale.tech_data_objects,
+          test_scripts_count: parsedExcelInventory.totalCount * 6
+        };
+
+        if (parsedExcelInventory.ricefwSmcOverrides) {
+          updatedSmc = {
+            ...(prev.technicalSmcOverrides || {}),
+            ...parsedExcelInventory.ricefwSmcOverrides
+          };
+        }
+
+        updatedIntegrationOpts = {
+          ...(prev.integrationScopingOptions || {
+            includeErrorFramework: true,
+            includeCanonicalDataModel: true,
+            includePartnerCoTesting: true,
+            includeB2BEdiSupport: false,
+            targetSystems: ['Salesforce CRM', 'Workday HCM', 'SAP S/4HANA', 'SWIFT Banking', 'ServiceNow'],
+            devSquadSize: 4
+          }),
+          simpleCount: parsedExcelInventory.summaryByComplexity.simple,
+          mediumCount: parsedExcelInventory.summaryByComplexity.medium,
+          complexCount: parsedExcelInventory.summaryByComplexity.complex,
+          extraLargeCount: parsedExcelInventory.summaryByComplexity.extraLarge
+        };
+      }
+
       return {
         ...prev,
         selectedModules: mergeMode === 'overwrite' 
           ? rfpResult.inferredModules 
           : Array.from(new Set([...prev.selectedModules, ...rfpResult.inferredModules])),
-        scaleDrivers: currentScale,
+        scaleDrivers: updatedScale,
+        technicalIntegrations: updatedIntegrations,
+        technicalSmcOverrides: updatedSmc,
+        integrationScopingOptions: updatedIntegrationOpts,
         moduleQuestionAnswers: currentAnswers,
         questionConfidenceMeta: currentMeta,
         uploadedProposals: [proposalRecord, ...(prev.uploadedProposals || []).slice(0, 4)]
@@ -331,8 +449,18 @@ export const AIScopingAgentModal: React.FC<AIScopingAgentModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={handleClearPastedData}
+              className="px-2.5 py-1.5 bg-slate-800 hover:bg-rose-950 text-slate-200 hover:text-rose-200 text-xs font-semibold rounded-sm border border-slate-700 hover:border-rose-700 transition flex items-center gap-1.5 cursor-pointer font-mono"
+              title="Clear all pasted text, reset loaded files, and clear extraction results"
+            >
+              <Trash2 size={13} className="text-slate-400 hover:text-rose-300" />
+              <span>Clear Pasted Data</span>
+            </button>
+
+            <button
+              type="button"
               onClick={handleCopySowMemo}
-              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-sm border border-slate-700 transition flex items-center gap-1.5 cursor-pointer"
+              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-sm border border-slate-700 transition flex items-center gap-1.5 cursor-pointer font-mono"
               title="Copy formatted Executive RFP Scope Memo to clipboard"
             >
               {copiedMemo ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
@@ -440,7 +568,7 @@ export const AIScopingAgentModal: React.FC<AIScopingAgentModalProps> = ({
                 <input
                   type="file"
                   id="agent-rfp-upload"
-                  accept=".pdf,.docx,.doc,.txt,.json,.md,.csv"
+                  accept=".xlsx,.xls,.csv,.tsv,.pdf,.docx,.doc,.txt,.json,.md"
                   onChange={handleFileUpload}
                   className="hidden"
                 />
@@ -453,35 +581,87 @@ export const AIScopingAgentModal: React.FC<AIScopingAgentModalProps> = ({
                   </div>
                   <div>
                     <span className="text-sm font-bold text-slate-800 block">
-                      Drop client RFP / Architecture PDF here or Browse
+                      Drop client RFP / Excel Inventory (.xlsx, .csv) / Architecture PDF here or Browse
                     </span>
                     <span className="text-xs text-slate-500 mt-1 block">
-                      Auto-extracts Oracle ERP/HCM/SCM footprint, legal entities, OIC counts, and timeline targets.
+                      Auto-detects Excel inventory rows, S/M/C complexity tiers, Oracle footprint, legal entities, and OIC endpoints.
                     </span>
                   </div>
                   <span className="inline-block px-3 py-1 bg-indigo-600 text-white text-xs font-bold rounded-sm">
-                    Select Document
+                    Select Document or Spreadsheet (.xlsx, .csv)
                   </span>
                 </label>
               </div>
 
+              {/* Excel Inventory Detection Banner */}
+              {parsedExcelInventory && parsedExcelInventory.items.length > 0 && (
+                <div className="p-3.5 bg-indigo-50 border border-indigo-200 rounded-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FileSpreadsheet size={18} className="text-indigo-700" />
+                      <span className="text-xs font-bold text-indigo-950">
+                        Excel Inventory Detected: {parsedExcelInventory.totalCount} Integration Interfaces ({parsedExcelInventory.totalHours.toLocaleString()}h calculated)
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-indigo-200 text-indigo-900">
+                      {parsedExcelInventory.sheetNames?.join(', ') || 'Workbook'}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs font-mono">
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold">
+                      Simple: {parsedExcelInventory.summaryByComplexity.simple}
+                    </span>
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-800 font-bold">
+                      Medium: {parsedExcelInventory.summaryByComplexity.medium}
+                    </span>
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-800 font-bold">
+                      Complex: {parsedExcelInventory.summaryByComplexity.complex}
+                    </span>
+                    {parsedExcelInventory.summaryByComplexity.extraLarge > 0 && (
+                      <span className="px-2 py-0.5 bg-rose-100 text-rose-800 font-bold">
+                        XL: {parsedExcelInventory.summaryByComplexity.extraLarge}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-indigo-800">
+                    Applying this RFP analysis will directly populate your Technical Integration inventory and update OIC scale drivers based on the parsed spreadsheet complexity.
+                  </p>
+                </div>
+              )}
+
               {rfpText && (
-                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-sm flex items-center justify-between">
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
                     <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
                     <span className="text-xs font-semibold text-emerald-900">
                       Loaded file: <strong>{uploadedFileName}</strong> ({uploadedFileSize})
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleAnalyzeRfp}
-                    disabled={isAnalyzing}
-                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-sm flex items-center gap-1.5 transition cursor-pointer"
-                  >
-                    {isAnalyzing ? <RefreshCw size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                    <span>Run RFP Extraction</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRfpText('');
+                        setUploadedFileName('');
+                        setUploadedFileSize('');
+                        setParsedExcelInventory(null);
+                        setRfpResult(null);
+                      }}
+                      className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-semibold rounded-sm transition cursor-pointer flex items-center gap-1 font-mono"
+                    >
+                      <Trash2 size={12} className="text-slate-400" />
+                      <span>Clear File Data</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAnalyzeRfp}
+                      disabled={isAnalyzing}
+                      className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-sm flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      {isAnalyzing ? <RefreshCw size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                      <span>Run RFP Extraction</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -587,17 +767,33 @@ export const AIScopingAgentModal: React.FC<AIScopingAgentModalProps> = ({
                     {intelTab === 'industry' && 'Industry Standards & Regulatory Requirements:'}
                     {intelTab === 'spec' && 'Technical Spec Sheet & Interface Inventories:'}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (intelTab === 'client') setClientIntelText(INTEL_PACKAGE_PRESETS[0].clientIntel);
-                      if (intelTab === 'industry') setIndustryIntelText(INTEL_PACKAGE_PRESETS[0].industryIntel);
-                      if (intelTab === 'spec') setSpecSheetText(INTEL_PACKAGE_PRESETS[0].specSheet);
-                    }}
-                    className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer"
-                  >
-                    Load Sample Text
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (intelTab === 'client') setClientIntelText('');
+                        if (intelTab === 'industry') setIndustryIntelText('');
+                        if (intelTab === 'spec') setSpecSheetText('');
+                      }}
+                      className="text-xs text-slate-500 hover:text-rose-600 font-semibold cursor-pointer flex items-center gap-1 font-mono"
+                      title="Clear text for the active stream"
+                    >
+                      <Trash2 size={12} />
+                      <span>Clear Text</span>
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (intelTab === 'client') setClientIntelText(INTEL_PACKAGE_PRESETS[0].clientIntel);
+                        if (intelTab === 'industry') setIndustryIntelText(INTEL_PACKAGE_PRESETS[0].industryIntel);
+                        if (intelTab === 'spec') setSpecSheetText(INTEL_PACKAGE_PRESETS[0].specSheet);
+                      }}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer"
+                    >
+                      Load Sample Text
+                    </button>
+                  </div>
                 </div>
 
                 <textarea
@@ -672,7 +868,22 @@ export const AIScopingAgentModal: React.FC<AIScopingAgentModalProps> = ({
                   <span className="text-xs font-bold text-slate-800">
                     Describe your client context in natural language:
                   </span>
-                  <span className="text-[11px] text-slate-400 font-mono">One-Sentence Generator</span>
+                  <div className="flex items-center gap-2">
+                    {blueprintPrompt && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBlueprintPrompt('');
+                          setBlueprintResult(null);
+                        }}
+                        className="text-xs text-slate-500 hover:text-rose-600 font-semibold cursor-pointer flex items-center gap-1 font-mono"
+                      >
+                        <Trash2 size={12} />
+                        <span>Clear Prompt</span>
+                      </button>
+                    )}
+                    <span className="text-[11px] text-slate-400 font-mono">One-Sentence Generator</span>
+                  </div>
                 </div>
 
                 <textarea

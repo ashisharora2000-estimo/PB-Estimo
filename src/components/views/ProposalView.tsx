@@ -11,7 +11,8 @@ import {
   Building2,
   ClipboardList,
   Check,
-  Plus
+  Plus,
+  Save
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData } from '../../types';
 import { ORACLE_MODULE_CATALOG, ORACLE_PATCH_COHORTS } from '../../data/oraclePhases';
@@ -22,12 +23,14 @@ interface ProposalViewProps {
   scenario: ProjectScenario;
   data: CalculatedProjectData;
   onOpenNewProposal?: () => void;
+  onSaveScenario?: () => void;
 }
 
 export const ProposalView: React.FC<ProposalViewProps> = ({
   scenario,
   data,
-  onOpenNewProposal
+  onOpenNewProposal,
+  onSaveScenario
 }) => {
   const [isCopiedMemo, setIsCopiedMemo] = useState(false);
 
@@ -66,6 +69,16 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {onSaveScenario && (
+            <button
+              onClick={onSaveScenario}
+              className="px-3.5 py-2 rounded-sm bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+              title="Save all changes to proposal and refresh data across all screens"
+            >
+              <Save size={14} />
+              <span>Save & Refresh All Screens</span>
+            </button>
+          )}
           {onOpenNewProposal && (
             <button
               onClick={onOpenNewProposal}
@@ -316,13 +329,72 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
         </div>
 
         {/* Section 6: Delivery Mix & Staffing Model */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           <h3 className="text-base font-bold text-slate-900 pb-2 border-b border-slate-200">
             6. Global Delivery Architecture & Staffing Model
           </h3>
           <p className="text-xs text-slate-700 leading-relaxed">
-            Staffing leverage is achieved through a balanced delivery pyramid consisting of <strong>{scenario.deliveryMix.onshore}% Onshore</strong> (Solution Architects and PMO), <strong>{scenario.deliveryMix.nearshore}% Nearshore</strong> (Functional Leads), and <strong>{scenario.deliveryMix.offshore}% Offshore</strong> (OIC Developers, Data Specialists, and Test Automation).
+            Staffing leverage is achieved through a balanced delivery pyramid consisting of <strong>{scenario.deliveryMix.onshore}% Onshore</strong> (Solution Architects, PMO, and Workstream Leads) and <strong>{scenario.deliveryMix.offshore}% Offshore</strong> (GDC Developers, Data Specialists, and Test Automation Engineers).
           </p>
+
+          {/* Regional Financial & Effort Breakdown Table */}
+          <div className="overflow-x-auto border border-slate-200 rounded-sm">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+                  <th className="py-2.5 px-3">Delivery Region</th>
+                  <th className="py-2.5 px-2 text-center">Mix %</th>
+                  <th className="py-2.5 px-2 text-right">Target Effort</th>
+                  <th className="py-2.5 px-2 text-right">Bill Rate</th>
+                  <th className="py-2.5 px-2 text-right">Delivery Revenue</th>
+                  <th className="py-2.5 px-2 text-right">Cost Rate</th>
+                  <th className="py-2.5 px-2 text-right">Delivery Cost</th>
+                  <th className="py-2.5 px-3 text-right">Gross Margin</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700 font-mono">
+                <tr>
+                  <td className="py-2.5 px-3 font-sans font-semibold text-slate-900">Onshore (Client Co-Located)</td>
+                  <td className="py-2.5 px-2 text-center text-slate-700 font-bold">{scenario.deliveryMix.onshore}%</td>
+                  <td className="py-2.5 px-2 text-right text-slate-900">{(Math.round(data.hoursByRegion.onshore)).toLocaleString()} hrs</td>
+                  <td className="py-2.5 px-2 text-right text-slate-700">${Math.round(data.masterBlendedCalc.rateCardByRegion.onshore.billRate)}/h</td>
+                  <td className="py-2.5 px-2 text-right text-emerald-700 font-bold">${(Math.round(data.masterBlendedCalc.revenueByRegion.onshore)).toLocaleString()}</td>
+                  <td className="py-2.5 px-2 text-right text-slate-700">${Math.round(data.masterBlendedCalc.rateCardByRegion.onshore.costRate)}/h</td>
+                  <td className="py-2.5 px-2 text-right text-slate-700">${(Math.round(data.masterBlendedCalc.costByRegion.onshore)).toLocaleString()}</td>
+                  <td className="py-2.5 px-3 text-right font-sans font-bold text-slate-900">
+                    {data.masterBlendedCalc.rateCardByRegion.onshore.billRate > 0
+                      ? `${(((data.masterBlendedCalc.rateCardByRegion.onshore.billRate - data.masterBlendedCalc.rateCardByRegion.onshore.costRate) / data.masterBlendedCalc.rateCardByRegion.onshore.billRate) * 100).toFixed(1)}%`
+                      : '0.0%'}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-3 font-sans font-semibold text-slate-900">Offshore (Global Delivery Center)</td>
+                  <td className="py-2.5 px-2 text-center text-slate-700 font-bold">{scenario.deliveryMix.offshore}%</td>
+                  <td className="py-2.5 px-2 text-right text-slate-900">{(Math.round(data.hoursByRegion.offshore)).toLocaleString()} hrs</td>
+                  <td className="py-2.5 px-2 text-right text-slate-700">${Math.round(data.masterBlendedCalc.rateCardByRegion.offshore.billRate)}/h</td>
+                  <td className="py-2.5 px-2 text-right text-emerald-700 font-bold">${(Math.round(data.masterBlendedCalc.revenueByRegion.offshore)).toLocaleString()}</td>
+                  <td className="py-2.5 px-2 text-right text-slate-700">${Math.round(data.masterBlendedCalc.rateCardByRegion.offshore.costRate)}/h</td>
+                  <td className="py-2.5 px-2 text-right text-slate-700">${(Math.round(data.masterBlendedCalc.costByRegion.offshore)).toLocaleString()}</td>
+                  <td className="py-2.5 px-3 text-right font-sans font-bold text-slate-900">
+                    {data.masterBlendedCalc.rateCardByRegion.offshore.billRate > 0
+                      ? `${(((data.masterBlendedCalc.rateCardByRegion.offshore.billRate - data.masterBlendedCalc.rateCardByRegion.offshore.costRate) / data.masterBlendedCalc.rateCardByRegion.offshore.billRate) * 100).toFixed(1)}%`
+                      : '0.0%'}
+                  </td>
+                </tr>
+                <tr className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-300">
+                  <td className="py-2.5 px-3 font-sans uppercase text-[11px] tracking-wider">Total / Blended Program Metrics</td>
+                  <td className="py-2.5 px-2 text-center font-bold">100%</td>
+                  <td className="py-2.5 px-2 text-right text-indigo-900">{(Math.round(data.targetHours || 0)).toLocaleString()} hrs</td>
+                  <td className="py-2.5 px-2 text-right text-slate-900">${Math.round(data.blendedBillRate)}/h</td>
+                  <td className="py-2.5 px-2 text-right text-emerald-800">${(Math.round(data.deliveryRevenue || 0)).toLocaleString()}</td>
+                  <td className="py-2.5 px-2 text-right text-slate-900">${Math.round(data.blendedCostRate)}/h</td>
+                  <td className="py-2.5 px-2 text-right text-slate-900">${(Math.round(data.deliveryCost || 0)).toLocaleString()}</td>
+                  <td className="py-2.5 px-3 text-right font-sans text-emerald-700 font-black">{data.grossMarginPct}%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
           <div className="p-4 rounded-sm bg-slate-50 border border-slate-200 text-xs text-slate-800 flex justify-between items-center">
             <div>
               <strong>Staffing Concurrency Model:</strong> {scenario.deliveryModel || 'Global Blended (30/70)'}

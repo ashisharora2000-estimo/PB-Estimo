@@ -882,10 +882,10 @@ export interface DeliveryModelPreset {
 export const DEFAULT_DELIVERY_PYRAMIDS: DeliveryModelPreset[] = [
   {
     id: 'pyramid_gdm_standard',
-    name: 'Standard Global Delivery Model (GDM)',
-    description: 'Industry-standard balanced onshore/nearshore/offshore factory model providing optimal cost-quality equilibrium.',
+    name: 'Standard Global Delivery Model (20/80)',
+    description: 'Corporate benchmark 20% Onshore, 80% Offshore delivery factory model providing optimal cost efficiency.',
     isStandard: true,
-    deliveryMix: { onshore: 30, nearshore: 15, offshore: 55 },
+    deliveryMix: { onshore: 20, nearshore: 0, offshore: 80 },
     gradeShares: {
       'Grade A': 20,
       'Grade B': 35,
@@ -893,44 +893,44 @@ export const DEFAULT_DELIVERY_PYRAMIDS: DeliveryModelPreset[] = [
       'Grade D': 10,
       'Grade E': 5
     },
-    targetBlendedBillRate: 118,
-    targetBlendedCostRate: 64,
-    targetGrossMarginPct: 45.8,
+    targetBlendedBillRate: 98,
+    targetBlendedCostRate: 54,
+    targetGrossMarginPct: 44.9,
     recommendedUseCases: ['Standard Enterprise Cloud Transformations', 'Multi-Pillar Rollouts', 'Competitive Commercial Bids']
   },
   {
     id: 'pyramid_complex_onsite',
-    name: 'Complex / Client-Facing Co-Creation Model',
-    description: 'High onshore presence with deep business interaction, extensive executive change management, and co-design.',
+    name: 'Complex / Client-Facing Co-Creation Model (40/60)',
+    description: 'High onshore presence with deep business interaction, executive change management, and agile co-design.',
     isStandard: false,
-    deliveryMix: { onshore: 50, nearshore: 20, offshore: 30 },
+    deliveryMix: { onshore: 40, nearshore: 0, offshore: 60 },
     gradeShares: {
-      'Grade A': 12,
-      'Grade B': 28,
+      'Grade A': 15,
+      'Grade B': 30,
       'Grade C': 35,
-      'Grade D': 18,
-      'Grade E': 7
+      'Grade D': 14,
+      'Grade E': 6
     },
-    targetBlendedBillRate: 168,
-    targetBlendedCostRate: 92,
-    targetGrossMarginPct: 45.2,
-    recommendedUseCases: ['Complex Operating Model Redesign', 'Heavy Executive Resistance', 'Agile Co-Design Sprints']
+    targetBlendedBillRate: 152,
+    targetBlendedCostRate: 84,
+    targetGrossMarginPct: 44.7,
+    recommendedUseCases: ['Complex Operating Model Redesign', 'Heavy Executive Engagement', 'Agile Co-Design Sprints']
   },
   {
     id: 'pyramid_lean_factory',
-    name: 'Lean / Cost-Optimized Build Factory',
+    name: 'Lean / Cost-Optimized Build Factory (15/85)',
     description: 'Maximizes offshore delivery factory leverage for standardized technical components, migrations, and reporting.',
     isStandard: false,
-    deliveryMix: { onshore: 15, nearshore: 15, offshore: 70 },
+    deliveryMix: { onshore: 15, nearshore: 0, offshore: 85 },
     gradeShares: {
-      'Grade A': 30,
+      'Grade A': 28,
       'Grade B': 42,
-      'Grade C': 20,
+      'Grade C': 22,
       'Grade D': 6,
       'Grade E': 2
     },
-    targetBlendedBillRate: 88,
-    targetBlendedCostRate: 46,
+    targetBlendedBillRate: 86,
+    targetBlendedCostRate: 45,
     targetGrossMarginPct: 47.7,
     recommendedUseCases: ['Technical Lift-and-Shift', 'RICEFW Offshore Factory', 'Low-Budget Fixed Price Programs']
   },
@@ -954,20 +954,20 @@ export const DEFAULT_DELIVERY_PYRAMIDS: DeliveryModelPreset[] = [
   },
   {
     id: 'pyramid_strategic_advisory',
-    name: 'Senior Strategic Advisory & Architecture Oversight',
+    name: 'Senior Strategic Advisory & Architecture Oversight (70/30)',
     description: 'Partner-led and architect-heavy model for blueprinting, M&A due diligence, and enterprise Chart of Accounts redesign.',
     isStandard: false,
-    deliveryMix: { onshore: 70, nearshore: 15, offshore: 15 },
+    deliveryMix: { onshore: 70, nearshore: 0, offshore: 30 },
     gradeShares: {
-      'Grade A': 5,
-      'Grade B': 15,
-      'Grade C': 30,
-      'Grade D': 35,
-      'Grade E': 15
+      'Grade A': 8,
+      'Grade B': 18,
+      'Grade C': 32,
+      'Grade D': 30,
+      'Grade E': 12
     },
-    targetBlendedBillRate: 245,
-    targetBlendedCostRate: 138,
-    targetGrossMarginPct: 43.7,
+    targetBlendedBillRate: 228,
+    targetBlendedCostRate: 128,
+    targetGrossMarginPct: 43.9,
     recommendedUseCases: ['Wave 0 Enterprise Blueprinting', 'COA Transformation', 'Client-Side Program Assurance']
   }
 ];
@@ -1263,6 +1263,16 @@ export interface BlendedRateCalculationResult {
   onshoreShare: number;
   nearshoreShare: number;
   offshoreShare: number;
+  revenueByRegion: {
+    onshore: number;
+    nearshore: number;
+    offshore: number;
+  };
+  costByRegion: {
+    onshore: number;
+    nearshore: number;
+    offshore: number;
+  };
   roleBreakdown: Array<{
     roleId: string;
     roleName: string;
@@ -1288,12 +1298,18 @@ export function calculateMasterBlendedRate(
   roleRateCards: RoleRateCardItem[] = DEFAULT_ROLE_RATE_CARDS,
   gradeOverrides?: Record<string, number>
 ): BlendedRateCalculationResult {
-  const normOnshore = (deliveryMix.onshore || 30) / 100;
-  const normNearshore = (deliveryMix.nearshore || 15) / 100;
-  const normOffshore = (deliveryMix.offshore || 55) / 100;
+  const normOnshore = (deliveryMix.onshore ?? 20) / 100;
+  const normNearshore = (deliveryMix.nearshore ?? 0) / 100;
+  const normOffshore = (deliveryMix.offshore ?? 80) / 100;
 
   let totalRevenue = 0;
   let totalCost = 0;
+  let onshoreRevenue = 0;
+  let nearshoreRevenue = 0;
+  let offshoreRevenue = 0;
+  let onshoreCost = 0;
+  let nearshoreCost = 0;
+  let offshoreCost = 0;
 
   // Calculate role level breakdown
   const roleBreakdown = roleRateCards.map(role => {
@@ -1328,6 +1344,14 @@ export function calculateMasterBlendedRate(
     totalRevenue += roleRevenue;
     totalCost += roleCost;
 
+    onshoreRevenue += roleHours * normOnshore * role.onshoreHourlyRate;
+    nearshoreRevenue += roleHours * normNearshore * role.nearshoreHourlyRate;
+    offshoreRevenue += roleHours * normOffshore * role.offshoreHourlyRate;
+
+    onshoreCost += roleHours * normOnshore * role.onshoreCostRate;
+    nearshoreCost += roleHours * normNearshore * role.nearshoreCostRate;
+    offshoreCost += roleHours * normOffshore * role.offshoreCostRate;
+
     return {
       roleId: role.roleId,
       roleName: role.roleName,
@@ -1347,16 +1371,37 @@ export function calculateMasterBlendedRate(
   const blendedBillRate = targetHours > 0 ? totalRevenue / targetHours : 0;
   const blendedCostRate = targetHours > 0 ? totalCost / targetHours : 0;
 
+  const roundedTotalRev = Math.round(totalRevenue);
+  const roundedTotalCost = Math.round(totalCost);
+  const roundedOnshoreRev = Math.round(onshoreRevenue);
+  const roundedNearshoreRev = Math.round(nearshoreRevenue);
+  // Absorb any minor 1-dollar rounding discrepancy into offshore to ensure exact equality
+  const roundedOffshoreRev = roundedTotalRev - roundedOnshoreRev - roundedNearshoreRev;
+
+  const roundedOnshoreCost = Math.round(onshoreCost);
+  const roundedNearshoreCost = Math.round(nearshoreCost);
+  const roundedOffshoreCost = roundedTotalCost - roundedOnshoreCost - roundedNearshoreCost;
+
   return {
     blendedBillRate: Number(blendedBillRate.toFixed(2)),
     blendedCostRate: Number(blendedCostRate.toFixed(2)),
     grossMarginPct: Number(grossMarginPct.toFixed(1)),
-    revenue: Math.round(totalRevenue),
-    cost: Math.round(totalCost),
+    revenue: roundedTotalRev,
+    cost: roundedTotalCost,
     grossProfit: Math.round(grossProfit),
     onshoreShare: deliveryMix.onshore,
     nearshoreShare: deliveryMix.nearshore,
     offshoreShare: deliveryMix.offshore,
+    revenueByRegion: {
+      onshore: roundedOnshoreRev,
+      nearshore: roundedNearshoreRev,
+      offshore: roundedOffshoreRev
+    },
+    costByRegion: {
+      onshore: roundedOnshoreCost,
+      nearshore: roundedNearshoreCost,
+      offshore: roundedOffshoreCost
+    },
     roleBreakdown,
     formulaDecomposition: {
       step1LocationWeights: `Location Weighted Mix = (${deliveryMix.onshore}% Onshore + ${deliveryMix.nearshore}% Nearshore + ${deliveryMix.offshore}% Offshore)`,

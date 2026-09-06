@@ -18,7 +18,10 @@ import {
   Filter,
   Search,
   Grid,
-  List
+  List,
+  Star,
+  ShieldCheck,
+  CheckCheck
 } from 'lucide-react';
 import {
   ProjectScenario,
@@ -27,7 +30,13 @@ import {
   TShirtSize
 } from '../../types';
 import { ORACLE_MODULE_CATALOG } from '../../data/oraclePhases';
-import { getQuestionsForModule } from '../../data/moduleScopingQuestions';
+import {
+  getQuestionsForModule,
+  calculateModuleScopingMetrics,
+  isQuestionMandatory,
+  getQuestionTag,
+  getQuestionWeight
+} from '../../data/moduleScopingQuestions';
 import { TShirtBadge, T_SHIRT_CONFIG } from '../common/TShirtBadge';
 
 interface Module20QuestionsModalProps {
@@ -53,9 +62,11 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
 }) => {
   const [viewMode, setViewMode] = useState<'worksheet' | 'wizard'>(initialMode);
   const [activeQuestionIdx, setActiveQuestionIdx] = useState<number>(initialQuestionIndex);
+  const [scopeFilter, setScopeFilter] = useState<'all' | 'mandatory' | 'optional' | 'flagged'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [wizardOnlyMandatory, setWizardOnlyMandatory] = useState<boolean>(true);
 
   // Synchronize view mode if initialMode changes
   React.useEffect(() => {
@@ -94,33 +105,14 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
     return scenario.moduleQuestionAnswers?.[moduleId] || Array(questions.length).fill(1);
   }, [scenario.moduleQuestionAnswers, moduleId, questions.length]);
 
-  // Average score & T-shirt calculation
-  const { avgScore, totalDeltaHours, calculatedTShirt } = useMemo(() => {
-    if (questions.length === 0) return { avgScore: 2.0, totalDeltaHours: 0, calculatedTShirt: 'M' as TShirtSize };
-    
-    let sumScore = 0;
-    let sumDelta = 0;
-    questions.forEach((q, idx) => {
-      const optIdx = currentAnswers[idx] !== undefined ? currentAnswers[idx] : 1;
-      sumScore += (optIdx + 1);
-      sumDelta += (q.options[optIdx]?.hoursImpact || 0);
+  // Metrics calculated using deterministic weighted mandatory/optional logic
+  const metrics = useMemo(() => {
+    return calculateModuleScopingMetrics(questions, currentAnswers, {
+      tShirtOverride: scenario.moduleTShirtOverrides?.[moduleId]
     });
+  }, [questions, currentAnswers, scenario.moduleTShirtOverrides, moduleId]);
 
-    const avg = sumScore / questions.length;
-    let size: TShirtSize = 'M';
-    if (avg <= 1.25) size = 'XS';
-    else if (avg <= 1.85) size = 'S';
-    else if (avg <= 2.65) size = 'M';
-    else if (avg <= 3.35) size = 'L';
-    else if (avg <= 3.80) size = 'XL';
-    else size = 'XXL';
-
-    return {
-      avgScore: avg,
-      totalDeltaHours: sumDelta,
-      calculatedTShirt: size
-    };
-  }, [questions, currentAnswers]);
+  const { avgScore, totalDeltaHours, calculatedTShirt, mandatoryTotal, mandatoryAnswered, optionalTotal, optionalAnswered, isCoreComplete } = metrics;
 
   // Answer updater
   const handleSelectOption = (qIdx: number, optIdx: number) => {
@@ -148,6 +140,29 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
         moduleQuestionAnswers: {
           ...currentMap,
           [moduleId]: Array(questions.length).fill(levelIdx)
+        }
+      };
+    });
+  };
+
+  // Fast-track one-click: Set mandatory to Standard (Level 2) and optional to MBP (Level 1)
+  const handleFastTrackStandard = () => {
+    onUpdateScenario(prev => {
+      const currentMap = prev.moduleQuestionAnswers || {};
+      const updated = questions.map((q, idx) => {
+        const isMandatory = isQuestionMandatory(q, idx);
+        const existingAns = currentMap[moduleId]?.[idx];
+        if (isMandatory) {
+          return existingAns !== undefined ? existingAns : 1; // Preserve if answered or set to C2 Std
+        }
+        return existingAns !== undefined ? existingAns : 0; // Default optional to MBP Level 1 (C1)
+      });
+
+      return {
+        ...prev,
+        moduleQuestionAnswers: {
+          ...currentMap,
+          [moduleId]: updated
         }
       };
     });
@@ -196,18 +211,38 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
     'Compliance & Security'
   ];
 
-  const filteredQuestions = questions.filter(q => {
+  const filteredQuestions = questions.filter((q, originalIdx) => {
+    const isMandatory = isQuestionMandatory(q, originalIdx);
+    const qMeta = scenario.questionConfidenceMeta?.[moduleId]?.[originalIdx];
+    const isFlagged = !!qMeta?.clientClarificationNeeded;
+
+    // Scope Filter
+    if (scopeFilter === 'mandatory' && !isMandatory) return false;
+    if (scopeFilter === 'optional' && isMandatory) return false;
+    if (scopeFilter === 'flagged' && !isFlagged) return false;
+
+    // Category Filter
     const matchCat = categoryFilter === 'all' || q.category === categoryFilter;
+    
+    // Search Query
     const matchSearch = !searchQuery || 
       q.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
       q.rationale?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       q.options.some(o => o.label.toLowerCase().includes(searchQuery.toLowerCase()) || o.desc.toLowerCase().includes(searchQuery.toLowerCase()));
+    
     return matchCat && matchSearch;
   });
 
-  const activeQuestion = questions[activeQuestionIdx] || questions[0];
-  const activeQuestionAnswer = currentAnswers[activeQuestionIdx] !== undefined ? currentAnswers[activeQuestionIdx] : 1;
-  const activeQuestionMeta = scenario.questionConfidenceMeta?.[moduleId]?.[activeQuestionIdx];
+  // Wizard Questions List
+  const wizardQuestions = useMemo(() => {
+    if (!wizardOnlyMandatory) return questions;
+    return questions.filter((q, idx) => isQuestionMandatory(q, idx));
+  }, [questions, wizardOnlyMandatory]);
+
+  const activeWizardQuestion = wizardQuestions[activeQuestionIdx] || wizardQuestions[0] || questions[0];
+  const activeOriginalIdx = questions.findIndex(q => q.id === activeWizardQuestion?.id);
+  const activeQuestionAnswer = currentAnswers[activeOriginalIdx] !== undefined ? currentAnswers[activeOriginalIdx] : 1;
+  const activeQuestionMeta = scenario.questionConfidenceMeta?.[moduleId]?.[activeOriginalIdx];
 
   const getCategoryColor = (cat: string) => {
     switch (cat) {
@@ -237,10 +272,16 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-mono uppercase tracking-widest text-indigo-300 font-bold">
-                  20-Question Scoping Worksheet
+                  Oracle Module Scoping Engine
                 </span>
                 <span className="px-1.5 py-0.5 bg-slate-800 text-slate-300 border border-slate-700 text-[10px] font-mono uppercase">
                   {moduleDef.pillar}
+                </span>
+                <span className={`px-1.5 py-0.5 text-[10px] font-mono uppercase font-bold flex items-center gap-1 ${
+                  isCoreComplete ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-700' : 'bg-amber-950/80 text-amber-300 border border-amber-700'
+                }`}>
+                  {isCoreComplete ? <CheckCircle2 size={10} /> : <Zap size={10} />}
+                  {isCoreComplete ? `Core Complete (${mandatoryAnswered}/${mandatoryTotal})` : `Core Incomplete (${mandatoryAnswered}/${mandatoryTotal})`}
                 </span>
               </div>
               <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
@@ -282,10 +323,10 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
                 className={`px-2 py-1 flex items-center gap-1 transition cursor-pointer ${
                   viewMode === 'worksheet' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white'
                 }`}
-                title="View all 20 questions in full tabular worksheet"
+                title="View all questions in worksheet view"
               >
                 <Grid size={12} />
-                <span className="hidden sm:inline">All 20 Grid</span>
+                <span className="hidden sm:inline">Worksheet Grid</span>
               </button>
               <button
                 type="button"
@@ -321,24 +362,88 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
           </div>
         </div>
 
-        {/* SUB-HEADER TOOLBAR: Category Pills & Batch Actions */}
+        {/* FAST-TRACK BANNER: Explaining Mandatory vs Optional Question Math */}
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white px-4 py-2.5 border-b border-indigo-900/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="p-1 rounded-xs bg-amber-400/20 text-amber-300 border border-amber-400/30">
+              <Zap size={14} />
+            </span>
+            <div>
+              <div className="font-bold flex items-center gap-1.5 text-amber-200">
+                <span>Fast-Track Scoping Architecture:</span>
+                <span className="font-normal text-slate-300">
+                  Only the <strong className="text-white">{mandatoryTotal} Mandatory Core Drivers</strong> decide fundamental sizing. Optional questions ({optionalTotal}) gracefully default to Modern Best Practice (Fit-to-Standard) without inflating hours.
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={handleFastTrackStandard}
+              className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400 flex items-center gap-1 cursor-pointer transition shadow-xs"
+              title="Ensure all mandatory questions are set to Standard and optional to Fit-to-Standard"
+            >
+              <CheckCheck size={12} />
+              <span>⚡ Lock Fast-Track Baseline</span>
+            </button>
+          </div>
+        </div>
+
+        {/* SUB-HEADER TOOLBAR: Scope Filters & Presets */}
         <div className="bg-slate-50 border-b border-slate-200 p-2.5 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0 text-xs">
-          {/* Categories / Tabs */}
+          {/* Scope Filter Tabs */}
           <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-thin">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setCategoryFilter(cat)}
-                className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider transition cursor-pointer whitespace-nowrap border ${
-                  categoryFilter === cat
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
-                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                {cat === 'all' ? 'All 20 Questions' : cat}
-              </button>
-            ))}
+            <button
+              type="button"
+              onClick={() => setScopeFilter('mandatory')}
+              className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition cursor-pointer whitespace-nowrap border flex items-center gap-1.5 ${
+                scopeFilter === 'mandatory'
+                  ? 'bg-amber-600 text-white border-amber-700 shadow-2xs'
+                  : 'bg-white text-amber-900 border-amber-200 hover:bg-amber-50'
+              }`}
+            >
+              <Star size={11} className={scopeFilter === 'mandatory' ? 'text-amber-200 fill-amber-200' : 'text-amber-600'} />
+              <span>⚡ Mandatory Core ({mandatoryTotal} Qs)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setScopeFilter('all')}
+              className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition cursor-pointer whitespace-nowrap border ${
+                scopeFilter === 'all'
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              All 20 Questions ({questions.length})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setScopeFilter('optional')}
+              className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition cursor-pointer whitespace-nowrap border ${
+                scopeFilter === 'optional'
+                  ? 'bg-slate-700 text-white border-slate-800 shadow-2xs'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              Optional Deep-Dives ({optionalTotal})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setScopeFilter('flagged')}
+              className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition cursor-pointer whitespace-nowrap border flex items-center gap-1 ${
+                scopeFilter === 'flagged'
+                  ? 'bg-rose-600 text-white border-rose-700 shadow-2xs'
+                  : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50'
+              }`}
+            >
+              <FileQuestion size={11} />
+              <span>Flagged Q&A</span>
+            </button>
           </div>
 
           {/* Quick Presets & Search */}
@@ -402,113 +507,147 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
           {/* ========================================================================= */}
           {viewMode === 'worksheet' && (
             <div className="space-y-4 min-w-[760px]">
-              {filteredQuestions.map((q) => {
-                const originalIdx = questions.findIndex(item => item.id === q.id);
-                const currentOpt = currentAnswers[originalIdx] !== undefined ? currentAnswers[originalIdx] : 1;
-                const qMeta = scenario.questionConfidenceMeta?.[moduleId]?.[originalIdx];
-                const isClarificationNeeded = qMeta?.clientClarificationNeeded;
-
-                return (
-                  <div 
-                    key={q.id} 
-                    className="bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-3.5 transition hover:border-slate-300"
+              {filteredQuestions.length === 0 ? (
+                <div className="bg-white border border-slate-200 p-8 text-center text-slate-500">
+                  <p className="text-sm font-semibold">No questions match the current filter.</p>
+                  <button
+                    type="button"
+                    onClick={() => { setScopeFilter('all'); setCategoryFilter('all'); setSearchQuery(''); }}
+                    className="mt-2 text-xs text-indigo-600 underline font-bold cursor-pointer"
                   >
-                    {/* Question Header */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-2.5">
-                        <span className="w-6 h-6 rounded-xs bg-slate-900 text-white font-mono font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
-                          Q{originalIdx + 1}
-                        </span>
-                        <div>
-                          <h4 className="text-sm font-bold text-slate-900 leading-snug">
-                            {q.question}
-                          </h4>
-                          {q.rationale && (
-                            <p className="text-xs text-slate-600 mt-1 italic bg-slate-50 p-2 border-l-2 border-slate-400">
-                              <strong className="font-semibold text-slate-800 not-italic">Architectural Context:</strong> {q.rationale}
-                            </p>
-                          )}
-                          {qMeta?.proposalCitation && (
-                            <div className="text-xs text-indigo-800 font-serif italic bg-indigo-50/70 p-2 border-l-2 border-indigo-500 mt-1.5">
-                              Proposal Evidence: &ldquo;{qMeta.proposalCitation}&rdquo;
+                    Reset all filters
+                  </button>
+                </div>
+              ) : (
+                filteredQuestions.map((q) => {
+                  const originalIdx = questions.findIndex(item => item.id === q.id);
+                  const isMandatory = isQuestionMandatory(q, originalIdx);
+                  const tag = getQuestionTag(q, originalIdx);
+                  const currentOpt = currentAnswers[originalIdx] !== undefined ? currentAnswers[originalIdx] : 1;
+                  const qMeta = scenario.questionConfidenceMeta?.[moduleId]?.[originalIdx];
+                  const isClarificationNeeded = qMeta?.clientClarificationNeeded;
+
+                  return (
+                    <div 
+                      key={q.id} 
+                      className={`bg-white border shadow-xs space-y-3.5 transition hover:border-slate-300 p-4 sm:p-5 ${
+                        isMandatory
+                          ? 'border-l-4 border-l-amber-500 border-slate-200'
+                          : 'border-l-4 border-l-slate-300 border-slate-200'
+                      }`}
+                    >
+                      {/* Question Header */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <span className={`w-7 h-7 rounded-xs font-mono font-bold text-xs flex items-center justify-center shrink-0 mt-0.5 ${
+                            isMandatory ? 'bg-amber-600 text-white' : 'bg-slate-800 text-white'
+                          }`}>
+                            Q{originalIdx + 1}
+                          </span>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              {isMandatory ? (
+                                <span className="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                  <Star size={10} className="fill-amber-600 text-amber-600" />
+                                  ⭐ MANDATORY • {tag.toUpperCase()}
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-300 text-[10px] font-bold uppercase tracking-wider">
+                                  OPTIONAL • {tag.toUpperCase()}
+                                </span>
+                              )}
+                              <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${getCategoryColor(q.category)}`}>
+                                {q.category}
+                              </span>
                             </div>
-                          )}
+
+                            <h4 className="text-sm font-bold text-slate-900 leading-snug">
+                              {q.question}
+                            </h4>
+                            {q.rationale && (
+                              <p className="text-xs text-slate-600 mt-1 italic bg-slate-50 p-2 border-l-2 border-slate-400">
+                                <strong className="font-semibold text-slate-800 not-italic">Architectural Context:</strong> {q.rationale}
+                              </p>
+                            )}
+                            {qMeta?.proposalCitation && (
+                              <div className="text-xs text-indigo-800 font-serif italic bg-indigo-50/70 p-2 border-l-2 border-indigo-500 mt-1.5">
+                                Proposal Evidence: &ldquo;{qMeta.proposalCitation}&rdquo;
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => toggleFlag(originalIdx)}
+                            className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition cursor-pointer border flex items-center gap-1 font-mono ${
+                              isClarificationNeeded
+                                ? 'bg-rose-600 text-white border-rose-700 shadow-2xs'
+                                : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
+                            }`}
+                            title="Flag this question for client clarification Q&A"
+                          >
+                            <FileQuestion size={12} />
+                            <span>{isClarificationNeeded ? 'Flagged Q&A' : '+ Flag'}</span>
+                          </button>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${getCategoryColor(q.category)}`}>
-                          {q.category}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => toggleFlag(originalIdx)}
-                          className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition cursor-pointer border flex items-center gap-1 font-mono ${
-                            isClarificationNeeded
-                              ? 'bg-rose-600 text-white border-rose-700 shadow-2xs'
-                              : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
-                          }`}
-                          title="Flag this question for client clarification Q&A"
-                        >
-                          <FileQuestion size={12} />
-                          <span>{isClarificationNeeded ? 'Flagged Q&A' : '+ Flag'}</span>
-                        </button>
+                      {/* 4 Complexity Options (1-Click Selection Cards with Full Description) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
+                        {q.options.map((opt, optIdx) => {
+                          const isSelected = currentOpt === optIdx;
+                          return (
+                            <button
+                              key={optIdx}
+                              type="button"
+                              onClick={() => handleSelectOption(originalIdx, optIdx)}
+                              className={`p-3 text-left border transition cursor-pointer flex flex-col justify-between rounded-xs ${
+                                isSelected
+                                  ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-1 ring-slate-900'
+                                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
+                              }`}
+                            >
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.2 border ${
+                                    isSelected ? 'bg-slate-800 text-amber-300 border-slate-700' : 'bg-slate-100 text-slate-800 border-slate-200'
+                                  }`}>
+                                    Level {opt.score} (C{opt.score})
+                                  </span>
+                                  {isSelected ? (
+                                    <span className="flex items-center gap-0.5 text-[10px] font-bold text-emerald-400">
+                                      <Check size={12} /> Selected
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] font-mono text-slate-400">
+                                      +{opt.hoursImpact || 0}h
+                                    </span>
+                                  )}
+                                </div>
+                                <div className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                                  {opt.label}
+                                </div>
+                                <p className={`text-[11px] leading-relaxed break-words ${isSelected ? 'text-slate-300' : 'text-slate-600'}`}>
+                                  {opt.desc}
+                                </p>
+                              </div>
+
+                              <div className={`mt-2.5 pt-1.5 border-t text-[10px] font-mono flex items-center justify-between ${
+                                isSelected ? 'border-slate-700 text-slate-300' : 'border-slate-100 text-slate-400'
+                              }`}>
+                                <span>{opt.score === 1 ? 'Fit-to-Standard' : opt.score === 2 ? 'Configured Cloud' : opt.score === 3 ? 'Complex Tier' : 'Bespoke Custom'}</span>
+                                <span className={isSelected ? 'text-amber-300 font-bold' : ''}>+{opt.hoursImpact || 0} hrs</span>
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
-
-                    {/* 4 Complexity Options (1-Click Selection Cards with Full Description) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
-                      {q.options.map((opt, optIdx) => {
-                        const isSelected = currentOpt === optIdx;
-                        return (
-                          <button
-                            key={optIdx}
-                            type="button"
-                            onClick={() => handleSelectOption(originalIdx, optIdx)}
-                            className={`p-3 text-left border transition cursor-pointer flex flex-col justify-between rounded-xs ${
-                              isSelected
-                                ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-1 ring-slate-900'
-                                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
-                            }`}
-                          >
-                            <div className="space-y-1.5">
-                              <div className="flex items-center justify-between">
-                                <span className={`text-[10px] font-mono font-bold px-1.5 py-0.2 border ${
-                                  isSelected ? 'bg-slate-800 text-amber-300 border-slate-700' : 'bg-slate-100 text-slate-800 border-slate-200'
-                                }`}>
-                                  Level {opt.score} (C{opt.score})
-                                </span>
-                                {isSelected ? (
-                                  <span className="flex items-center gap-0.5 text-[10px] font-bold text-emerald-400">
-                                    <Check size={12} /> Selected
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] font-mono text-slate-400">
-                                    +{opt.hoursImpact || 0}h
-                                  </span>
-                                )}
-                              </div>
-                              <div className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-900'}`}>
-                                {opt.label}
-                              </div>
-                              <p className={`text-[11px] leading-relaxed break-words ${isSelected ? 'text-slate-300' : 'text-slate-600'}`}>
-                                {opt.desc}
-                              </p>
-                            </div>
-
-                            <div className={`mt-2.5 pt-1.5 border-t text-[10px] font-mono flex items-center justify-between ${
-                              isSelected ? 'border-slate-700 text-slate-300' : 'border-slate-100 text-slate-400'
-                            }`}>
-                              <span>{opt.score === 1 ? 'Fit-to-Standard' : opt.score === 2 ? 'Configured Cloud' : opt.score === 3 ? 'Complex Tier' : 'Bespoke Custom'}</span>
-                              <span className={isSelected ? 'text-amber-300 font-bold' : ''}>+{opt.hoursImpact || 0} hrs</span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           )}
 
@@ -517,35 +656,63 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
           {/* ========================================================================= */}
           {viewMode === 'wizard' && (
             <div className="max-w-4xl mx-auto space-y-5">
+              {/* Wizard Scope Switch */}
+              <div className="flex items-center justify-between bg-white p-3 border border-slate-200 shadow-xs text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-700">Interview Mode:</span>
+                  <button
+                    type="button"
+                    onClick={() => { setWizardOnlyMandatory(true); setActiveQuestionIdx(0); }}
+                    className={`px-2.5 py-1 text-xs font-bold transition cursor-pointer border ${
+                      wizardOnlyMandatory
+                        ? 'bg-amber-600 text-white border-amber-700 shadow-2xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    ⚡ Fast-Track Core Only ({mandatoryTotal} Qs)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setWizardOnlyMandatory(false); setActiveQuestionIdx(0); }}
+                    className={`px-2.5 py-1 text-xs font-bold transition cursor-pointer border ${
+                      !wizardOnlyMandatory
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    All 20 Questions
+                  </button>
+                </div>
+
+                <div className="text-[11px] font-mono text-slate-500">
+                  Question {activeQuestionIdx + 1} of {wizardQuestions.length}
+                </div>
+              </div>
+
               {/* Question Number Pills Bar */}
               <div className="bg-white p-3 border border-slate-200 shadow-xs">
-                <div className="text-[10px] font-mono font-bold uppercase text-slate-400 mb-1.5 flex items-center justify-between">
-                  <span>Question Progression (1 to 20):</span>
-                  <span>{activeQuestionIdx + 1} of {questions.length}</span>
-                </div>
-                <div className="grid grid-cols-10 sm:grid-cols-20 gap-1">
-                  {questions.map((q, idx) => {
-                    const ans = (currentAnswers[idx] || 0) + 1;
+                <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
+                  {wizardQuestions.map((q, idx) => {
+                    const origIdx = questions.findIndex(item => item.id === q.id);
+                    const ans = (currentAnswers[origIdx] || 0) + 1;
                     const isCurrent = idx === activeQuestionIdx;
+                    const isMandatory = isQuestionMandatory(q, origIdx);
+
                     return (
                       <button
                         key={idx}
                         type="button"
                         onClick={() => setActiveQuestionIdx(idx)}
-                        className={`h-7 text-[10px] font-mono font-bold transition flex items-center justify-center cursor-pointer border ${
+                        className={`h-8 text-[10px] font-mono font-bold transition flex items-center justify-center cursor-pointer border ${
                           isCurrent
                             ? 'bg-slate-900 text-white border-slate-900 ring-2 ring-indigo-500 shadow-xs'
-                            : ans === 1
-                            ? 'bg-slate-100 text-slate-700 border-slate-300'
-                            : ans === 2
-                            ? 'bg-blue-50 text-blue-700 border-blue-300'
-                            : ans === 3
-                            ? 'bg-amber-50 text-amber-800 border-amber-300'
-                            : 'bg-rose-50 text-rose-800 border-rose-300'
+                            : isMandatory
+                            ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
+                            : 'bg-slate-100 text-slate-700 border-slate-300'
                         }`}
-                        title={`Q${idx + 1}: Level C${ans}`}
+                        title={`Q${origIdx + 1}: Level C${ans}`}
                       >
-                        Q{idx + 1}
+                        Q{origIdx + 1} {isMandatory && '⭐'}
                       </button>
                     );
                   })}
@@ -556,17 +723,24 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
               <div className="bg-white border border-slate-300 p-6 shadow-md space-y-5">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200">
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 bg-slate-900 text-white font-mono font-bold text-xs">
-                      Question {activeQuestionIdx + 1} of {questions.length}
+                    <span className={`px-2.5 py-0.5 text-white font-mono font-bold text-xs ${
+                      isQuestionMandatory(activeWizardQuestion, activeOriginalIdx) ? 'bg-amber-600' : 'bg-slate-900'
+                    }`}>
+                      Q{activeOriginalIdx + 1} of {questions.length}
                     </span>
-                    <span className={`px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider border ${getCategoryColor(activeQuestion.category)}`}>
-                      {activeQuestion.category}
+                    {isQuestionMandatory(activeWizardQuestion, activeOriginalIdx) && (
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold uppercase tracking-wider">
+                        ⭐ MANDATORY DRIVER
+                      </span>
+                    )}
+                    <span className={`px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider border ${getCategoryColor(activeWizardQuestion.category)}`}>
+                      {activeWizardQuestion.category}
                     </span>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => toggleFlag(activeQuestionIdx)}
+                    onClick={() => toggleFlag(activeOriginalIdx)}
                     className={`px-3 py-1 text-xs font-bold uppercase tracking-wider transition cursor-pointer border flex items-center gap-1.5 font-mono ${
                       activeQuestionMeta?.clientClarificationNeeded
                         ? 'bg-rose-600 text-white border-rose-700 shadow-2xs'
@@ -580,12 +754,12 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
 
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 leading-snug">
-                    {activeQuestion.question}
+                    {activeWizardQuestion.question}
                   </h3>
-                  {activeQuestion.rationale && (
+                  {activeWizardQuestion.rationale && (
                     <div className="mt-3 p-3.5 bg-blue-50/70 border border-blue-200 text-xs text-blue-950 leading-relaxed">
                       <strong className="font-bold text-blue-900 block mb-0.5">Architectural Guidance:</strong>
-                      {activeQuestion.rationale}
+                      {activeWizardQuestion.rationale}
                     </div>
                   )}
                   {activeQuestionMeta?.proposalCitation && (
@@ -597,13 +771,13 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
 
                 {/* 4 Option Selection Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
-                  {activeQuestion.options.map((opt, optIdx) => {
+                  {activeWizardQuestion.options.map((opt, optIdx) => {
                     const isSelected = activeQuestionAnswer === optIdx;
                     return (
                       <button
                         key={optIdx}
                         type="button"
-                        onClick={() => handleSelectOption(activeQuestionIdx, optIdx)}
+                        onClick={() => handleSelectOption(activeOriginalIdx, optIdx)}
                         className={`p-4 text-left border-2 transition cursor-pointer flex flex-col justify-between ${
                           isSelected
                             ? 'bg-slate-900 text-white border-slate-900 shadow-lg ring-1 ring-slate-900'
@@ -653,20 +827,20 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
                     className="px-4 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed text-slate-800 text-xs font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer"
                   >
                     <ChevronLeft size={14} />
-                    <span>Previous Question</span>
+                    <span>Previous</span>
                   </button>
 
                   <span className="text-xs font-mono text-slate-500 font-bold">
-                    {activeQuestionIdx + 1} / {questions.length}
+                    {activeQuestionIdx + 1} / {wizardQuestions.length}
                   </span>
 
                   <button
                     type="button"
-                    onClick={() => setActiveQuestionIdx(Math.min(questions.length - 1, activeQuestionIdx + 1))}
-                    disabled={activeQuestionIdx === questions.length - 1}
+                    onClick={() => setActiveQuestionIdx(Math.min(wizardQuestions.length - 1, activeQuestionIdx + 1))}
+                    disabled={activeQuestionIdx === wizardQuestions.length - 1}
                     className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer shadow-xs"
                   >
-                    <span>Next Question</span>
+                    <span>Next</span>
                     <ChevronRight size={14} />
                   </button>
                 </div>
@@ -683,11 +857,17 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
             </span>
             <span className="text-slate-300">•</span>
             <span>
-              20-Q Scoping Delta: <strong className="text-emerald-700 font-mono">+{totalDeltaHours} hrs</strong>
+              Scoping Delta: <strong className="text-emerald-700 font-mono">+{totalDeltaHours} hrs</strong>
             </span>
             <span className="text-slate-300">•</span>
             <span>
-              Defensible Total: <strong className="text-indigo-700 font-mono font-bold">{(moduleDef.baseEffortHours || 400) + totalDeltaHours} hrs</strong>
+              Derived T-Shirt: <strong className="text-amber-700 font-mono font-bold">{calculatedTShirt}</strong>
+            </span>
+            <span className="text-slate-300">•</span>
+            <span>
+              Scoping Status: <strong className={isCoreComplete ? "text-emerald-700 font-bold" : "text-amber-700 font-bold"}>
+                {isCoreComplete ? "⚡ Core Validated" : "⚠️ Needs Mandatory Answers"}
+              </strong>
             </span>
           </div>
 
@@ -697,7 +877,7 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
               onClick={onClose}
               className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider transition cursor-pointer shadow-xs"
             >
-              Done / Close Worksheet
+              Done / Close Scoping
             </button>
           </div>
         </div>

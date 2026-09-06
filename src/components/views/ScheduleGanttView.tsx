@@ -21,7 +21,10 @@ import {
   Cpu,
   FileText,
   RotateCcw,
-  TrendingDown
+  TrendingDown,
+  Calculator,
+  Users,
+  Save
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData, PodCohort } from '../../types';
 import { ORACLE_PATCH_COHORTS, PROJECT_MILESTONES } from '../../data/oraclePhases';
@@ -32,23 +35,26 @@ import { ScheduleModifiersPanel } from '../schedule/ScheduleModifiersPanel';
 import { SteerCoDefenseModal } from '../schedule/SteerCoDefenseModal';
 import { EnvironmentLandscapeSwimlane } from '../schedule/EnvironmentLandscapeSwimlane';
 import { SmartsheetExportModal } from '../governance/SmartsheetExportModal';
+import { ScheduleStaffingCapacityCard } from '../schedule/ScheduleStaffingCapacityCard';
 
 interface ScheduleGanttViewProps {
   scenario: ProjectScenario;
   data: CalculatedProjectData;
   onUpdateScenario: (updater: (prev: ProjectScenario) => ProjectScenario) => void;
   onOpenComplexityStudio?: (tab?: 'complexity' | 'questions' | 'drivers' | 'ai_advisor') => void;
+  onSaveScenario?: () => void;
 }
 
 export const ScheduleGanttView: React.FC<ScheduleGanttViewProps> = ({
   scenario,
   data,
   onUpdateScenario,
-  onOpenComplexityStudio
+  onOpenComplexityStudio,
+  onSaveScenario
 }) => {
   const [zoomScale, setZoomScale] = useState<'weeks' | 'months'>('weeks');
   const [selectedTrackFilter, setSelectedTrackFilter] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'roadmap' | 'environments' | 'methodology' | 'sequencing' | 'modifiers'>('roadmap');
+  const [activeTab, setActiveTab] = useState<'roadmap' | 'capacity' | 'environments' | 'methodology' | 'sequencing' | 'modifiers'>('roadmap');
   const [showSteerCoModal, setShowSteerCoModal] = useState<boolean>(false);
   const [showSmartsheetModal, setShowSmartsheetModal] = useState<boolean>(false);
 
@@ -140,7 +146,23 @@ export const ScheduleGanttView: React.FC<ScheduleGanttViewProps> = ({
             <span>Interactive Gantt Roadmap</span>
           </button>
 
-          {/* Tab 2: Environment & Pod Strategy */}
+          {/* Tab 2: Staffing vs Schedule Math */}
+          <button
+            onClick={() => setActiveTab('capacity')}
+            className={`px-4 py-2 rounded-xs text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition cursor-pointer shrink-0 ${
+              activeTab === 'capacity'
+                ? 'bg-white text-slate-900 shadow-xs border border-slate-300'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+            }`}
+          >
+            <Calculator size={14} className={activeTab === 'capacity' ? 'text-indigo-600' : 'text-indigo-500'} />
+            <span>Staffing vs Schedule Math</span>
+            <span className="text-[9px] font-mono px-1.5 py-0.2 bg-indigo-100 text-indigo-800 rounded-full font-bold">
+              {(data.targetHours / (scenario.projectWeeks * 40)).toFixed(1)} FTE
+            </span>
+          </button>
+
+          {/* Tab 3: Environment & Pod Strategy */}
           <button
             onClick={() => setActiveTab('environments')}
             className={`px-4 py-2 rounded-xs text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition cursor-pointer shrink-0 ${
@@ -220,6 +242,17 @@ export const ScheduleGanttView: React.FC<ScheduleGanttViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {onSaveScenario && (
+            <button
+              onClick={onSaveScenario}
+              className="px-3.5 py-2 rounded-sm bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer shadow-xs shrink-0"
+              title="Save all changes to proposal and refresh data across all screens"
+            >
+              <Save size={13} />
+              <span>Save & Refresh All Screens</span>
+            </button>
+          )}
+
           {/* Smartsheet Direct Trigger Button */}
           <button
             onClick={() => setShowSmartsheetModal(true)}
@@ -251,7 +284,16 @@ export const ScheduleGanttView: React.FC<ScheduleGanttViewProps> = ({
         </div>
       </div>
 
-      {/* Sub-Tab 0: Environment & Pod Strategy Panel */}
+      {/* Sub-Tab 0: Staffing vs Schedule Mathematical Engine */}
+      {activeTab === 'capacity' && (
+        <ScheduleStaffingCapacityCard
+          scenario={scenario}
+          data={data}
+          onUpdateScenario={onUpdateScenario}
+        />
+      )}
+
+      {/* Sub-Tab 1: Environment & Pod Strategy Panel */}
       {activeTab === 'environments' && (
         <EnvironmentLandscapeSwimlane
           scenario={scenario}
@@ -321,6 +363,14 @@ export const ScheduleGanttView: React.FC<ScheduleGanttViewProps> = ({
                   </button>
                 )}
                 <button
+                  onClick={() => setActiveTab('sequencing')}
+                  className="px-3 py-1.5 rounded-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-2xs transition"
+                  title="Customize Build, Design, Test durations and sequencing"
+                >
+                  <GitBranch size={14} className="text-indigo-600" />
+                  <span>Phase Overrides & Durations</span>
+                </button>
+                <button
                   onClick={() => setZoomScale(zoomScale === 'weeks' ? 'months' : 'weeks')}
                   className="px-3 py-1.5 rounded-sm bg-slate-100 hover:bg-slate-200 text-xs font-bold uppercase tracking-wider text-slate-700 border border-slate-300 transition cursor-pointer"
                 >
@@ -332,25 +382,60 @@ export const ScheduleGanttView: React.FC<ScheduleGanttViewProps> = ({
             {/* Schedule Configuration Bar */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-slate-200">
               {/* Duration in Weeks */}
-              <div className="p-3 rounded-sm bg-slate-50 border border-slate-200 flex items-center justify-between">
-                <div>
+              <div className="p-3 rounded-sm bg-slate-50 border border-slate-200 flex flex-col justify-between gap-2">
+                <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">Total Duration</span>
-                  <span className="text-sm font-mono font-bold text-slate-900">{totalWeeks} Weeks</span>
+                  <div className="flex items-center gap-1 bg-white px-1 py-0.5 rounded-none border border-slate-300">
+                    <button
+                      onClick={() => updateWeeks(totalWeeks - 4)}
+                      className="px-1 py-0.5 rounded-none bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[10px] border border-slate-200 cursor-pointer"
+                      title="Decrease by 4 weeks"
+                    >
+                      -4w
+                    </button>
+                    <button
+                      onClick={() => updateWeeks(totalWeeks - 1)}
+                      className="px-1 py-0.5 rounded-none bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[10px] border border-slate-200 cursor-pointer"
+                      title="Decrease by 1 week"
+                    >
+                      -1w
+                    </button>
+                    <input
+                      type="number"
+                      min={16}
+                      max={104}
+                      value={totalWeeks}
+                      onChange={(e) => updateWeeks(parseInt(e.target.value) || 24)}
+                      className="w-10 text-center text-xs font-mono font-bold text-slate-900 focus:outline-none bg-transparent"
+                    />
+                    <button
+                      onClick={() => updateWeeks(totalWeeks + 1)}
+                      className="px-1 py-0.5 rounded-none bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[10px] border border-slate-200 cursor-pointer"
+                      title="Increase by 1 week"
+                    >
+                      +1w
+                    </button>
+                    <button
+                      onClick={() => updateWeeks(totalWeeks + 4)}
+                      className="px-1 py-0.5 rounded-none bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[10px] border border-slate-200 cursor-pointer"
+                      title="Increase by 4 weeks"
+                    >
+                      +4w
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 bg-white px-1 py-0.5 rounded-none border border-slate-300">
-                  <button
-                    onClick={() => updateWeeks(totalWeeks - 4)}
-                    className="w-5 h-5 rounded-none bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs border border-slate-200 cursor-pointer"
-                  >
-                    -
-                  </button>
-                  <span className="w-8 text-center text-xs font-mono font-bold text-slate-900">{totalWeeks}</span>
-                  <button
-                    onClick={() => updateWeeks(totalWeeks + 4)}
-                    className="w-5 h-5 rounded-none bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs border border-slate-200 cursor-pointer"
-                  >
-                    +
-                  </button>
+
+                {/* Slider */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={16}
+                    max={72}
+                    value={totalWeeks}
+                    onChange={(e) => updateWeeks(parseInt(e.target.value))}
+                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
+                  />
+                  <span className="text-[10px] font-mono text-slate-500 shrink-0">{totalWeeks}w</span>
                 </div>
               </div>
 
@@ -406,6 +491,61 @@ export const ScheduleGanttView: React.FC<ScheduleGanttViewProps> = ({
                     </button>
                   ))}
                 </div>
+              </div>
+            </div>
+
+            {/* Quick Timeline Presets & Staffing Generation Strip */}
+            <div className="p-3 rounded-sm bg-slate-100 border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mr-1">Quick Sizing Presets:</span>
+                <button
+                  onClick={() => updateWeeks(data.recommendedDurationWeeks)}
+                  className={`px-2 py-1 rounded-xs font-mono font-bold text-[11px] transition cursor-pointer border ${
+                    totalWeeks === data.recommendedDurationWeeks
+                      ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-xs'
+                      : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'
+                  }`}
+                  title="Adopt recommended duration from 4-Step Methodology"
+                >
+                  ⭐ Recommended ({data.recommendedDurationWeeks}w)
+                </button>
+                <button
+                  onClick={() => updateWeeks(data.scheduleFeasibility.crashDurationWeeks || 24)}
+                  className={`px-2 py-1 rounded-xs font-mono font-bold text-[11px] transition cursor-pointer border ${
+                    totalWeeks === (data.scheduleFeasibility.crashDurationWeeks || 24)
+                      ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                      : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'
+                  }`}
+                  title="Adopt compressed/crash schedule"
+                >
+                  ⚡ Compressed ({data.scheduleFeasibility.crashDurationWeeks || 24}w)
+                </button>
+                <button
+                  onClick={() => updateWeeks(data.recommendedDurationWeeks + 4)}
+                  className={`px-2 py-1 rounded-xs font-mono font-bold text-[11px] transition cursor-pointer border ${
+                    totalWeeks === data.recommendedDurationWeeks + 4
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'
+                  }`}
+                  title="Adopt buffered schedule with risk contingency"
+                >
+                  🛡️ Buffered ({data.recommendedDurationWeeks + 4}w)
+                </button>
+                {/* Industry Benchmark duration button hidden for proposal customization */}
+              </div>
+
+              {/* Staffing Generation Math Formula */}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[11px] text-slate-600">
+                  Staffing: <strong className="font-mono text-slate-900">{Math.round(data.targetHours || 0).toLocaleString()}h</strong> ÷ (<strong className="font-mono text-slate-900">{totalWeeks}w</strong> × 40h) = <strong className="font-mono text-emerald-700">{(data.targetHours / (totalWeeks * 40)).toFixed(1)} FTEs</strong>
+                </span>
+                <button
+                  onClick={() => setActiveTab('capacity')}
+                  className="px-2 py-1 rounded-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-[10px] font-bold uppercase tracking-wider transition cursor-pointer flex items-center gap-1"
+                >
+                  <Calculator size={11} />
+                  <span>Full Capacity Model</span>
+                </button>
               </div>
             </div>
 
@@ -492,6 +632,38 @@ export const ScheduleGanttView: React.FC<ScheduleGanttViewProps> = ({
               <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Clear Flight Path</span>
             </div>
           )}
+
+          {/* Phase Overflow Warning if any phase extends beyond current project timeline */}
+          {(() => {
+            const maxPhaseEndWeek = Math.max(...(data.phaseHours || []).map(p => p.endWeek || 0), totalWeeks);
+            if (maxPhaseEndWeek > totalWeeks) {
+              return (
+                <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-sm text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-sm bg-amber-200 text-amber-900 shrink-0">
+                      <AlertTriangle size={16} />
+                    </div>
+                    <div>
+                      <span className="font-bold uppercase text-[11px] tracking-wider block">
+                        Phase Overflow Detected
+                      </span>
+                      <span className="text-slate-700">
+                        One or more phase durations extend to <strong>Week {maxPhaseEndWeek}</strong>, which exceeds the active schedule ({totalWeeks} weeks).
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => updateWeeks(maxPhaseEndWeek)}
+                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xs font-bold text-xs uppercase tracking-wider shrink-0 cursor-pointer shadow-xs transition flex items-center gap-1.5"
+                  >
+                    <Zap size={13} />
+                    <span>Auto-Align Schedule to {maxPhaseEndWeek} Wks</span>
+                  </button>
+                </div>
+              );
+            }
+            return null;
+          })()}
 
           {/* Interactive Gantt Chart Container */}
           <div className="bg-white border border-slate-200 rounded-sm p-6 shadow-xs space-y-4">
@@ -610,12 +782,60 @@ export const ScheduleGanttView: React.FC<ScheduleGanttViewProps> = ({
 
                     return (
                       <div key={ph.id} className="flex items-center h-7 hover:bg-slate-50 rounded-none group">
-                        <div className="w-60 shrink-0 pr-3 truncate text-xs font-bold text-slate-800 flex items-center justify-between gap-1.5">
+                        <div className="w-68 shrink-0 pr-3 truncate text-xs font-bold text-slate-800 flex items-center justify-between gap-1.5">
                           <div className="flex items-center gap-1.5 truncate">
                             <span className="w-2.5 h-2.5 rounded-none shrink-0" style={{ backgroundColor: ph.color }} />
-                            <span className="truncate">{ph.name}</span>
+                            <span className="truncate" title={ph.name}>{ph.name}</span>
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 shrink-0">
+                            {/* Inline week stepper */}
+                            <div className="flex items-center bg-slate-100 px-1 py-0.5 rounded-xs border border-slate-200">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const current = override?.customDurationWeeks ?? duration;
+                                  const nextVal = Math.max(1, current - 1);
+                                  onUpdateScenario(prev => ({
+                                    ...prev,
+                                    phaseOverrides: {
+                                      ...(prev.phaseOverrides || {}),
+                                      [ph.id]: {
+                                        ...(prev.phaseOverrides?.[ph.id] || { phaseId: ph.id }),
+                                        customDurationWeeks: nextVal
+                                      }
+                                    }
+                                  }));
+                                }}
+                                className="w-3.5 h-3.5 rounded-none bg-white hover:bg-slate-200 text-slate-700 text-[9px] font-bold flex items-center justify-center cursor-pointer border border-slate-300"
+                                title={`Decrease ${ph.name} duration (-1 wk)`}
+                              >
+                                -
+                              </button>
+                              <span className="font-mono font-bold text-[10px] text-slate-900 px-1" title="Duration in weeks">{duration}w</span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const current = override?.customDurationWeeks ?? duration;
+                                  const nextVal = current + 1;
+                                  const projectedEnd = (ph.startWeek || 1) + nextVal - 1;
+                                  onUpdateScenario(prev => ({
+                                    ...prev,
+                                    projectWeeks: Math.max(prev.projectWeeks, projectedEnd),
+                                    phaseOverrides: {
+                                      ...(prev.phaseOverrides || {}),
+                                      [ph.id]: {
+                                        ...(prev.phaseOverrides?.[ph.id] || { phaseId: ph.id }),
+                                        customDurationWeeks: nextVal
+                                      }
+                                    }
+                                  }));
+                                }}
+                                className="w-3.5 h-3.5 rounded-none bg-white hover:bg-slate-200 text-slate-700 text-[9px] font-bold flex items-center justify-center cursor-pointer border border-slate-300"
+                                title={`Increase ${ph.name} duration (+1 wk)`}
+                              >
+                                +
+                              </button>
+                            </div>
                             {isMultiVendorActive && (
                               <span className={`text-[8px] font-mono font-bold px-1 rounded-none shrink-0 uppercase ${
                                 ownerParty === 'other_si'
@@ -678,7 +898,7 @@ export const ScheduleGanttView: React.FC<ScheduleGanttViewProps> = ({
                 <div className="space-y-2 mb-6">
                   <div className="flex items-center justify-between mb-1">
                     <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                      Functional & Technical Tracks (Resource Loading & Governance)
+                      Functional & Technical Tracks (Phase Schedule & Governance)
                     </div>
                     <span className="text-[9px] font-bold text-slate-500">
                       Governance, PMO & OCM run continuously in parallel

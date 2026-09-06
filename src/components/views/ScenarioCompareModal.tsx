@@ -131,7 +131,7 @@ export const ScenarioCompareModal: React.FC<ScenarioCompareModalProps> = ({
                     <div className="flex justify-between py-1">
                       <span className="text-slate-500 font-medium">Delivery Mix:</span>
                       <span className="text-slate-700 font-mono text-[10px]">
-                        {scenario.deliveryMix.onshore}/{scenario.deliveryMix.nearshore}/{scenario.deliveryMix.offshore}
+                        {scenario.deliveryMix.onshore}% On / {scenario.deliveryMix.offshore}% Off
                       </span>
                     </div>
                   </div>

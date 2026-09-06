@@ -1,6 +1,6 @@
 {
   "name": "Oracle Fusion Implementation Schedule & Efforts Generator",
-  "description": "Interactive project timeline, Oracle True Cloud Method WBS, effort estimation engine, multi-vendor & multi-SI scope demarcation studio, pod patching conflict analyzer, resource staffing pyramid, and T-shirt scoping tool for Oracle Fusion Cloud transformations.",
+  "description": "Interactive project timeline, Oracle True Cloud Method WBS, effort estimation engine, Listen Podcast 2-host audio overview, multi-vendor scope demarcation, pod patching analyzer, resource staffing pyramid, and T-shirt scoping tool for Oracle Fusion Cloud transformations.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

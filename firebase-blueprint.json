@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "ProjectScenarioEntity": {
+      "title": "ProjectScenarioEntity",
+      "description": "Enterprise project plan scenario containing scope, WBS schedule, scale drivers, multipliers, and deliverables.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 256 },
+        "clientName": { "type": "string", "maxLength": 256 },
+        "industry": { "type": "string", "maxLength": 128 },
+        "description": { "type": "string", "maxLength": 2048 },
+        "projectWeeks": { "type": "number" },
+        "targetStartDate": { "type": "string", "maxLength": 64 },
+        "scenarioDataJson": { "type": "string", "maxLength": 500000 },
+        "updatedAt": { "type": "string", "maxLength": 64 },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "authorEmail": { "type": "string", "maxLength": 256 }
+      },
+      "required": ["id", "name", "scenarioDataJson", "updatedAt"]
+    },
+    "UniversalSnapshotEntity": {
+      "title": "UniversalSnapshotEntity",
+      "description": "Baseline snapshot of a proposal or plan for versioning and retrieval across systems.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "scenarioId": { "type": "string", "maxLength": 128 },
+        "scenarioName": { "type": "string", "maxLength": 256 },
+        "description": { "type": "string", "maxLength": 1024 },
+        "totalEffortHours": { "type": "number" },
+        "projectWeeks": { "type": "number" },
+        "avgFte": { "type": "number" },
+        "timestamp": { "type": "string", "maxLength": 64 },
+        "scenarioDataJson": { "type": "string", "maxLength": 500000 },
+        "authorId": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "scenarioId", "scenarioName", "scenarioDataJson", "timestamp"]
+    },
+    "PodcastEpisodeEntity": {
+      "title": "PodcastEpisodeEntity",
+      "description": "Two-host executive podcast episode overview generated for an Oracle Cloud proposal.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "scenarioId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 256 },
+        "subtitle": { "type": "string", "maxLength": 512 },
+        "focus": { "type": "string", "maxLength": 64 },
+        "accent": { "type": "string", "maxLength": 32 },
+        "summary": { "type": "string", "maxLength": 4096 },
+        "dialogueJson": { "type": "string", "maxLength": 250000 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "scenarioId", "title", "dialogueJson", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/project_scenarios/{scenarioId}": {
+      "schema": "ProjectScenarioEntity",
+      "description": "Global project scenarios and proposals accessible across different systems."
+    },
+    "/universal_snapshots/{snapshotId}": {
+      "schema": "UniversalSnapshotEntity",
+      "description": "Immutable versioned baseline snapshots of project plans."
+    },
+    "/podcast_episodes/{episodeId}": {
+      "schema": "PodcastEpisodeEntity",
+      "description": "Generated 2-host executive audio overviews."
+    }
+  }
+}

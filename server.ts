@@ -3,11 +3,29 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore, collection, getDocs, doc, getDoc, setDoc, query, orderBy, limit } from 'firebase/firestore';
+import firebaseConfig from './src/lib/firebaseConfig';
 
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
+
+// Enable CORS for external systems like Claude Artifacts
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
+// Initialize server-side Firebase
+const fbApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -72,6 +90,152 @@ async function generateContentWithFallback(contents: any, config: any): Promise<
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', hasGeminiKey: Boolean(process.env.GEMINI_API_KEY) });
+});
+
+// ----------------------------------------------------
+// Public REST Endpoints for External Systems (Claude Artifacts, cURL, etc.)
+// ----------------------------------------------------
+
+// 1. Project Scenarios
+app.get('/api/scenarios', async (req, res) => {
+  try {
+    const colRef = collection(db, 'project_scenarios');
+    const snapshot = await getDocs(colRef);
+    const scenarios: any[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      let scenarioData = null;
+      if (data.scenarioDataJson) {
+        try {
+          scenarioData = JSON.parse(data.scenarioDataJson);
+        } catch (e) {
+          // ignore
+        }
+      }
+      scenarios.push({
+        id: data.id,
+        name: data.name,
+        clientName: data.clientName,
+        description: data.description,
+        moduleCount: data.moduleCount,
+        projectWeeks: data.projectWeeks,
+        updatedAt: data.updatedAt,
+        authorId: data.authorId,
+        scenarioData
+      });
+    });
+    res.json({ success: true, count: scenarios.length, scenarios });
+  } catch (error: any) {
+    console.error('Error fetching scenarios:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Single Scenario by ID
+app.get('/api/scenarios/:id', async (req, res) => {
+  try {
+    const docRef = doc(db, 'project_scenarios', req.params.id);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) {
+      return res.status(404).json({ success: false, error: 'Scenario not found' });
+    }
+    const data = snap.data();
+    let scenarioData = null;
+    if (data.scenarioDataJson) {
+      try {
+        scenarioData = JSON.parse(data.scenarioDataJson);
+      } catch (e) {
+        // ignore
+      }
+    }
+    res.json({
+      success: true,
+      scenario: {
+        id: data.id,
+        name: data.name,
+        clientName: data.clientName,
+        description: data.description,
+        moduleCount: data.moduleCount,
+        projectWeeks: data.projectWeeks,
+        updatedAt: data.updatedAt,
+        authorId: data.authorId,
+        scenarioData
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 2. Snapshots
+app.get('/api/snapshots', async (req, res) => {
+  try {
+    const colRef = collection(db, 'universal_snapshots');
+    const snapshot = await getDocs(colRef);
+    const snapshots: any[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      let scenarioData = null;
+      if (data.scenarioDataJson) {
+        try {
+          scenarioData = JSON.parse(data.scenarioDataJson);
+        } catch (e) {
+          // ignore
+        }
+      }
+      snapshots.push({
+        id: data.id,
+        scenarioId: data.scenarioId,
+        scenarioName: data.scenarioName,
+        description: data.description,
+        totalEffortHours: data.totalEffortHours,
+        projectWeeks: data.projectWeeks,
+        avgFte: data.avgFte,
+        timestamp: data.timestamp,
+        authorId: data.authorId,
+        scenarioData
+      });
+    });
+    res.json({ success: true, count: snapshots.length, snapshots });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 3. Podcast Episodes
+app.get('/api/podcasts', async (req, res) => {
+  try {
+    const colRef = collection(db, 'podcast_episodes');
+    const snapshot = await getDocs(colRef);
+    const episodes: any[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      let dialogue = [];
+      let keyTakeaways = [];
+      if (data.dialogueJson) {
+        try { dialogue = JSON.parse(data.dialogueJson); } catch (e) {}
+      }
+      if (data.keyTakeaways) {
+        try { keyTakeaways = JSON.parse(data.keyTakeaways); } catch (e) {}
+      }
+      episodes.push({
+        id: data.id,
+        scenarioId: data.scenarioId,
+        clientName: data.clientName,
+        title: data.title,
+        subtitle: data.subtitle,
+        focus: data.focus,
+        accent: data.accent,
+        summary: data.summary,
+        keyTakeaways,
+        dialogue,
+        createdAt: data.createdAt
+      });
+    });
+    res.json({ success: true, count: episodes.length, episodes });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // General Gemini generation endpoint
@@ -787,6 +951,143 @@ app.post('/api/smartsheet/deploy', async (req, res) => {
       success: false,
       error: error.message,
       logs
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// NotebookLM Podcast Audio Overview Generator Endpoint
+// ---------------------------------------------------------------------------
+app.post('/api/gemini/podcast', async (req, res) => {
+  try {
+    const { scenario, data, focus = 'deep_dive', accent = 'en-IN', customPrompt } = req.body;
+    if (!scenario) {
+      return res.status(400).json({ error: 'Scenario is required', success: false });
+    }
+
+    const clientName = scenario.clientName || scenario.name || 'Enterprise Client';
+    const weeks = scenario.projectWeeks || 32;
+    const hours = Math.round(data?.targetHours || 8500);
+    const fte = (data?.avgTotalFTE ?? data?.totalFTE ?? (hours / (weeks * 40)) ?? 7.5).toFixed(1);
+    const onshorePct = scenario.deliveryMix?.onshore ?? 20;
+    const offshorePct = scenario.deliveryMix?.offshore ?? 80;
+    const margin = Math.round(data?.masterBlendedCalc?.grossMarginPct ?? data?.grossMarginPct ?? 48);
+    const modules = (scenario.selectedModules || []).slice(0, 10).join(', ');
+    const oic = scenario.scaleDrivers?.tech_oic || 0;
+    const paas = scenario.scaleDrivers?.tech_paas || 0;
+    const dataObjects = scenario.scaleDrivers?.tech_data_objects || 0;
+    const mockCycles = scenario.scaleDrivers?.tech_conversion_cycles || 3;
+    const contractValue = Math.round(data?.masterBlendedCalc?.totalRevenue ?? data?.totalContractValue ?? 1250000).toLocaleString();
+
+    let focusGuidance = '';
+    if (focus === 'commercials') {
+      focusGuidance = 'Focus heavily on commercial economics: Contract value, Blended bill rates, 2-Tier 20% Onshore / 80% Offshore GDC staffing arbitrage, 45%+ gross margin defensibility, and Fixed-Fee vs T&M risk allocation for the CFO.';
+    } else if (focus === 'architecture') {
+      focusGuidance = 'Focus on technical architecture, CEMLI containment, OIC integrations, legacy data extraction & FBDI staging, mock conversion cycles, and testing gates (CRP1, CRP2, SIT, UAT) for the CIO/CTO.';
+    } else if (focus === 'executive') {
+      focusGuidance = 'Provide a punchy, rapid 2-minute executive SteerCo briefing covering the strategic roadmap, scope boundaries, why 20/80 staffing protects quality, and go-live milestone confidence.';
+    } else {
+      focusGuidance = 'Provide a comprehensive Listen Podcast Deep Dive covering the full project lifecycle: scope footprint, timeline pacing, 20/80 delivery pyramid, technical complexity, risk mitigations, and commercial ROI.';
+    }
+
+    const accentGuidance = accent === 'en-IN'
+      ? `ACCENT & CULTURAL TONE: Indian English Delivery Context (en-IN).
+The two hosts, Alex (Priya) and Jordan (Rohan), speak in articulate, polished Indian business English characteristic of senior Oracle Cloud practice leadership and global delivery center (GDC) heads from Bangalore and Hyderabad.
+Their delivery is insightful, crisp, and warm, blending deep Oracle Cloud True Cloud Method (TCM) rigor with strategic commercial acumen and offshore factory excellence.`
+      : `ACCENT & TONE: ${accent} standard business consulting podcast banter.`;
+
+    const host1Name = accent === 'en-IN' ? 'Alex (Priya)' : 'Alex';
+    const host2Name = accent === 'en-IN' ? 'Jordan (Rohan)' : 'Jordan';
+
+    const prompt = `You are the executive producer and lead scriptwriter for the iconic "Audio Overview" / Listen Podcast feature.
+Create an authentic, intellectually stimulating, two-host conversational podcast dialogue discussing this Oracle Cloud Implementation Proposal & Project Plan.
+
+PROJECT PARAMETERS:
+- Client: ${clientName} (${scenario.industry || 'Manufacturing & Enterprise'})
+- Duration: ${weeks} Weeks
+- Total Sizing Effort: ${hours.toLocaleString()} Hours (~${fte} FTEs)
+- Sourcing Delivery Model: Strict 2-Tier Model (${onshorePct}% Onshore, ${offshorePct}% Offshore GDC)
+- Scope Footprint: Modules: [${modules}]
+- Technical Complexity: ${oic} OIC Integrations, ${paas} PaaS Extensions, ${dataObjects} Data Conversion Objects, ${mockCycles} Mock Cycles
+- Commercials: ~$${contractValue} Total Revenue, Target Gross Margin ~${margin}%
+- Delivery Methodology: Oracle True Cloud Method (TCM) & OUM 7-Phase Protocol
+${accentGuidance}
+${customPrompt ? `- Custom User Directives: "${customPrompt}"` : ''}
+
+PODCAST HOST PERSONAS:
+1. ${host1Name} (Inquisitive Co-host / Enterprise Strategist):
+   - Lively, curious, insightful, and asks the probing questions a CIO or CFO would ask.
+   - Highlights surprising numbers, challenges assumptions ("Wait, 28 weeks for full SCM and Financials? How does the team pull that off?"), and provides relatable analogies.
+2. ${host2Name} (Principal Enterprise Architect & Global Practice Leader):
+   - Authoritative yet accessible, seasoned, grounded in Oracle Cloud delivery reality.
+   - Explains the True Cloud Method, why 80% offshore GDC factory execution works with 20% onshore architects, how CEMLI inventory is locked down, and why stage gates prevent go-live failure.
+
+FORMAT REQUIREMENTS:
+- Tone: High-energy, natural podcast banter (e.g., "Welcome back to the Deep Dive...", "Right!", "And here's the thing...", "Wait, let's unpack that...").
+- Structure: 10 to 14 dialogue turns.
+- Strict JSON output matching this schema:
+{
+  "title": "Compelling podcast episode title (e.g. Inside the 28-Week Oracle Cloud Blueprint: Sourcing, Speed & Scale)",
+  "subtitle": "Clear subtitle highlighting the core takeaway",
+  "focus": "${focus}",
+  "accent": "${accent}",
+  "durationMinutes": 6,
+  "summary": "2-3 sentence executive summary of this episode",
+  "keyTakeaways": [
+    "Takeaway 1",
+    "Takeaway 2",
+    "Takeaway 3"
+  ],
+  "hosts": {
+    "host1": { "name": "${host1Name}", "title": "Enterprise Strategist", "avatarColor": "blue", "voiceType": "female" },
+    "host2": { "name": "${host2Name}", "title": "Oracle Cloud Practice Lead", "avatarColor": "emerald", "voiceType": "male" }
+  },
+  "dialogue": [
+    {
+      "id": "turn_1",
+      "speaker": "Alex",
+      "speakerRole": "Enterprise Strategist",
+      "text": "Dialogue text with natural conversational rhythm and questions.",
+      "topicTag": "Introduction & Scope",
+      "highlight": true
+    },
+    {
+      "id": "turn_2",
+      "speaker": "Jordan",
+      "speakerRole": "Oracle Cloud Practice Lead",
+      "text": "Response explaining the technical reality, methodology, or numbers.",
+      "topicTag": "Architecture",
+      "highlight": false
+    }
+  ]
+}`;
+
+    const response = await generateContentWithFallback(prompt, {
+      responseMimeType: 'application/json',
+      systemInstruction: 'You are the creator of Google NotebookLM Audio Overviews. Produce brilliant, fluid, and authentic 2-speaker podcast discussions grounded in real enterprise project metrics.'
+    });
+
+    let jsonStr = response.text || '{}';
+    if (jsonStr.includes('```json')) {
+      jsonStr = jsonStr.split('```json')[1].split('```')[0].trim();
+    } else if (jsonStr.includes('```')) {
+      jsonStr = jsonStr.split('```')[1].split('```')[0].trim();
+    }
+    const episode = JSON.parse(jsonStr);
+
+    // Ensure metadata
+    episode.id = `pod_${Date.now()}`;
+    episode.createdAt = new Date().toISOString();
+    episode.scenarioId = scenario.id;
+    episode.clientName = clientName;
+
+    res.json({ episode, success: true });
+  } catch (error: any) {
+    console.warn('Gemini Podcast Generation Error (falling back to intelligent synthesis):', error);
+    res.status(200).json({
+      success: false,
+      error: error.message,
+      fallbackRequired: true
     });
   }
 });

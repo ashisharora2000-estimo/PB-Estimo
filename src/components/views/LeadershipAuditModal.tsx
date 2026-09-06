@@ -77,11 +77,17 @@ export const LeadershipAuditModal: React.FC<LeadershipAuditModalProps> = ({
     {
       id: 'chk_scope',
       category: 'Scoping Completeness',
-      title: 'Module Footprint & 20-Question Depth',
-      status: scenario.selectedModules.length > 0 ? 'pass' : 'fail',
-      value: `${scenario.selectedModules.length} Modules in Scope`,
-      details: `Scoped across ${scenario.selectedModules.length} Oracle Cloud modules with granular 20-question custom depth totaling +${(Math.round(moduleScopingHours || 0)).toLocaleString()} scoping delta hours.`,
-      recommendation: scenario.selectedModules.length < 3 ? 'Ensure core financial setup (GL, AP, AR) is included for end-to-end processing.' : 'Scoping configuration is fully verified and balanced.'
+      title: scenario.scopeMode === 'integrations_only' ? 'Integration Track & Middleware Inventory' : 'Module Footprint & 20-Question Depth',
+      status: (scenario.scopeMode === 'integrations_only' ? (scenario.scaleDrivers.tech_oic || 0) > 0 : scenario.selectedModules.length > 0) ? 'pass' : 'fail',
+      value: scenario.scopeMode === 'integrations_only'
+        ? `${scenario.scaleDrivers.tech_oic || 0} Integrations Scoped (Integrations-Only Mode)`
+        : `${scenario.selectedModules.length} Modules in Scope`,
+      details: scenario.scopeMode === 'integrations_only'
+        ? `Dedicated integration track with ${scenario.scaleDrivers.tech_oic || 0} OIC endpoints, CDM data model, and partner testing totaling ${Math.round(p80_DefensibleHours || 0).toLocaleString()} defensible hours.`
+        : `Scoped across ${scenario.selectedModules.length} Oracle Cloud modules with granular 20-question custom depth totaling +${(Math.round(moduleScopingHours || 0)).toLocaleString()} scoping delta hours.`,
+      recommendation: scenario.scopeMode === 'integrations_only'
+        ? 'Integration track scope and complexity tier distributions are verified.'
+        : (scenario.selectedModules.length < 3 ? 'Ensure core financial setup (GL, AP, AR) is included for end-to-end processing.' : 'Scoping configuration is fully verified and balanced.')
     },
     {
       id: 'chk_scale',

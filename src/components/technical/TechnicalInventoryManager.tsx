@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   TableProperties,
   Database,
-  Grid
+  Grid,
+  Upload
 } from 'lucide-react';
 import {
   ProjectScenario,
@@ -33,6 +34,9 @@ import { ConversionMatrixManager } from './ConversionMatrixManager';
 import { TechnicalTowerBenchmarks } from './TechnicalTowerBenchmarks';
 import { UnifiedRicefwSummaryGrid } from './UnifiedRicefwSummaryGrid';
 import { IntelUploadHubModal } from '../modals/IntelUploadHubModal';
+import { IntegrationInventoryIngestModal } from './IntegrationInventoryIngestModal';
+import { IntegrationInventoryParseResult } from '../../utils/integrationInventoryParser';
+import { syncIntegrationsFromInventory } from '../../utils/technicalSync';
 
 interface TechnicalInventoryManagerProps {
   scenario: ProjectScenario;
@@ -49,11 +53,15 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
   const [editingIntegration, setEditingIntegration] = useState<TechnicalIntegrationItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isIntelModalOpen, setIsIntelModalOpen] = useState<boolean>(false);
+  const [isIngestModalOpen, setIsIngestModalOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [pillarFilter, setPillarFilter] = useState<string>('all');
   const [tierFilter, setTierFilter] = useState<string>('all');
 
-  const integrations = scenario.technicalIntegrations || DEFAULT_TECHNICAL_INTEGRATIONS;
+  // Reliable integrations list honoring Clean Slate (tech_oic === 0 with no items)
+  const integrations = scenario.technicalIntegrations !== undefined
+    ? scenario.technicalIntegrations
+    : (scenario.scaleDrivers?.tech_oic === 0 ? [] : DEFAULT_TECHNICAL_INTEGRATIONS);
 
   const handleOpenCalculator = (item: TechnicalIntegrationItem) => {
     setEditingIntegration(item);
@@ -94,35 +102,45 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
 
   const handleSaveIntegration = (updated: TechnicalIntegrationItem) => {
     onUpdateScenario(prev => {
-      const currentList = prev.technicalIntegrations || DEFAULT_TECHNICAL_INTEGRATIONS;
+      const currentList = prev.technicalIntegrations !== undefined
+        ? prev.technicalIntegrations
+        : (prev.scaleDrivers?.tech_oic === 0 ? [] : DEFAULT_TECHNICAL_INTEGRATIONS);
       const exists = currentList.some(i => i.id === updated.id);
       const newList = exists
         ? currentList.map(i => (i.id === updated.id ? updated : i))
         : [...currentList, updated];
 
-      return {
-        ...prev,
-        technicalIntegrations: newList,
-        scaleDrivers: {
-          ...prev.scaleDrivers,
-          tech_oic: newList.length
-        }
-      };
+      return syncIntegrationsFromInventory(newList, prev);
     });
   };
 
   const handleDeleteIntegration = (id: string) => {
     onUpdateScenario(prev => {
-      const currentList = prev.technicalIntegrations || DEFAULT_TECHNICAL_INTEGRATIONS;
+      const currentList = prev.technicalIntegrations !== undefined
+        ? prev.technicalIntegrations
+        : (prev.scaleDrivers?.tech_oic === 0 ? [] : DEFAULT_TECHNICAL_INTEGRATIONS);
       const newList = currentList.filter(i => i.id !== id);
-      return {
-        ...prev,
-        technicalIntegrations: newList,
-        scaleDrivers: {
-          ...prev.scaleDrivers,
-          tech_oic: newList.length
-        }
-      };
+      return syncIntegrationsFromInventory(newList, prev);
+    });
+  };
+
+  const handleClearAllIntegrations = () => {
+    if (window.confirm('Clear all integrations and reset to a clean zero integration baseline?')) {
+      onUpdateScenario(prev => syncIntegrationsFromInventory([], prev));
+    }
+  };
+
+  const handleApplyIngestedInventory = (
+    newItems: TechnicalIntegrationItem[],
+    replaceExisting: boolean,
+    fullResult?: IntegrationInventoryParseResult
+  ) => {
+    onUpdateScenario(prev => {
+      const existing = prev.technicalIntegrations !== undefined
+        ? prev.technicalIntegrations
+        : (prev.scaleDrivers?.tech_oic === 0 ? [] : DEFAULT_TECHNICAL_INTEGRATIONS);
+      const combined = replaceExisting ? newItems : [...existing, ...newItems];
+      return syncIntegrationsFromInventory(combined, prev, fullResult?.ricefwCounts, fullResult?.ricefwSmcOverrides);
     });
   };
 
@@ -205,6 +223,16 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={() => setIsIngestModalOpen(true)}
+            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+            title="Ingest external CSV, TSV, JSON, or table inventory"
+          >
+            <Upload size={14} />
+            <span>Ingest Inventory ({integrations.length})</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setIsIntelModalOpen(true)}
             className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 shadow-xs transition cursor-pointer"
             title="Ingest Spec Sheet, Interfaces & Conversion Matrix"
@@ -214,14 +242,27 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
           </button>
 
           {activeTab === 'integrations' && (
-            <button
-              type="button"
-              onClick={handleAddNewIntegration}
-              className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 shadow-xs transition cursor-pointer"
-            >
-              <Plus size={14} />
-              <span>Add Custom Integration</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleAddNewIntegration}
+                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+              >
+                <Plus size={14} />
+                <span>Add Endpoint</span>
+              </button>
+              {integrations.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearAllIntegrations}
+                  className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1 transition cursor-pointer"
+                  title="Reset to 0 integrations (Clean Slate)"
+                >
+                  <Trash2 size={13} />
+                  <span>Clear All</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -231,7 +272,7 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
           scenario={scenario}
           onUpdateScenario={onUpdateScenario}
           data={data}
-          onIngestClick={() => setIsIntelModalOpen(true)}
+          onIngestClick={() => setIsIngestModalOpen(true)}
         />
       ) : activeTab === 'conversions' ? (
         <ConversionMatrixManager
@@ -394,95 +435,133 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 text-slate-700">
-                {filteredIntegrations.map((item) => {
-                  return (
-                    <tr key={item.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-3 px-3 font-mono font-bold text-slate-900 whitespace-nowrap">
-                        {item.code}
-                      </td>
+                {filteredIntegrations.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 px-4 text-center bg-slate-50/50">
+                      <div className="max-w-md mx-auto space-y-3">
+                        <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                          <Database size={22} />
+                        </div>
+                        <div className="font-bold text-slate-900 text-sm">
+                          {integrations.length === 0 ? 'Clean Slate Active: 0 Integrations Scoped' : 'No matching integrations found'}
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          {integrations.length === 0
+                            ? 'The proposal is at a pristine clean slate baseline. Ingest a customer spreadsheet or add individual endpoints to size effort and synchronize the engine.'
+                            : `No integrations match "${searchQuery}" or the active filters.`}
+                        </p>
+                        <div className="flex items-center justify-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setIsIngestModalOpen(true)}
+                            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-sm flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                          >
+                            <Upload size={13} />
+                            <span>Ingest Inventory Spreadsheet</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleAddNewIntegration}
+                            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-sm flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                          >
+                            <Plus size={13} />
+                            <span>Add Single Endpoint</span>
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredIntegrations.map((item) => {
+                    return (
+                      <tr key={item.id} className="hover:bg-slate-50/80 transition">
+                        <td className="py-3 px-3 font-mono font-bold text-slate-900 whitespace-nowrap">
+                          {item.code}
+                        </td>
 
-                      <td className="py-3 px-3">
-                        <div className="font-bold text-slate-900">{item.name}</div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 bg-slate-100 text-slate-700 border border-slate-200">
-                            {item.pillar}
+                        <td className="py-3 px-3">
+                          <div className="font-bold text-slate-900">{item.name}</div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 bg-slate-100 text-slate-700 border border-slate-200">
+                              {item.pillar}
+                            </span>
+                            <span className="text-[10px] font-mono text-slate-500">
+                              {item.type === 'inbound_rest' ? 'Inbound REST API' :
+                               item.type === 'outbound_extract' ? 'Outbound BICC Extract' :
+                               item.type === 'bidirectional_sync' ? 'Bidirectional Real-Time Sync' :
+                               item.type === 'batch_fbdi' ? 'Batch FBDI File Handler' : 'Event Pub/Sub'}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-3 font-mono text-[11px] text-slate-600">
+                          <div className="truncate max-w-xs">{item.sourceSystem}</div>
+                          <div className="text-[10px] text-blue-600 flex items-center gap-1 mt-0.5">
+                            <span>&rarr;</span>
+                            <span className="truncate max-w-xs">{item.targetSystem}</span>
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-3 text-center">
+                          <span className={`px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded-none border ${
+                            item.complexity === 'S'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                              : item.complexity === 'M'
+                                ? 'bg-blue-50 text-blue-800 border-blue-300'
+                                : 'bg-purple-50 text-purple-800 border-purple-300'
+                          }`}>
+                            Tier {item.complexity}
                           </span>
-                          <span className="text-[10px] font-mono text-slate-500">
-                            {item.type === 'inbound_rest' ? 'Inbound REST API' :
-                             item.type === 'outbound_extract' ? 'Outbound BICC Extract' :
-                             item.type === 'bidirectional_sync' ? 'Bidirectional Real-Time Sync' :
-                             item.type === 'batch_fbdi' ? 'Batch FBDI File Handler' : 'Event Pub/Sub'}
-                          </span>
-                        </div>
-                      </td>
+                        </td>
 
-                      <td className="py-3 px-3 font-mono text-[11px] text-slate-600">
-                        <div className="truncate max-w-xs">{item.sourceSystem}</div>
-                        <div className="text-[10px] text-blue-600 flex items-center gap-1 mt-0.5">
-                          <span>&rarr;</span>
-                          <span className="truncate max-w-xs">{item.targetSystem}</span>
-                        </div>
-                      </td>
+                        <td className="py-3 px-3 text-center font-mono text-[11px] font-bold text-slate-600">
+                          {item.compositeScore ? item.compositeScore.toFixed(2) : '1.80'} / 4.0
+                        </td>
 
-                      <td className="py-3 px-3 text-center">
-                        <span className={`px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded-none border ${
-                          item.complexity === 'S'
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                            : item.complexity === 'M'
-                              ? 'bg-blue-50 text-blue-800 border-blue-300'
-                              : 'bg-purple-50 text-purple-800 border-purple-300'
-                        }`}>
-                          Tier {item.complexity}
-                        </span>
-                      </td>
+                        <td className="py-3 px-3 text-right whitespace-nowrap">
+                          <div className="font-mono font-bold text-sm text-blue-700">
+                            {item.calculatedHours} <span className="text-[10px] text-slate-500 font-normal">hrs</span>
+                          </div>
+                          <div className="text-[9px] font-mono text-slate-400 truncate max-w-[180px] ml-auto" title={item.calculationFormula}>
+                            {item.calculationFormula}
+                          </div>
+                        </td>
 
-                      <td className="py-3 px-3 text-center font-mono text-[11px] font-bold text-slate-600">
-                        {item.compositeScore ? item.compositeScore.toFixed(2) : '1.80'} / 4.0
-                      </td>
-
-                      <td className="py-3 px-3 text-right whitespace-nowrap">
-                        <div className="font-mono font-bold text-sm text-blue-700">
-                          {item.calculatedHours} <span className="text-[10px] text-slate-500 font-normal">hrs</span>
-                        </div>
-                        <div className="text-[9px] font-mono text-slate-400 truncate max-w-[180px] ml-auto" title={item.calculationFormula}>
-                          {item.calculationFormula}
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenCalculator(item)}
-                          className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-[10px] font-bold rounded-none border border-slate-200 flex items-center gap-1 mx-auto transition cursor-pointer"
-                        >
-                          <Calculator size={11} />
-                          <span>6 Questions</span>
-                        </button>
-                      </td>
-
-                      <td className="py-3 px-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <td className="py-3 px-3 text-center">
                           <button
                             type="button"
                             onClick={() => handleOpenCalculator(item)}
-                            className="p-1 text-slate-400 hover:text-blue-600 rounded-none hover:bg-slate-100 transition cursor-pointer"
-                            title="Edit Scoping Parameters"
+                            className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-[10px] font-bold rounded-none border border-slate-200 flex items-center gap-1 mx-auto transition cursor-pointer"
                           >
-                            <Edit3 size={13} />
+                            <Calculator size={11} />
+                            <span>6 Questions</span>
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteIntegration(item.id)}
-                            className="p-1 text-slate-400 hover:text-rose-600 rounded-none hover:bg-slate-100 transition cursor-pointer"
-                            title="Remove Integration"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                        </td>
+
+                        <td className="py-3 px-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenCalculator(item)}
+                              className="p-1 text-slate-400 hover:text-blue-600 rounded-none hover:bg-slate-100 transition cursor-pointer"
+                              title="Edit Scoping Parameters"
+                            >
+                              <Edit3 size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteIntegration(item.id)}
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded-none hover:bg-slate-100 transition cursor-pointer"
+                              title="Remove Integration"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-slate-300 bg-slate-100 font-bold text-slate-900">
@@ -514,6 +593,14 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
         onClose={() => setIsIntelModalOpen(false)}
         scenario={scenario}
         onUpdateScenario={onUpdateScenario}
+      />
+
+      {/* Integration Inventory Ingest Modal */}
+      <IntegrationInventoryIngestModal
+        isOpen={isIngestModalOpen}
+        onClose={() => setIsIngestModalOpen(false)}
+        onApply={handleApplyIngestedInventory}
+        currentInventoryCount={integrations.length}
       />
 
       {/* Integration Scoping Calculator Modal */}

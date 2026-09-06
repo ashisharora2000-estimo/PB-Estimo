@@ -1,16 +1,165 @@
-import { OracleModule } from '../types';
+import { OracleModule, TShirtSize, ModuleScopingQuestion } from '../types';
 
-export interface ModuleScopingQuestion {
-  id: string;
-  category: 'Process Scope' | 'Integrations & Feeds' | 'Data & Conversions' | 'Approvals & Workflows' | 'Reporting & Analytics' | 'Compliance & Security';
-  question: string;
-  rationale?: string;
-  options: {
-    label: string;
-    score: number; // 1 (Low/Standard) to 4 (Complex/Custom)
-    desc: string;
-    hoursImpact: number;
-  }[];
+export type { ModuleScopingQuestion };
+
+export function isQuestionMandatory(q: ModuleScopingQuestion, idx?: number): boolean {
+  if (q.isMandatory !== undefined) return q.isMandatory;
+  if (idx !== undefined) return [0, 1, 5, 7, 9].includes(idx);
+  return false;
+}
+
+export function getQuestionTag(q: ModuleScopingQuestion, idx?: number): string {
+  if (q.tag) return q.tag;
+  return isQuestionMandatory(q, idx) ? 'Core Topology Driver' : 'Optional Deep-Dive';
+}
+
+export function getQuestionWeight(q: ModuleScopingQuestion, idx?: number): number {
+  if (q.weight !== undefined) return q.weight;
+  return isQuestionMandatory(q, idx) ? 2.5 : 1.0;
+}
+
+export interface ModuleScopingMetrics {
+  avgScore: number;
+  calculatedTShirt: TShirtSize;
+  tShirtScore: number;
+  totalDeltaHours: number;
+  mandatoryTotal: number;
+  mandatoryAnswered: number;
+  optionalTotal: number;
+  optionalAnswered: number;
+  isCoreComplete: boolean;
+  completionPercentage: number;
+  scopingMode: 'fast_track' | 'comprehensive';
+  primaryDrivers: string[];
+}
+
+export function calculateModuleScopingMetrics(
+  questions: ModuleScopingQuestion[],
+  answers: number[] | undefined,
+  overrides?: { tShirtOverride?: TShirtSize; modComplexityFactor?: number }
+): ModuleScopingMetrics {
+  if (!questions || questions.length === 0) {
+    return {
+      avgScore: 2.0,
+      calculatedTShirt: 'M',
+      tShirtScore: 3.0,
+      totalDeltaHours: 0,
+      mandatoryTotal: 0,
+      mandatoryAnswered: 0,
+      optionalTotal: 0,
+      optionalAnswered: 0,
+      isCoreComplete: true,
+      completionPercentage: 100,
+      scopingMode: 'fast_track',
+      primaryDrivers: []
+    };
+  }
+
+  let mandatoryWeightedScore = 0;
+  let mandatoryTotalWeight = 0;
+  let mandatoryTotalCount = 0;
+  let mandatoryAnsweredCount = 0;
+
+  let optionalWeightedScore = 0;
+  let optionalTotalWeight = 0;
+  let optionalTotalCount = 0;
+  let optionalAnsweredCount = 0;
+
+  let totalDeltaHours = 0;
+  const primaryDrivers: string[] = [];
+
+  questions.forEach((q, idx) => {
+    const isMandatory = isQuestionMandatory(q, idx);
+    const weight = getQuestionWeight(q, idx);
+    const rawAnswer = answers ? answers[idx] : undefined;
+    const isAnswered = rawAnswer !== undefined && rawAnswer !== null && rawAnswer >= 0;
+
+    if (isMandatory) {
+      mandatoryTotalCount++;
+      const optIdx = isAnswered ? rawAnswer : 1; // Default to Level 2 (index 1) if not answered yet
+      const opt = q.options[optIdx] || q.options[0];
+      if (isAnswered) mandatoryAnsweredCount++;
+
+      const score = opt.score || 2;
+      mandatoryWeightedScore += score * weight;
+      mandatoryTotalWeight += weight;
+      totalDeltaHours += (opt.hoursImpact || 0);
+
+      if (score >= 3 && primaryDrivers.length < 3) {
+        primaryDrivers.push(`${q.question}: ${opt.label}`);
+      }
+    } else {
+      optionalTotalCount++;
+      if (isAnswered) {
+        optionalAnsweredCount++;
+        const opt = q.options[rawAnswer] || q.options[0];
+        const score = opt.score || 1;
+        optionalWeightedScore += score * weight;
+        optionalTotalWeight += weight;
+        totalDeltaHours += (opt.hoursImpact || 0);
+
+        if (score >= 3 && primaryDrivers.length < 3) {
+          primaryDrivers.push(`${q.question}: ${opt.label}`);
+        }
+      } else {
+        // Optional question UNANSWERED:
+        // By design, optional questions do not distort the score when unanswered.
+        // They are assumed at Modern Best Practice (Fit-to-Standard / score 1) with 0 delta hours,
+        // and do not dilute the mandatory questions' weighted score!
+      }
+    }
+  });
+
+  // Calculate composite average score
+  // If no optional questions are answered, avgScore is governed 100% by the mandatory core questions!
+  const totalWeight = mandatoryTotalWeight + optionalTotalWeight;
+  const totalScore = mandatoryWeightedScore + optionalWeightedScore;
+  const avgScore = totalWeight > 0 ? Number((totalScore / totalWeight).toFixed(2)) : 2.0;
+
+  // Derived T-Shirt size from composite average score
+  let calculatedTShirt: TShirtSize = 'M';
+  let tShirtScore = 3.0;
+
+  if (avgScore < 1.60) {
+    calculatedTShirt = 'XS';
+    tShirtScore = 1.0 + ((avgScore - 1.0) / 0.60) * 0.9;
+  } else if (avgScore < 2.35) {
+    calculatedTShirt = 'S';
+    tShirtScore = 2.0 + ((avgScore - 1.60) / 0.75) * 0.9;
+  } else if (avgScore < 3.05) {
+    calculatedTShirt = 'M';
+    tShirtScore = 3.0 + ((avgScore - 2.35) / 0.70) * 0.9;
+  } else if (avgScore < 3.65) {
+    calculatedTShirt = 'L';
+    tShirtScore = 4.0 + ((avgScore - 3.05) / 0.60) * 0.9;
+  } else if (avgScore < 3.90) {
+    calculatedTShirt = 'XL';
+    tShirtScore = 5.0 + ((avgScore - 3.65) / 0.25) * 0.9;
+  } else {
+    calculatedTShirt = 'XXL';
+    tShirtScore = 6.0;
+  }
+
+  const isCoreComplete = mandatoryAnsweredCount >= mandatoryTotalCount;
+  const scopingMode = optionalAnsweredCount > 0 ? 'comprehensive' : 'fast_track';
+  const totalQuestions = mandatoryTotalCount + optionalTotalCount;
+  const totalAnswered = mandatoryAnsweredCount + optionalAnsweredCount;
+  const completionPercentage = totalQuestions > 0 ? Math.round((totalAnswered / totalQuestions) * 100) : 100;
+
+  return {
+    avgScore,
+    calculatedTShirt,
+    tShirtScore,
+    totalDeltaHours,
+    mandatoryTotal: mandatoryTotalCount,
+    mandatoryAnswered: mandatoryAnsweredCount,
+    optionalTotal: optionalTotalCount,
+    optionalAnswered: optionalAnsweredCount,
+    isCoreComplete,
+    completionPercentage,
+    scopingMode,
+    primaryDrivers
+  };
 }
 
 // Top 20 Detailed Domain Questions for Oracle Fusion Modules
@@ -658,11 +807,22 @@ function generateGenericQuestions(modId: string, startIdx: number, endIdx: numbe
       rationale: `Defines complexity evaluation factor ${i} for ${modLabel}.`
     };
 
+    const isMandatory = [1, 2, 5, 8, 11].includes(i);
+    let tag = 'Optional Deep-Dive';
+    if (i === 1) tag = 'Core Topology Driver';
+    else if (i === 2) tag = 'Lifecycle Engine';
+    else if (i === 5) tag = 'Integration Feeds';
+    else if (i === 8) tag = 'Data Conversion Depth';
+    else if (i === 11) tag = 'Approval Governance';
+
     result.push({
       id: `${modId}_q${i}`,
       category: theme.category,
       question: theme.title,
       rationale: theme.rationale,
+      isMandatory,
+      tag,
+      weight: isMandatory ? 2.5 : 1.0,
       options: [
         {
           label: 'C1: Out-of-the-Box Standard (MBP)',

@@ -118,7 +118,7 @@ export const DeliveryPyramidsTab: React.FC<DeliveryPyramidsTabProps> = ({
                   <div className="flex items-center justify-between text-[11px] font-mono">
                     <span className="text-slate-500">Location Mix:</span>
                     <span className="font-bold text-slate-800">
-                      {preset.deliveryMix.onshore}% On / {preset.deliveryMix.nearshore}% Near / {preset.deliveryMix.offshore}% Off
+                      {preset.deliveryMix.onshore}% Onshore / {preset.deliveryMix.offshore}% Offshore
                     </span>
                   </div>
 
@@ -168,7 +168,7 @@ export const DeliveryPyramidsTab: React.FC<DeliveryPyramidsTabProps> = ({
               Step 1: Location Mix Ratio
             </span>
             <div className="text-sm font-mono font-bold text-white">
-              {simOnshore}% On • {simNearshore}% Near • {simOffshore}% Off
+              {simOnshore}% Onshore • {simOffshore}% Offshore
             </div>
             <p className="text-[10px] text-slate-400 mt-1">
               Weighted factor normalized to 100% capacity.

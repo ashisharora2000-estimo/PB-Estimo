@@ -333,15 +333,7 @@ export const ScheduleFeasibilityCard: React.FC<ScheduleFeasibilityCardProps> = (
                 <span>Adopt Complexity Sizing ({data.recommendedDurationWeeks} Wks)</span>
               </button>
             )}
-            {scenario.projectWeeks !== sf.industryBenchmarkDurationWeeks && (
-              <button
-                onClick={handleAdoptIndustryStandard}
-                className="px-3 py-1.5 rounded-sm bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition"
-              >
-                <Clock size={13} />
-                <span>Industry Standard ({sf.industryBenchmarkDurationWeeks} Wks)</span>
-              </button>
-            )}
+            {/* Industry Standard button hidden for customized proposal workflow */}
             {sf.varianceWeeks < 0 && (scenario.scheduleModifiers?.fastTrackingOverlapPct || 15) < 25 && (
               <button
                 onClick={handleApplyFastTracking}

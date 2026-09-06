@@ -12,7 +12,10 @@ import {
   Building2,
   FileSpreadsheet,
   Plus,
-  Presentation
+  Presentation,
+  Save,
+  RotateCcw,
+  Check
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData } from '../../types';
 
@@ -23,6 +26,10 @@ interface ExecutiveDealBannerProps {
   onNavigateTab?: (tab: any) => void;
   onOpenNewProposal?: () => void;
   onOpenSlideDeck?: () => void;
+  onUpdateScenario?: (updater: (prev: ProjectScenario) => ProjectScenario) => void;
+  onSaveScenario?: () => void;
+  onResetDefaults?: () => void;
+  lastSavedTimestamp?: string | null;
 }
 
 export const ExecutiveDealBanner: React.FC<ExecutiveDealBannerProps> = ({
@@ -31,16 +38,55 @@ export const ExecutiveDealBanner: React.FC<ExecutiveDealBannerProps> = ({
   onSelectTab,
   onNavigateTab,
   onOpenNewProposal,
-  onOpenSlideDeck
+  onOpenSlideDeck,
+  onUpdateScenario,
+  onSaveScenario,
+  onResetDefaults,
+  lastSavedTimestamp
 }) => {
+  const [justSaved, setJustSaved] = React.useState(false);
+
+  const handleTriggerSave = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onSaveScenario) {
+      onSaveScenario();
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2500);
+    }
+  };
   const handleNav = onSelectTab || onNavigateTab;
   const totalDays = Math.round((data.targetHours || 0) / 8);
   const totalHours = Math.round(data.targetHours || 0);
-  const durationWeeks = data.recommendedDurationWeeks || scenario.projectWeeks || 24;
+  const durationWeeks = typeof scenario.projectWeeks === 'number'
+    ? scenario.projectWeeks
+    : (typeof data.recommendedDurationWeeks === 'number' ? data.recommendedDurationWeeks : 32);
   const blendedRate = Math.round(data.blendedBillRate || 145);
   const estimatedTcv = data.deliveryRevenue || (totalHours * blendedRate);
   const goLiveDate = scenario.clientTargetGoLiveDate || 'Q3 2026';
   const thorId = scenario.thorId || 'N/A';
+  const peakFte = typeof data.peakFTE === 'number'
+    ? data.peakFTE
+    : (totalHours > 0 && durationWeeks > 0 ? (totalHours / (durationWeeks * 40)) * 1.3 : 0);
+  const avgFte = data.avgTotalFTE ?? (durationWeeks > 0 ? totalHours / (durationWeeks * 40) : 0);
+  const isOutOfSyncWithRecommended = typeof data.recommendedDurationWeeks === 'number' && durationWeeks !== data.recommendedDurationWeeks;
+
+  const handleAdjustWeeks = (delta: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onUpdateScenario) return;
+    onUpdateScenario(prev => ({
+      ...prev,
+      projectWeeks: Math.max(16, Math.min(104, (prev.projectWeeks || 32) + delta))
+    }));
+  };
+
+  const handleSyncToRecommended = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onUpdateScenario || !data.recommendedDurationWeeks) return;
+    onUpdateScenario(prev => ({
+      ...prev,
+      projectWeeks: data.recommendedDurationWeeks
+    }));
+  };
 
   // Format currency in compact format ($1.25M or $850k)
   const formatCompactCurrency = (val: number) => {
@@ -73,6 +119,39 @@ export const ExecutiveDealBanner: React.FC<ExecutiveDealBannerProps> = ({
               </div>
             </div>
           </div>
+
+          {onSaveScenario && (
+            <button
+              type="button"
+              onClick={handleTriggerSave}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-xs text-[11px] font-bold transition-all cursor-pointer border shrink-0 ${
+                justSaved
+                  ? 'bg-emerald-500 text-slate-950 border-emerald-400'
+                  : 'bg-emerald-600/90 hover:bg-emerald-500 text-white border-emerald-400/40 shadow-xs'
+              }`}
+              title="Save all changes to proposal and synchronize calculated metrics across all screens"
+            >
+              {justSaved ? <Check size={12} className="stroke-[3]" /> : <Save size={12} className="stroke-[2.5]" />}
+              <span>{justSaved ? 'Saved & Synced!' : (lastSavedTimestamp ? `Save (${lastSavedTimestamp})` : 'Save Changes')}</span>
+            </button>
+          )}
+
+          {onResetDefaults && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm('Reset this scenario back to standard defaults (20/0/80 regional mix, recommended duration, standard catalog)?')) {
+                  onResetDefaults();
+                }
+              }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold transition-colors cursor-pointer border border-slate-700 shrink-0"
+              title="Reset numbers to baseline defaults"
+            >
+              <RotateCcw size={11} />
+              <span className="hidden sm:inline">Reset Defaults</span>
+            </button>
+          )}
 
           {onOpenNewProposal && (
             <button
@@ -120,19 +199,57 @@ export const ExecutiveDealBanner: React.FC<ExecutiveDealBannerProps> = ({
 
           <div className="h-6 w-px bg-slate-800 hidden sm:block" />
 
-          {/* 2. Program Duration */}
+          {/* 2. Program Duration & Schedule Quick Controller */}
           <div 
             onClick={() => handleNav && handleNav('schedule')}
-            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition group"
-            title="Total program duration and target Go-Live"
+            className="flex items-center gap-2 cursor-pointer hover:bg-slate-800/60 p-1 rounded-xs transition group"
+            title="Total program duration, target Go-Live, and staffing sync. Click to open Gantt."
           >
             <div className="p-1 rounded-xs bg-slate-800 text-amber-400 group-hover:bg-amber-950">
               <Calendar size={13} />
             </div>
             <div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Duration</div>
-              <div className="font-bold text-slate-100 font-mono">
-                {durationWeeks} Wks <span className="text-[10px] text-amber-300/80 font-normal">({goLiveDate})</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Duration</span>
+                {isOutOfSyncWithRecommended && onUpdateScenario && (
+                  <button
+                    type="button"
+                    onClick={handleSyncToRecommended}
+                    className="text-[9px] font-bold px-1.5 py-0.2 rounded-2xs bg-amber-500/20 text-amber-300 border border-amber-400/40 hover:bg-amber-500 hover:text-slate-950 transition cursor-pointer"
+                    title={`Complexity Sizing recommends ${data.recommendedDurationWeeks}w. Click to sync.`}
+                  >
+                    Sync {data.recommendedDurationWeeks}w
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-slate-100 font-mono">
+                  {durationWeeks} Wks
+                </span>
+                <span className="text-[10px] text-amber-300/80 font-mono">
+                  &bull; {avgFte.toFixed(1)} FTE
+                </span>
+
+                {onUpdateScenario && (
+                  <div className="inline-flex items-center gap-0.5 ml-1" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={(e) => handleAdjustWeeks(-1, e)}
+                      className="w-4 h-4 rounded-2xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center text-[10px] font-mono cursor-pointer border border-slate-700"
+                      title="Decrease schedule by 1 week"
+                    >
+                      -
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleAdjustWeeks(1, e)}
+                      className="w-4 h-4 rounded-2xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center text-[10px] font-mono cursor-pointer border border-slate-700"
+                      title="Increase schedule by 1 week"
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -170,7 +287,7 @@ export const ExecutiveDealBanner: React.FC<ExecutiveDealBannerProps> = ({
             <div>
               <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Peak Squad</div>
               <div className="font-bold text-slate-100 font-mono flex items-center gap-1">
-                <span>{data.peakFTE ? `${data.peakFTE.toFixed(1)} FTE` : '12.4 FTE'}</span>
+                <span>{peakFte > 0 ? `${peakFte.toFixed(1)} FTE` : '0.0 FTE'}</span>
                 <ChevronRight size={12} className="text-slate-400 group-hover:text-purple-300 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </div>

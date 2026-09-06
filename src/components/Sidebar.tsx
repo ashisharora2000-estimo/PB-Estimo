@@ -100,6 +100,7 @@ interface SidebarProps {
   onOpenComplexityStudio?: () => void;
   onOpenNewProposal?: () => void;
   onOpenSlideDeck?: () => void;
+  onOpenNotebookLmPodcast?: () => void;
 }
 
 // 4 Core Pursuit Steps for streamlined Bid Management
@@ -110,7 +111,7 @@ const CORE_PURSUIT_STEPS: Array<{ id: NavTabId; stepNumber: string; label: strin
   { id: 'reports', stepNumber: '4', label: 'Proposal Dossier', sub: 'RFP Brief & Executive Exports', icon: FileText }
 ];
 
-// Advanced Insights, Benchmarks & Quality Assurance
+// Advanced Insights, Governance & Quality Assurance
 const ADVANCED_INSIGHT_ITEMS: Array<{ id: NavTabId; label: string; sub: string; icon: React.ElementType; badge?: string; badgeColor?: string }> = [
   { id: 'dashboard', label: 'Executive Command', sub: 'KPIs, Health & Footprint', icon: LayoutDashboard },
   { id: 'testing', label: 'Business Testing & QA', sub: 'Testing 1 (SIT) & 2 (UAT)', icon: ListChecks, badge: 'SIT/UAT' },
@@ -118,7 +119,7 @@ const ADVANCED_INSIGHT_ITEMS: Array<{ id: NavTabId; label: string; sub: string; 
   { id: 'estimation', label: 'Estimation Engine', sub: '3-Point P10/P50/P80 Ranges', icon: Scale },
   { id: 'leadership', label: 'Leadership Review', sub: '5 Scheduling/Sizing Gaps', icon: Award, badge: '5 Gaps' },
   { id: 'governance', label: 'Governance & DoA', sub: 'Tiered DoA Sign-off & Audit', icon: ShieldCheck },
-  { id: 'benchmark_master', label: 'Benchmark Master', sub: 'WBS Library & Multipliers', icon: SlidersHorizontal, badge: 'Master' },
+  // Benchmark Master hidden for future enablement as standard loading is not preferred for proposals
   { id: 'multivendor', label: 'Multi-Vendor Split', sub: 'SI Demarcation Matrix', icon: GitMerge, badge: 'Multi-SI' },
   { id: 'framework_slider', label: 'Framework One-Slider', sub: 'TCM Protocol + Audio', icon: Headphones, badge: 'Voice' }
 ];
@@ -134,10 +135,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   doaTier,
   onOpenComplexityStudio,
   onOpenNewProposal,
-  onOpenSlideDeck
+  onOpenSlideDeck,
+  onOpenNotebookLmPodcast
 }) => {
   const [advancedExpanded, setAdvancedExpanded] = React.useState<boolean>(
-    ['dashboard', 'testing', 'delivery_confidence', 'estimation', 'governance', 'benchmark_master', 'multivendor', 'leadership', 'framework_slider'].includes(activeTab)
+    ['testing', 'delivery_confidence', 'estimation', 'governance', 'multivendor', 'leadership', 'framework_slider'].includes(activeTab)
   );
 
   return (
@@ -185,6 +187,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-indigo-950 text-indigo-200 border border-indigo-400/30 rounded-xs uppercase">
                 PPTX
+              </span>
+            </button>
+          )}
+
+          {onOpenNotebookLmPodcast && (
+            <button
+              type="button"
+              onClick={onOpenNotebookLmPodcast}
+              className="w-full flex items-center justify-between p-2.5 rounded-sm bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 hover:from-slate-800 hover:to-indigo-900 text-white font-bold text-xs transition shadow-xs cursor-pointer border border-indigo-500/40 group"
+              title="Listen Podcast - 2-Host Audio Overview & Deep Dive"
+            >
+              <div className="flex items-center gap-2">
+                <div className="p-1 rounded-xs bg-indigo-500/30 text-indigo-200 group-hover:scale-110 transition-transform">
+                  <Headphones size={14} className="stroke-[2.5]" />
+                </div>
+                <div className="text-left">
+                  <div className="text-xs font-bold leading-tight flex items-center gap-1.5">
+                    <span>Listen Podcast</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-normal leading-tight">2-Host Audio Overview</div>
+                </div>
+              </div>
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-indigo-950 text-indigo-300 border border-indigo-500/40 rounded-xs uppercase">
+                Audio
               </span>
             </button>
           )}

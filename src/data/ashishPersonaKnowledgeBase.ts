@@ -278,7 +278,7 @@ export function getAshishKnowledgeAnswer(query: string, currentScenario?: any, c
       ? currentMetrics.peakFTE.toFixed(1) 
       : (typeof currentMetrics.peakFte === 'number' 
         ? currentMetrics.peakFte.toFixed(1) 
-        : (currentMetrics.peakFte || '14.5'));
+        : (currentMetrics.peakFte || (hours > 0 ? '14.5' : '0.0')));
     const entities = currentScenario.scaleDrivers?.fin_ent || currentScenario.scaleDrivers?.legalEntities || 3;
     const onshoreRatio = currentScenario.deliveryMix?.onshore || 25;
     const offshoreRatio = currentScenario.deliveryMix?.offshore || 75;

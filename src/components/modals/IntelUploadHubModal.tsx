@@ -23,7 +23,10 @@ import {
   Calendar,
   Zap,
   BookOpen,
-  Info
+  Info,
+  Trash2,
+  RotateCcw,
+  FileSpreadsheet
 } from 'lucide-react';
 import { ProjectScenario } from '../../types';
 import {
@@ -32,6 +35,7 @@ import {
   IntelPackagePreset,
   ComprehensiveIntelParseResult
 } from '../../utils/intelIngestionParser';
+import { parseExcelWorkbook } from '../../utils/integrationInventoryParser';
 import { ORACLE_MODULE_CATALOG } from '../../data/oraclePhases';
 import { AttributionBadge } from '../common/AttributionBadge';
 
@@ -79,10 +83,14 @@ export const IntelUploadHubModal: React.FC<IntelUploadHubModalProps> = ({
   };
 
   const handleExecuteSynthesizer = () => {
-    // If all are empty, fall back to first preset
-    const cText = clientIntelText.trim() || INTEL_PACKAGE_PRESETS[0].clientIntel;
-    const iText = industryIntelText.trim() || INTEL_PACKAGE_PRESETS[0].industryIntel;
-    const sText = specSheetText.trim() || INTEL_PACKAGE_PRESETS[0].specSheet;
+    const cText = clientIntelText.trim();
+    const iText = industryIntelText.trim();
+    const sText = specSheetText.trim();
+
+    if (!cText && !iText && !sText) {
+      alert('Please paste text, upload an Excel/CSV file, or choose an industry package preset first.');
+      return;
+    }
 
     setIsParsing(true);
     setTimeout(() => {
@@ -167,7 +175,26 @@ export const IntelUploadHubModal: React.FC<IntelUploadHubModalProps> = ({
     streamType: 'client' | 'industry' | 'spec'
   ) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    const fileName = file.name.toLowerCase();
+    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const buffer = event.target?.result as ArrayBuffer;
+        if (buffer) {
+          try {
+            const parsed = parseExcelWorkbook(buffer);
+            if (streamType === 'client') setClientIntelText(parsed.csvText);
+            else if (streamType === 'industry') setIndustryIntelText(parsed.csvText);
+            else if (streamType === 'spec') setSpecSheetText(parsed.csvText);
+          } catch (err: any) {
+            alert(`Error reading Excel file: ${err?.message || 'Invalid format'}`);
+          }
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = (event.target?.result as string) || '';
@@ -377,16 +404,31 @@ export const IntelUploadHubModal: React.FC<IntelUploadHubModalProps> = ({
                     {activeStreamTab === 'spec' && 'Technical Spec Sheet, Modules, OIC Interfaces & Conversion Mock Cycles'}
                   </span>
 
-                  <label className="px-2.5 py-1 text-xs font-mono font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 cursor-pointer flex items-center gap-1">
-                    <Upload size={12} />
-                    <span>Upload File</span>
-                    <input
-                      type="file"
-                      accept=".txt,.doc,.docx,.pdf,.json"
-                      className="hidden"
-                      onChange={(e) => handleFileUploadForStream(e, activeStreamTab)}
-                    />
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (activeStreamTab === 'client') setClientIntelText('');
+                        else if (activeStreamTab === 'industry') setIndustryIntelText('');
+                        else if (activeStreamTab === 'spec') setSpecSheetText('');
+                      }}
+                      className="px-2 py-1 text-xs font-mono font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 cursor-pointer flex items-center gap-1 transition"
+                      title="Clear text in this stream"
+                    >
+                      <Trash2 size={12} />
+                      <span>Clear Tab</span>
+                    </button>
+                    <label className="px-2.5 py-1 text-xs font-mono font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 cursor-pointer flex items-center gap-1">
+                      <Upload size={12} />
+                      <span>Upload File / Excel</span>
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls,.csv,.tsv,.txt,.doc,.docx,.pdf,.json"
+                        className="hidden"
+                        onChange={(e) => handleFileUploadForStream(e, activeStreamTab)}
+                      />
+                    </label>
+                  </div>
                 </div>
 
                 <textarea

@@ -1,6 +1,7 @@
 export type NavTabId =
   | 'dashboard'
   | 'framework_slider'
+  | 'podcast'
   | 'discovery'
   | 'benchmark_master'
   | 'multivendor'
@@ -362,6 +363,8 @@ export interface ProjectScenario {
   id: string;
   name: string;
   thorId?: string;
+  clientName?: string;
+  industry?: string;
   description: string;
   selectedModules: OracleModule[];
   scaleDrivers: ScaleDrivers;
@@ -408,6 +411,8 @@ export interface ProjectScenario {
   questionConfidenceMeta?: Record<string, Record<number, QuestionConfidenceMeta>>; // moduleId -> questionIdx -> meta
   moduleTShirtOverrides?: Record<string, TShirtSize>; // Explicit user T-Shirt overrides
   // Technical Objects & Integration Scoping
+  scopeMode?: ScopeMode;
+  integrationScopingOptions?: IntegrationScopingOptions;
   technicalIntegrations?: TechnicalIntegrationItem[];
   technicalSmcOverrides?: Record<string, { simple?: number; medium?: number; complex?: number }>;
   // Comprehensive Intel & Spec Sheet Ingestion Engine
@@ -561,6 +566,21 @@ export interface ConversionMockScaleItem {
   hours: number;
 }
 
+export type ScopeMode = 'full_implementation' | 'integrations_only';
+
+export interface IntegrationScopingOptions {
+  includeErrorFramework?: boolean;       // Standardized OIC Fault & Notification Framework (+160 hrs)
+  includeCanonicalDataModel?: boolean;   // CDM / Common Business Object Model (+120 hrs)
+  includePartnerCoTesting?: boolean;     // Joint End-to-End Testing with External 3rd-Party Systems (+25% test)
+  includeB2BEdiSupport?: boolean;        // B2B / EDI X12 / EDIFACT Mapping & AS2 Gateway (+80 hrs)
+  targetSystems?: string[];              // Selected connected endpoints (e.g. Salesforce, SAP, Banks)
+  devSquadSize?: number;                 // Number of active OIC developers (default 4)
+  simpleCount?: number;                  // Fast counter for Simple (35h)
+  mediumCount?: number;                  // Fast counter for Medium (70h)
+  complexCount?: number;                 // Fast counter for Complex (140h)
+  extraLargeCount?: number;              // Fast counter for Extra Large (220h)
+}
+
 export interface IntegrationQuestionAnswers {
   patternDirection: number;    // 0: Inbound (1.0x), 1: Outbound (1.1x), 2: Bidirectional Sync (1.5x), 3: Event-Driven Pub/Sub (1.6x)
   mappingComplexity: number;   // 0: 1:1 Direct (<15 fields) (0.8x), 1: Standard (15-50 fields + DVM) (1.2x), 2: Multi-object / XSLT (1.7x), 3: Deep nested canonical (2.2x)
@@ -682,6 +702,9 @@ export interface ModuleScopingQuestion {
   category: 'Process Scope' | 'Integrations & Feeds' | 'Data & Conversions' | 'Approvals & Workflows' | 'Reporting & Analytics' | 'Compliance & Security' | string;
   question: string;
   rationale?: string;
+  isMandatory?: boolean; // Core driver question deciding fundamental scoping & sizing
+  tag?: string; // Descriptive badge, e.g. 'Core Topology Driver', 'Key Integration Flow'
+  weight?: number; // Sizing weight (defaults to 2.5 for mandatory, 1.0 for optional)
   options: ModuleScopingQuestionOption[];
 }
 
@@ -864,6 +887,7 @@ export interface CalculatedProjectData {
     nearshore: number;
     offshore: number;
   };
+  masterBlendedCalc?: any;
 
   // Governance & Risks
   doaTier: 1 | 2 | 3;
@@ -910,6 +934,10 @@ export interface CalculatedProjectData {
 
   // Multi-Vendor & Multi-SI Ecosystem Scope Demarcation Metrics
   multiVendor?: MultiVendorMetrics;
+
+  // Standalone Integrations-Only Sizing
+  scopeMode?: ScopeMode;
+  isIntegrationsOnly?: boolean;
 }
 
 export interface DeliveryAssuranceWorkstreamScore {
@@ -1281,3 +1309,40 @@ export interface MultiVendorMetrics {
     primaryOwner: DeliveryOwnerParty;
   }>;
 }
+
+// ---------------------------------------------------------------------------
+// Listen Podcast & Audio Overview Types
+// ---------------------------------------------------------------------------
+export type PodcastFocus = 'deep_dive' | 'commercials' | 'architecture' | 'executive';
+export type PodcastAccent = 'en-IN' | 'en-US' | 'en-GB' | 'en-AU';
+
+export interface PodcastTurn {
+  id: string;
+  speaker: 'Alex' | 'Jordan';
+  speakerRole: string;
+  text: string;
+  topicTag?: string;
+  timestamp?: string;
+  highlight?: boolean;
+}
+
+export interface PodcastEpisode {
+  id: string;
+  title: string;
+  subtitle: string;
+  focus: PodcastFocus;
+  accent?: PodcastAccent;
+  createdAt: string;
+  scenarioId: string;
+  clientName: string;
+  durationMinutes: number;
+  estimatedSeconds: number;
+  summary: string;
+  keyTakeaways: string[];
+  hosts: {
+    host1: { name: string; title: string; avatarColor: string; voiceType: 'female' | 'male' };
+    host2: { name: string; title: string; avatarColor: string; voiceType: 'female' | 'male' };
+  };
+  dialogue: PodcastTurn[];
+}
+

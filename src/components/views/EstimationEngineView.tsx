@@ -18,7 +18,8 @@ import {
   Zap,
   Settings2,
   FileCode2,
-  Calculator
+  Calculator,
+  Save
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData, OracleModule } from '../../types';
 import { exportWbsToCsv } from '../../utils/exporter';
@@ -32,6 +33,7 @@ interface EstimationEngineViewProps {
   onUpdateScenario: (updater: (prev: ProjectScenario) => ProjectScenario) => void;
   onOpenComplexityStudio?: (tab?: 'complexity' | 'questions' | 'drivers' | 'ai_advisor') => void;
   onOpenTraceMath?: (target?: OracleModule | 'project_total') => void;
+  onSaveScenario?: () => void;
 }
 
 export const EstimationEngineView: React.FC<EstimationEngineViewProps> = ({
@@ -39,7 +41,8 @@ export const EstimationEngineView: React.FC<EstimationEngineViewProps> = ({
   data,
   onUpdateScenario,
   onOpenComplexityStudio,
-  onOpenTraceMath
+  onOpenTraceMath,
+  onSaveScenario
 }) => {
   const [showDriverCalibration, setShowDriverCalibration] = useState<boolean>(false);
   const [showAllFrictionFactors, setShowAllFrictionFactors] = useState<boolean>(false);
@@ -92,13 +95,25 @@ export const EstimationEngineView: React.FC<EstimationEngineViewProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={() => exportWbsToCsv(scenario, data)}
-          className="px-4 py-2 rounded-sm bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 text-xs font-bold uppercase tracking-wider transition flex items-center gap-2 cursor-pointer"
-        >
-          <Download size={14} className="text-slate-700" />
-          <span>Export WBS (CSV)</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {onSaveScenario && (
+            <button
+              onClick={onSaveScenario}
+              className="px-4 py-2 rounded-sm bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition flex items-center gap-2 cursor-pointer shadow-xs"
+              title="Save all changes to proposal and refresh data across all screens"
+            >
+              <Save size={14} />
+              <span>Save & Refresh All Screens</span>
+            </button>
+          )}
+          <button
+            onClick={() => exportWbsToCsv(scenario, data)}
+            className="px-4 py-2 rounded-sm bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 text-xs font-bold uppercase tracking-wider transition flex items-center gap-2 cursor-pointer"
+          >
+            <Download size={14} className="text-slate-700" />
+            <span>Export WBS (CSV)</span>
+          </button>
+        </div>
       </div>
 
       {/* 3-Point Ranges & Confidence Slider */}

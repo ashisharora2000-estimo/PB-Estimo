@@ -75,8 +75,8 @@ export const RateCardsTab: React.FC<RateCardsTabProps> = ({
         </div>
 
         {/* Global Delivery Location Multiplier Reference */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
-          <div className="p-3 bg-slate-50 rounded-xs border border-slate-200">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+          <div className="p-3.5 bg-blue-50/40 rounded-xs border border-blue-200 space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <Building size={14} className="text-blue-600" />
@@ -86,37 +86,22 @@ export const RateCardsTab: React.FC<RateCardsTabProps> = ({
                 US / UK / West Europe
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-1">
+            <p className="text-[11px] text-slate-600 mt-1">
               Client co-location, steering governance, executive change & lead architect authority.
             </p>
           </div>
 
-          <div className="p-3 bg-slate-50 rounded-xs border border-slate-200">
+          <div className="p-3.5 bg-emerald-50/40 rounded-xs border border-emerald-200 space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <Globe size={14} className="text-emerald-600" />
-                Nearshore Delivery Tier
-              </span>
-              <span className="text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-xs">
-                Mexico / Poland / Portugal
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Same time-zone real-time agile sprints, functional configuration & SIT support.
-            </p>
-          </div>
-
-          <div className="p-3 bg-slate-50 rounded-xs border border-slate-200">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                <Globe size={14} className="text-amber-600" />
                 Offshore Delivery Tier
               </span>
-              <span className="text-[10px] font-mono font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-xs">
-                India / Philippines (GDC)
+              <span className="text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-xs">
+                India / Global Centers (GDC)
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-1">
+            <p className="text-[11px] text-slate-600 mt-1">
               Scalable technical factory: OIC development, BIP reporting, data conversion & QA automation.
             </p>
           </div>
@@ -136,7 +121,7 @@ export const RateCardsTab: React.FC<RateCardsTabProps> = ({
           <div className="flex items-center gap-2 text-xs">
             <span className="text-slate-500 font-medium">Filter View:</span>
             <div className="inline-flex rounded-xs border border-slate-300 bg-white p-0.5">
-              {(['all', 'onshore', 'nearshore', 'offshore'] as const).map(loc => (
+              {(['all', 'onshore', 'offshore'] as const).map(loc => (
                 <button
                   key={loc}
                   type="button"
@@ -165,16 +150,10 @@ export const RateCardsTab: React.FC<RateCardsTabProps> = ({
                     <th className="py-2.5 px-2 text-right bg-blue-50/30">Onshore Cost</th>
                   </>
                 )}
-                {(selectedLocation === 'all' || selectedLocation === 'nearshore') && (
-                  <>
-                    <th className="py-2.5 px-2 text-right bg-emerald-50/50">Nearshore Bill</th>
-                    <th className="py-2.5 px-2 text-right bg-emerald-50/30">Nearshore Cost</th>
-                  </>
-                )}
                 {(selectedLocation === 'all' || selectedLocation === 'offshore') && (
                   <>
-                    <th className="py-2.5 px-2 text-right bg-amber-50/50">Offshore Bill</th>
-                    <th className="py-2.5 px-2 text-right bg-amber-50/30">Offshore Cost</th>
+                    <th className="py-2.5 px-2 text-right bg-emerald-50/50">Offshore Bill ($/hr)</th>
+                    <th className="py-2.5 px-2 text-right bg-emerald-50/30">Offshore Cost</th>
                   </>
                 )}
                 <th className="py-2.5 px-2 text-right">Target Margin</th>
@@ -247,7 +226,7 @@ export const RateCardsTab: React.FC<RateCardsTabProps> = ({
                     </>
                   )}
 
-                  {(selectedLocation === 'all' || selectedLocation === 'nearshore') && (
+                  {(selectedLocation === 'all' || selectedLocation === 'offshore') && (
                     <>
                       <td className="py-2.5 px-2 align-top text-right bg-emerald-50/20 font-mono">
                         <div className="flex items-center justify-end gap-1">
@@ -255,42 +234,13 @@ export const RateCardsTab: React.FC<RateCardsTabProps> = ({
                           <input
                             type="number"
                             min={0}
-                            value={role.nearshoreHourlyRate}
-                            onChange={e => onUpdateRoleRate(role.roleId, 'nearshoreHourlyRate', Number(e.target.value))}
+                            value={role.offshoreHourlyRate}
+                            onChange={e => onUpdateRoleRate(role.roleId, 'offshoreHourlyRate', Number(e.target.value))}
                             className="w-16 px-1.5 py-0.5 text-right font-mono font-bold bg-white border border-emerald-300 rounded-xs focus:ring-1 focus:ring-emerald-500"
                           />
                         </div>
                       </td>
                       <td className="py-2.5 px-2 align-top text-right bg-emerald-50/10 font-mono text-slate-600">
-                        <div className="flex items-center justify-end gap-1">
-                          <span className="text-slate-400 text-[11px]">$</span>
-                          <input
-                            type="number"
-                            min={0}
-                            value={role.nearshoreCostRate}
-                            onChange={e => onUpdateRoleRate(role.roleId, 'nearshoreCostRate', Number(e.target.value))}
-                            className="w-16 px-1.5 py-0.5 text-right font-mono text-slate-600 bg-white border border-slate-300 rounded-xs focus:ring-1 focus:ring-slate-500"
-                          />
-                        </div>
-                      </td>
-                    </>
-                  )}
-
-                  {(selectedLocation === 'all' || selectedLocation === 'offshore') && (
-                    <>
-                      <td className="py-2.5 px-2 align-top text-right bg-amber-50/20 font-mono">
-                        <div className="flex items-center justify-end gap-1">
-                          <span className="text-slate-400 text-[11px]">$</span>
-                          <input
-                            type="number"
-                            min={0}
-                            value={role.offshoreHourlyRate}
-                            onChange={e => onUpdateRoleRate(role.roleId, 'offshoreHourlyRate', Number(e.target.value))}
-                            className="w-16 px-1.5 py-0.5 text-right font-mono font-bold bg-white border border-amber-300 rounded-xs focus:ring-1 focus:ring-amber-500"
-                          />
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-2 align-top text-right bg-amber-50/10 font-mono text-slate-600">
                         <div className="flex items-center justify-end gap-1">
                           <span className="text-slate-400 text-[11px]">$</span>
                           <input

@@ -16,6 +16,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { ProjectScenario } from '../../types';
+import { saveSnapshotToCloud, deleteSnapshotFromCloud } from '../../services/firestoreService';
 
 export interface ScenarioSnapshotItem {
   id: string;
@@ -99,6 +100,10 @@ export const UniversalSnapshotManager: React.FC<UniversalSnapshotManagerProps> =
 
     const updated = [newSnapshot, ...snapshots].slice(0, 15); // keep last 15
     saveSnapshotsToStorage(updated);
+    // Asynchronously replicate to Cloud Firestore
+    saveSnapshotToCloud(newSnapshot, scenario.id).catch((e) => {
+      console.warn('Snapshot cloud replication notice:', e);
+    });
     setCustomName('');
     setNotification(`Saved snapshot: "${name}"`);
     setTimeout(() => setNotification(null), 3500);
@@ -114,6 +119,9 @@ export const UniversalSnapshotManager: React.FC<UniversalSnapshotManagerProps> =
     e.stopPropagation();
     const updated = snapshots.filter(s => s.id !== id);
     saveSnapshotsToStorage(updated);
+    deleteSnapshotFromCloud(id).catch(err => {
+      console.warn('Snapshot cloud deletion notice:', err);
+    });
   };
 
   const handleClearAll = () => {

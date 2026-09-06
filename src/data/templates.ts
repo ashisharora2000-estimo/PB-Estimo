@@ -111,9 +111,9 @@ export const PRESET_SCENARIOS: ProjectScenario[] = [
       }
     ],
     deliveryMix: {
-      onshore: 35,
-      nearshore: 25,
-      offshore: 40
+      onshore: 20,
+      nearshore: 0,
+      offshore: 80
     },
     podCohort: 'B',
     projectWeeks: 64,
@@ -216,9 +216,9 @@ export const PRESET_SCENARIOS: ProjectScenario[] = [
       }
     ],
     deliveryMix: {
-      onshore: 45,
-      nearshore: 20,
-      offshore: 35
+      onshore: 20,
+      nearshore: 0,
+      offshore: 80
     },
     podCohort: 'B',
     projectWeeks: 36,
@@ -321,9 +321,9 @@ export const PRESET_SCENARIOS: ProjectScenario[] = [
       }
     ],
     deliveryMix: {
-      onshore: 40,
-      nearshore: 20,
-      offshore: 40
+      onshore: 20,
+      nearshore: 0,
+      offshore: 80
     },
     podCohort: 'A',
     projectWeeks: 48,
@@ -429,9 +429,9 @@ export const PRESET_SCENARIOS: ProjectScenario[] = [
       }
     ],
     deliveryMix: {
-      onshore: 35,
-      nearshore: 30,
-      offshore: 35
+      onshore: 20,
+      nearshore: 0,
+      offshore: 80
     },
     podCohort: 'C',
     projectWeeks: 52,
@@ -445,6 +445,83 @@ export const PRESET_SCENARIOS: ProjectScenario[] = [
       envReadinessLeadWeeks: 0,
       dataReadinessScore: 2,
       sprintCadenceWeeks: 2
+    }
+  },
+  {
+    id: 'blank_slate',
+    name: 'Blank Slate (Clean Start)',
+    description: 'Pristine zero-module baseline. Ready for technical integrations-only, custom modules, or clean-sheet scoping.',
+    selectedModules: [],
+    scaleDrivers: {
+      scm_plants: 0,
+      scm_wh: 0,
+      scm_inv: 0,
+      fin_ent: 1,
+      fin_led: 1,
+      fin_bu: 1,
+      fin_cur: 1,
+      fin_tax: 0,
+      fin_coa_segments: 6,
+      fin_secondary_ledgers: 0,
+      fin_sla_rules: 0,
+      fin_intercompany_pairs: 0,
+      hcm_hc: 0,
+      hcm_pay_countries: 0,
+      hcm_union_groups: 0,
+      tech_oic: 0,
+      tech_paas: 0,
+      tech_data_objects: 0,
+      tech_conversion_cycles: 1,
+      tech_historical_years: 0,
+      tech_reports_bip: 0,
+      tech_reports_otbi: 0,
+      tech_fast_formulas: 0,
+      tech_workflows: 0,
+      tech_bpm_approval_groups: 0,
+      tech_security_roles: 0
+    },
+    complexityAnswers: {
+      functional: [0, 0],
+      technical: [0, 0],
+      data: [0, 0],
+      ocm: [0, 0],
+      governance: [0, 0]
+    },
+    moduleQuestionAnswers: {},
+    confidence: 0.9,
+    clientModifiers: {
+      decisionVelocity: 1.0,
+      dataDebt: 1.0,
+      cloudMindset: 1.0,
+      integrationVolatility: 1.0,
+      smeAvailability: 1.0,
+      regulatoryCompliance: 1.0,
+      changeResistance: 1.0,
+      customizationPolicy: 1.0
+    },
+    rolloutApproach: 'big_bang',
+    rolloutWaves: 1,
+    rolloutQuestionAnswers: {},
+    waveDescriptions: ['Wave 1: Enterprise Initial Cutover'],
+    rolloutOverlapWeeks: 0,
+    blackoutPeriods: [],
+    deliveryMix: {
+      onshore: 20,
+      nearshore: 0,
+      offshore: 80
+    },
+    podCohort: 'A',
+    projectWeeks: 24,
+    targetStartDate: '2026-09-01',
+    clientTargetGoLiveDate: '2027-02-15',
+    schedulingMode: 'forward',
+    scheduleModifiers: {
+      methodology: 'hybrid_oum',
+      fastTrackingOverlapPct: 15,
+      clientDecisionSLA: 'standard_5d',
+      envReadinessLeadWeeks: 2,
+      dataReadinessScore: 2,
+      sprintCadenceWeeks: 3
     }
   }
 ];

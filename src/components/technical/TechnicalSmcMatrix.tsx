@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData, TechnicalObjectSmcRow } from '../../types';
 import { TECHNICAL_OBJECT_SMC_CATALOG } from '../../data/technicalScopingData';
+import { getEffectiveSmcCounts, syncIntegrationsFromCount, syncIntegrationsFromOverrides } from '../../utils/technicalSync';
 
 interface TechnicalSmcMatrixProps {
   scenario: ProjectScenario;
@@ -33,15 +34,9 @@ export const TechnicalSmcMatrix: React.FC<TechnicalSmcMatrixProps> = ({
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Get current SMC counts for a specific typeId (checking scenario.technicalSmcOverrides first)
+  // Get current SMC counts for a specific typeId honoring clean-slate & dynamic scale drivers
   const getCountsForType = (row: TechnicalObjectSmcRow) => {
-    const override = scenario.technicalSmcOverrides?.[row.typeId];
-    const simple = override?.simple !== undefined ? override.simple : row.simpleCount;
-    const medium = override?.medium !== undefined ? override.medium : row.mediumCount;
-    const complex = override?.complex !== undefined ? override.complex : row.complexCount;
-    const totalCount = simple + medium + complex;
-    const totalHours = (simple * row.simpleHours) + (medium * row.mediumHours) + (complex * row.complexHours);
-    return { simple, medium, complex, totalCount, totalHours };
+    return getEffectiveSmcCounts(row, scenario);
   };
 
   const handleUpdateCount = (typeId: string, complexity: 'simple' | 'medium' | 'complex', value: number) => {
@@ -50,11 +45,12 @@ export const TechnicalSmcMatrix: React.FC<TechnicalSmcMatrixProps> = ({
       const currentOverrides = prev.technicalSmcOverrides || {};
       const currentTypeOverride = currentOverrides[typeId] || {};
       const defaultRow = TECHNICAL_OBJECT_SMC_CATALOG.find(r => r.typeId === typeId);
+      const effectiveDefaults = defaultRow ? getEffectiveSmcCounts(defaultRow, prev) : { simple: 0, medium: 0, complex: 0 };
       
       const newOverride = {
-        simple: currentTypeOverride.simple !== undefined ? currentTypeOverride.simple : (defaultRow?.simpleCount || 0),
-        medium: currentTypeOverride.medium !== undefined ? currentTypeOverride.medium : (defaultRow?.mediumCount || 0),
-        complex: currentTypeOverride.complex !== undefined ? currentTypeOverride.complex : (defaultRow?.complexCount || 0),
+        simple: currentTypeOverride.simple !== undefined ? currentTypeOverride.simple : effectiveDefaults.simple,
+        medium: currentTypeOverride.medium !== undefined ? currentTypeOverride.medium : effectiveDefaults.medium,
+        complex: currentTypeOverride.complex !== undefined ? currentTypeOverride.complex : effectiveDefaults.complex,
         [complexity]: clamped
       };
 
@@ -68,76 +64,84 @@ export const TechnicalSmcMatrix: React.FC<TechnicalSmcMatrixProps> = ({
       const intRows = TECHNICAL_OBJECT_SMC_CATALOG.filter(r => r.category === 'integrations');
       const totalOicCount = intRows.reduce((sum, r) => {
         const ov = updatedOverrides[r.typeId];
-        const s = ov?.simple !== undefined ? ov.simple : r.simpleCount;
-        const m = ov?.medium !== undefined ? ov.medium : r.mediumCount;
-        const c = ov?.complex !== undefined ? ov.complex : r.complexCount;
+        const eff = getEffectiveSmcCounts(r, prev);
+        const s = ov?.simple !== undefined ? ov.simple : eff.simple;
+        const m = ov?.medium !== undefined ? ov.medium : eff.medium;
+        const c = ov?.complex !== undefined ? ov.complex : eff.complex;
         return sum + s + m + c;
       }, 0);
 
       const paasRows = TECHNICAL_OBJECT_SMC_CATALOG.filter(r => r.category === 'paas');
       const totalPaasCount = paasRows.reduce((sum, r) => {
         const ov = updatedOverrides[r.typeId];
-        const s = ov?.simple !== undefined ? ov.simple : r.simpleCount;
-        const m = ov?.medium !== undefined ? ov.medium : r.mediumCount;
-        const c = ov?.complex !== undefined ? ov.complex : r.complexCount;
+        const eff = getEffectiveSmcCounts(r, prev);
+        const s = ov?.simple !== undefined ? ov.simple : eff.simple;
+        const m = ov?.medium !== undefined ? ov.medium : eff.medium;
+        const c = ov?.complex !== undefined ? ov.complex : eff.complex;
         return sum + s + m + c;
       }, 0);
 
       const bipRows = TECHNICAL_OBJECT_SMC_CATALOG.filter(r => r.category === 'reports_bip');
       const totalBipCount = bipRows.reduce((sum, r) => {
         const ov = updatedOverrides[r.typeId];
-        const s = ov?.simple !== undefined ? ov.simple : r.simpleCount;
-        const m = ov?.medium !== undefined ? ov.medium : r.mediumCount;
-        const c = ov?.complex !== undefined ? ov.complex : r.complexCount;
+        const eff = getEffectiveSmcCounts(r, prev);
+        const s = ov?.simple !== undefined ? ov.simple : eff.simple;
+        const m = ov?.medium !== undefined ? ov.medium : eff.medium;
+        const c = ov?.complex !== undefined ? ov.complex : eff.complex;
         return sum + s + m + c;
       }, 0);
 
       const otbiRows = TECHNICAL_OBJECT_SMC_CATALOG.filter(r => r.category === 'reports_otbi');
       const totalOtbiCount = otbiRows.reduce((sum, r) => {
         const ov = updatedOverrides[r.typeId];
-        const s = ov?.simple !== undefined ? ov.simple : r.simpleCount;
-        const m = ov?.medium !== undefined ? ov.medium : r.mediumCount;
-        const c = ov?.complex !== undefined ? ov.complex : r.complexCount;
+        const eff = getEffectiveSmcCounts(r, prev);
+        const s = ov?.simple !== undefined ? ov.simple : eff.simple;
+        const m = ov?.medium !== undefined ? ov.medium : eff.medium;
+        const c = ov?.complex !== undefined ? ov.complex : eff.complex;
         return sum + s + m + c;
       }, 0);
 
       const ffRows = TECHNICAL_OBJECT_SMC_CATALOG.filter(r => r.category === 'fast_formulas');
       const totalFfCount = ffRows.reduce((sum, r) => {
         const ov = updatedOverrides[r.typeId];
-        const s = ov?.simple !== undefined ? ov.simple : r.simpleCount;
-        const m = ov?.medium !== undefined ? ov.medium : r.mediumCount;
-        const c = ov?.complex !== undefined ? ov.complex : r.complexCount;
+        const eff = getEffectiveSmcCounts(r, prev);
+        const s = ov?.simple !== undefined ? ov.simple : eff.simple;
+        const m = ov?.medium !== undefined ? ov.medium : eff.medium;
+        const c = ov?.complex !== undefined ? ov.complex : eff.complex;
         return sum + s + m + c;
       }, 0);
 
       const wfRows = TECHNICAL_OBJECT_SMC_CATALOG.filter(r => r.category === 'workflows');
       const totalWfCount = wfRows.reduce((sum, r) => {
         const ov = updatedOverrides[r.typeId];
-        const s = ov?.simple !== undefined ? ov.simple : r.simpleCount;
-        const m = ov?.medium !== undefined ? ov.medium : r.mediumCount;
-        const c = ov?.complex !== undefined ? ov.complex : r.complexCount;
+        const eff = getEffectiveSmcCounts(r, prev);
+        const s = ov?.simple !== undefined ? ov.simple : eff.simple;
+        const m = ov?.medium !== undefined ? ov.medium : eff.medium;
+        const c = ov?.complex !== undefined ? ov.complex : eff.complex;
         return sum + s + m + c;
       }, 0);
 
       const secRows = TECHNICAL_OBJECT_SMC_CATALOG.filter(r => r.category === 'security_roles');
       const totalSecCount = secRows.reduce((sum, r) => {
         const ov = updatedOverrides[r.typeId];
-        const s = ov?.simple !== undefined ? ov.simple : r.simpleCount;
-        const m = ov?.medium !== undefined ? ov.medium : r.mediumCount;
-        const c = ov?.complex !== undefined ? ov.complex : r.complexCount;
+        const eff = getEffectiveSmcCounts(r, prev);
+        const s = ov?.simple !== undefined ? ov.simple : eff.simple;
+        const m = ov?.medium !== undefined ? ov.medium : eff.medium;
+        const c = ov?.complex !== undefined ? ov.complex : eff.complex;
         return sum + s + m + c;
       }, 0);
 
       const convRows = TECHNICAL_OBJECT_SMC_CATALOG.filter(r => r.category === 'conversions');
       const totalConvCount = convRows.reduce((sum, r) => {
         const ov = updatedOverrides[r.typeId];
-        const s = ov?.simple !== undefined ? ov.simple : r.simpleCount;
-        const m = ov?.medium !== undefined ? ov.medium : r.mediumCount;
-        const c = ov?.complex !== undefined ? ov.complex : r.complexCount;
+        const eff = getEffectiveSmcCounts(r, prev);
+        const s = ov?.simple !== undefined ? ov.simple : eff.simple;
+        const m = ov?.medium !== undefined ? ov.medium : eff.medium;
+        const c = ov?.complex !== undefined ? ov.complex : eff.complex;
         return sum + s + m + c;
       }, 0);
 
-      return {
+      const intermediateScenario: ProjectScenario = {
         ...prev,
         technicalSmcOverrides: updatedOverrides,
         scaleDrivers: {
@@ -152,14 +156,40 @@ export const TechnicalSmcMatrix: React.FC<TechnicalSmcMatrixProps> = ({
           tech_data_objects: totalConvCount
         }
       };
+
+      // If an integration category was edited, synchronize technicalIntegrations list preserving overrides
+      const isIntegrationRow = intRows.some(r => r.typeId === typeId);
+      if (isIntegrationRow) {
+        return syncIntegrationsFromOverrides(intermediateScenario);
+      }
+
+      return intermediateScenario;
     });
   };
 
   const handleResetToDefaults = () => {
-    onUpdateScenario(prev => ({
-      ...prev,
-      technicalSmcOverrides: undefined
-    }));
+    onUpdateScenario(prev => {
+      const isCleanSlate = prev.selectedModules.length === 0;
+      if (isCleanSlate) {
+        const zeroSmcOverrides: Record<string, { simple: number; medium: number; complex: number }> = {};
+        TECHNICAL_OBJECT_SMC_CATALOG.forEach(r => {
+          zeroSmcOverrides[r.typeId] = { simple: 0, medium: 0, complex: 0 };
+        });
+        return {
+          ...prev,
+          technicalSmcOverrides: zeroSmcOverrides,
+          scaleDrivers: {
+            ...prev.scaleDrivers,
+            tech_oic: 0
+          },
+          technicalIntegrations: []
+        };
+      }
+      return {
+        ...prev,
+        technicalSmcOverrides: undefined
+      };
+    });
   };
 
   // Compute category totals

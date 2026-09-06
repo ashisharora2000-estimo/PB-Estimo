@@ -23,10 +23,14 @@ import {
   Globe,
   Database,
   Briefcase,
-  TrendingUp
+  TrendingUp,
+  Save,
+  RotateCcw
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData, OracleModule } from '../../types';
 import { COMPLEXITY_PILLARS, ORACLE_PATCH_COHORTS } from '../../data/oraclePhases';
+import { ScheduleStaffingCapacityCard } from '../schedule/ScheduleStaffingCapacityCard';
+import { NotebookLMPodcastCard } from '../podcast/NotebookLMPodcastCard';
 
 interface DashboardViewProps {
   scenario: ProjectScenario;
@@ -34,6 +38,10 @@ interface DashboardViewProps {
   onNavigateTab: (tab: any) => void;
   onOpenTraceMath?: (target?: OracleModule | 'project_total') => void;
   onOpenNewProposal?: () => void;
+  onUpdateScenario?: (updater: (prev: ProjectScenario) => ProjectScenario) => void;
+  onSaveScenario?: () => void;
+  onResetDefaults?: () => void;
+  onOpenNotebookLmPodcast?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -41,8 +49,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   data,
   onNavigateTab,
   onOpenTraceMath,
-  onOpenNewProposal
+  onOpenNewProposal,
+  onUpdateScenario,
+  onSaveScenario,
+  onResetDefaults,
+  onOpenNotebookLmPodcast
 }) => {
+  const [showStaffingModel, setShowStaffingModel] = useState(false);
+
+  const handleAdjustWeeks = (delta: number) => {
+    if (!onUpdateScenario) return;
+    onUpdateScenario(prev => ({
+      ...prev,
+      projectWeeks: Math.max(16, Math.min(104, (prev.projectWeeks || 32) + delta))
+    }));
+  };
+
+  const handleSyncToRecommended = () => {
+    if (!onUpdateScenario || !data.recommendedDurationWeeks) return;
+    onUpdateScenario(prev => ({
+      ...prev,
+      projectWeeks: data.recommendedDurationWeeks
+    }));
+  };
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Top Banner & Scenario Meta */}
@@ -66,6 +95,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {onSaveScenario && (
+              <button
+                onClick={onSaveScenario}
+                className="px-3.5 py-2 rounded-sm bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                title="Save all changes to proposal and refresh data across all screens"
+              >
+                <Save size={14} />
+                <span>Save & Refresh</span>
+              </button>
+            )}
+            {onResetDefaults && (
+              <button
+                onClick={() => {
+                  if (window.confirm('Reset this scenario back to standard baseline defaults?')) {
+                    onResetDefaults();
+                  }
+                }}
+                className="px-3 py-2 rounded-sm bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold uppercase tracking-wider border border-slate-300 transition flex items-center gap-1 cursor-pointer"
+                title="Reset to baseline numbers"
+              >
+                <RotateCcw size={13} />
+                <span className="hidden sm:inline">Reset Defaults</span>
+              </button>
+            )}
             {onOpenNewProposal && (
               <button
                 onClick={onOpenNewProposal}
@@ -93,6 +146,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* NotebookLM Audio Overview Banner Card */}
+      {onOpenNotebookLmPodcast && (
+        <NotebookLMPodcastCard
+          scenario={scenario}
+          data={data}
+          onOpenPodcastStudio={onOpenNotebookLmPodcast}
+        />
+      )}
 
       {/* KPI Cards Grid (Geometric Balance - Schedule & Efforts Focus) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -149,14 +211,59 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <Calendar size={15} />
               </div>
             </div>
-            <div className="text-3xl font-mono font-bold text-slate-900 tracking-tight">
-              {scenario.projectWeeks}
-              <span className="text-xs font-sans font-normal text-slate-400 ml-1">weeks</span>
+            <div className="flex items-baseline justify-between">
+              <div className="text-3xl font-mono font-bold text-slate-900 tracking-tight">
+                {scenario.projectWeeks}
+                <span className="text-xs font-sans font-normal text-slate-400 ml-1">weeks</span>
+              </div>
+              <span className="text-xs font-mono text-purple-700 font-semibold">
+                ~{Math.round(scenario.projectWeeks / 4.33)} months
+              </span>
             </div>
+
+            {/* Quick Week Steppers */}
+            {onUpdateScenario && (
+              <div className="flex items-center justify-between gap-1 mt-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleAdjustWeeks(-4)}
+                    className="px-1.5 py-0.5 rounded-xs bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold cursor-pointer transition"
+                    title="Decrease by 4 weeks"
+                  >
+                    -4w
+                  </button>
+                  <button
+                    onClick={() => handleAdjustWeeks(-1)}
+                    className="px-1.5 py-0.5 rounded-xs bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold cursor-pointer transition"
+                    title="Decrease by 1 week"
+                  >
+                    -1w
+                  </button>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleAdjustWeeks(1)}
+                    className="px-1.5 py-0.5 rounded-xs bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold cursor-pointer transition"
+                    title="Increase by 1 week"
+                  >
+                    +1w
+                  </button>
+                  <button
+                    onClick={() => handleAdjustWeeks(4)}
+                    className="px-1.5 py-0.5 rounded-xs bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold cursor-pointer transition"
+                    title="Increase by 4 weeks"
+                  >
+                    +4w
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="text-xs text-slate-500 mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-            <span>Critical Path Gates:</span>
-            <span className="text-slate-800 font-mono font-bold">{data.leadershipGaps.criticalPath.zeroFloatActivitiesCount} Zero-Float</span>
+            <span>Staffing Capacity:</span>
+            <span className="text-slate-800 font-mono font-bold">
+              {Math.round(data.targetHours || 0).toLocaleString()}h / {(scenario.projectWeeks * 40)}h = {(data.targetHours / (scenario.projectWeeks * 40)).toFixed(1)} FTE
+            </span>
           </div>
         </div>
 
@@ -230,7 +337,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {onUpdateScenario && scenario.projectWeeks !== data.recommendedDurationWeeks && (
+              <button
+                onClick={handleSyncToRecommended}
+                className="px-3 py-2 rounded-sm bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                title={`Sync active project timeline from ${scenario.projectWeeks}w to recommended ${data.recommendedDurationWeeks}w`}
+              >
+                <Zap size={13} />
+                <span>Adopt {data.recommendedDurationWeeks} Wks</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => setShowStaffingModel(!showStaffingModel)}
+              className={`px-3 py-2 rounded-sm text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer border ${
+                showStaffingModel
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                  : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
+              }`}
+            >
+              <Calculator size={13} />
+              <span>{showStaffingModel ? 'Hide Staffing Model' : 'Staffing vs Schedule Math'}</span>
+            </button>
+
             <button
               onClick={() => onNavigateTab('schedule')}
               className="px-4 py-2 rounded-sm bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-xs"
@@ -265,6 +395,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Staffing vs Schedule Mathematical Engine (Toggled by Button or always viewable) */}
+      {showStaffingModel && onUpdateScenario && (
+        <ScheduleStaffingCapacityCard
+          scenario={scenario}
+          data={data}
+          onUpdateScenario={onUpdateScenario}
+        />
+      )}
 
       {/* Oracle Pod Patching Advisory (Geometric Callout) */}
       <div className={`rounded-sm p-5 border shadow-xs ${
@@ -547,7 +686,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 {scenario.scaleDrivers.tech_data_objects || 12} Core FBDI/HDL Objects
               </div>
               <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-                {scenario.scaleDrivers.tech_conversion_mock_cycles || 3} Mock Dry Runs • {scenario.scaleDrivers.tech_history_years || 2} Yrs History Depth
+                {scenario.scaleDrivers.tech_conversion_cycles ?? 3} Mock Dry Runs • {scenario.scaleDrivers.tech_historical_years ?? 1} Yrs History Depth
               </p>
             </div>
             <div className="mt-3 pt-2 border-t border-slate-200">
@@ -713,7 +852,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
             {data.phaseHours.map((ph) => {
-              const pct = (ph.hours / data.targetHours) * 100;
+              const pct = data.targetHours > 0 ? (ph.hours / data.targetHours) * 100 : 0;
               return (
                 <div key={ph.id} className="p-3.5 rounded-sm bg-slate-50 border border-slate-200 space-y-2">
                   <div className="flex items-center justify-between text-xs">
@@ -744,10 +883,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span className="text-slate-500 font-semibold">Delivery Sourcing Model:</span>
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1.5 text-slate-700">
-                <span className="w-2.5 h-2.5 bg-slate-900 rounded-none" /> Onshore: <strong className="font-mono text-slate-900">{scenario.deliveryMix.onshore}%</strong>
-              </span>
-              <span className="flex items-center gap-1.5 text-slate-700">
-                <span className="w-2.5 h-2.5 bg-blue-600 rounded-none" /> Nearshore: <strong className="font-mono text-slate-900">{scenario.deliveryMix.nearshore}%</strong>
+                <span className="w-2.5 h-2.5 bg-blue-600 rounded-none" /> Onshore: <strong className="font-mono text-slate-900">{scenario.deliveryMix.onshore}%</strong>
               </span>
               <span className="flex items-center gap-1.5 text-slate-700">
                 <span className="w-2.5 h-2.5 bg-emerald-600 rounded-none" /> Offshore: <strong className="font-mono text-slate-900">{scenario.deliveryMix.offshore}%</strong>

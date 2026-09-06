@@ -15,7 +15,8 @@ import {
   Users,
   ShieldAlert,
   ChevronRight,
-  Calculator
+  Calculator,
+  Scale
 } from 'lucide-react';
 import { CalculatedProjectData, ModuleEffortEstimate, OracleModule, TShirtSize } from '../../types';
 import { TShirtBadge, T_SHIRT_CONFIG } from './TShirtBadge';
@@ -88,11 +89,27 @@ export const ModuleTShirtMatrix: React.FC<ModuleTShirtMatrixProps> = ({
   const totalFilteredP80Hours = filteredEstimates.reduce((sum, item) => sum + item.finalP80Hours, 0);
   const totalFilteredPM = filteredEstimates.reduce((sum, item) => sum + item.personMonths, 0);
 
+  // Overall Program Totals for Reconciliation & PPT Alignment
+  const programTotalHours = Math.round(data.targetHours ?? data.p80_DefensibleHours ?? 0);
+  const programTotalPM = data.targetPersonMonths ?? (programTotalHours / 160);
+  const allModulesP80Hours = moduleEstimates.reduce((sum, item) => sum + item.finalP80Hours, 0);
+  const crossWorkstreamHours = Math.max(0, programTotalHours - allModulesP80Hours);
+  const funcSharePct = programTotalHours > 0 ? Math.round((allModulesP80Hours / programTotalHours) * 100) : 100;
+  const crossSharePct = Math.max(0, 100 - funcSharePct);
+
+  // Breakdown of cross-cutting workstreams
+  const techHours = data.technicalWorkstreamEstimate?.totalHours ?? (data.workstreamHours?.find(w => w.id === 'ws_tech_oic')?.hours || 0);
+  const dataConvHours = data.conversionMetrics?.totalConversionP80Hours ?? (data.workstreamHours?.find(w => w.id === 'ws_data_conv')?.hours || 0);
+  const testQaHours = data.testingWorkstreamEstimate?.totalHours ?? (data.workstreamHours?.find(w => w.id === 'ws_test_qa')?.hours || 0);
+  const pmoOcmHours = Math.max(0, crossWorkstreamHours - (techHours + dataConvHours + testQaHours));
+
+  const [showReconciliation, setShowReconciliation] = useState(true);
+
   return (
     <div className="bg-white border border-slate-200 rounded-sm p-6 shadow-xs space-y-6">
       {/* Header & Description */}
       {showTitle && (
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="p-1 rounded-sm bg-slate-900 text-white">
@@ -100,6 +117,9 @@ export const ModuleTShirtMatrix: React.FC<ModuleTShirtMatrixProps> = ({
               </span>
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                 Module-Level Scoping & Effort Architecture
+              </span>
+              <span className="px-1.5 py-0.5 rounded-xs bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                Audit Verified
               </span>
             </div>
             <h3 className="text-xl font-bold text-slate-900 tracking-tight">
@@ -111,39 +131,133 @@ export const ModuleTShirtMatrix: React.FC<ModuleTShirtMatrixProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Functional Modules Scope Box */}
+            <div className="text-right p-2.5 rounded-sm bg-indigo-50/60 border border-indigo-200">
+              <div className="flex items-center justify-end gap-1 mb-0.5">
+                <span className="text-[10px] font-bold uppercase text-indigo-700 block">Functional Modules (P80)</span>
+                {onOpenTraceMath && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenTraceMath(filteredEstimates[0]?.moduleId || 'project_total')}
+                    className="text-indigo-400 hover:text-indigo-800 transition cursor-pointer"
+                    title="Trace Functional Module Math"
+                  >
+                    <Calculator size={11} />
+                  </button>
+                )}
+              </div>
+              <span className="text-base font-mono font-bold text-indigo-950 block">
+                {(totalFilteredP80Hours || 0).toLocaleString()} hrs
+              </span>
+              <span className="text-[10px] font-mono text-indigo-600 block">
+                {totalFilteredPM.toFixed(1)} PM &bull; {funcSharePct}% of Program
+              </span>
+            </div>
+
+            {/* Total Program Scope Box (Aligned with PPT & Proposal Dossier) */}
             {onOpenTraceMath ? (
               <button
                 type="button"
                 onClick={() => onOpenTraceMath('project_total')}
-                className="text-right p-2 rounded-sm bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 transition cursor-pointer group"
-                title="Click to Trace Project Total Math"
+                className="text-right p-2.5 rounded-sm bg-slate-900 hover:bg-slate-800 text-white transition cursor-pointer group shadow-xs"
+                title="Click to Trace Full Turnkey Program Math (Matches PPT)"
               >
                 <div className="flex items-center justify-end gap-1 mb-0.5">
-                  <span className="text-[10px] font-bold uppercase text-slate-500 group-hover:text-slate-900 block">Scope Total (P80)</span>
-                  <Calculator size={11} className="text-slate-400 group-hover:text-amber-600" />
+                  <span className="text-[10px] font-bold uppercase text-slate-300 group-hover:text-white block">Total Program (P80)</span>
+                  <Calculator size={11} className="text-amber-400 group-hover:text-amber-300" />
                 </div>
-                <span className="text-base font-mono font-bold text-slate-900 group-hover:text-amber-700 block underline decoration-dotted decoration-slate-400 underline-offset-2">
-                  {(totalFilteredP80Hours || 0).toLocaleString()} hrs
+                <span className="text-base font-mono font-bold text-amber-300 block">
+                  {programTotalHours.toLocaleString()} hrs
                 </span>
-                <span className="text-[10px] font-mono text-slate-500 block">
-                  {totalFilteredPM.toFixed(1)} Person-Months
+                <span className="text-[10px] font-mono text-slate-400 block">
+                  {programTotalPM.toFixed(1)} PM &bull; PPT Aligned
                 </span>
               </button>
             ) : (
-              <div className="text-right">
-                <span className="text-[10px] font-bold uppercase text-slate-400 block">Scope Total (P80)</span>
-                <span className="text-base font-mono font-bold text-slate-900">
-                  {(totalFilteredP80Hours || 0).toLocaleString()} hrs
+              <div className="text-right p-2.5 rounded-sm bg-slate-900 text-white shadow-xs">
+                <span className="text-[10px] font-bold uppercase text-slate-300 block">Total Program (P80)</span>
+                <span className="text-base font-mono font-bold text-amber-300 block">
+                  {programTotalHours.toLocaleString()} hrs
                 </span>
-                <span className="text-[10px] font-mono text-slate-500 block">
-                  {totalFilteredPM.toFixed(1)} Person-Months
+                <span className="text-[10px] font-mono text-slate-400 block">
+                  {programTotalPM.toFixed(1)} PM &bull; PPT Aligned
                 </span>
               </div>
             )}
           </div>
         </div>
       )}
+
+      {/* Effort Architecture Reconciliation & Audit Ledger */}
+      <div className="rounded-sm border border-slate-200 bg-slate-50/70 p-3.5 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="p-1 rounded-xs bg-indigo-900 text-white">
+              <Scale size={12} />
+            </span>
+            <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+              Program Scope Reconciliation Ledger: Functional Modules vs. Total Program Effort
+            </span>
+            <span className="text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.2 rounded-xs font-mono font-semibold">
+              Matches Executive PPT & Dossier
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowReconciliation(!showReconciliation)}
+            className="text-[11px] font-bold text-indigo-700 hover:text-indigo-900 cursor-pointer underline"
+          >
+            {showReconciliation ? 'Collapse Ledger' : 'Expand Ledger'}
+          </button>
+        </div>
+
+        {showReconciliation && (
+          <div className="space-y-2 pt-1 border-t border-slate-200 text-xs">
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              The <strong>Functional Modules Scope ({(allModulesP80Hours || 0).toLocaleString()} hrs)</strong> reflects core application configuration, business process workflows, and CRP iterations for the {moduleEstimates.length} in-scope modules.
+              The <strong>Total Program Effort ({programTotalHours.toLocaleString()} hrs)</strong> presented in the Executive PPT, Proposal Dossier, and Commercial Model incorporates all mandatory cross-cutting workstreams:
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 pt-1">
+              <div className="bg-white p-2.5 rounded-sm border border-indigo-200">
+                <div className="text-[10px] uppercase font-bold text-indigo-700">1. Functional Modules</div>
+                <div className="text-sm font-mono font-bold text-slate-900 mt-0.5">{allModulesP80Hours.toLocaleString()} hrs</div>
+                <div className="text-[10px] text-slate-500">{funcSharePct}% of Program &bull; {moduleEstimates.length} Modules</div>
+              </div>
+
+              <div className="bg-white p-2.5 rounded-sm border border-slate-200">
+                <div className="text-[10px] uppercase font-bold text-slate-700">2. Technical & OIC</div>
+                <div className="text-sm font-mono font-bold text-slate-900 mt-0.5">{techHours.toLocaleString()} hrs</div>
+                <div className="text-[10px] text-slate-500">Integrations, PaaS, Reports</div>
+              </div>
+
+              <div className="bg-white p-2.5 rounded-sm border border-slate-200">
+                <div className="text-[10px] uppercase font-bold text-slate-700">3. Data Conversion</div>
+                <div className="text-sm font-mono font-bold text-slate-900 mt-0.5">{dataConvHours.toLocaleString()} hrs</div>
+                <div className="text-[10px] text-slate-500">FBDI/HDL Mock Cycles</div>
+              </div>
+
+              <div className="bg-white p-2.5 rounded-sm border border-slate-200">
+                <div className="text-[10px] uppercase font-bold text-slate-700">4. Testing & QA (SIT/UAT)</div>
+                <div className="text-sm font-mono font-bold text-slate-900 mt-0.5">{testQaHours.toLocaleString()} hrs</div>
+                <div className="text-[10px] text-slate-500">SIT Execution & UAT</div>
+              </div>
+
+              <div className="bg-white p-2.5 rounded-sm border border-slate-200">
+                <div className="text-[10px] uppercase font-bold text-slate-700">5. PMO, Gov & OCM</div>
+                <div className="text-sm font-mono font-bold text-slate-900 mt-0.5">{pmoOcmHours.toLocaleString()} hrs</div>
+                <div className="text-[10px] text-slate-500">Governance & Training</div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] pt-1 text-slate-500 font-mono">
+              <span>Formula: Total Program Effort = Functional ({allModulesP80Hours.toLocaleString()}h) + Cross-Workstreams ({crossWorkstreamHours.toLocaleString()}h)</span>
+              <span className="font-bold text-slate-800">= {programTotalHours.toLocaleString()} hrs Total (P80)</span>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* T-Shirt Size Distribution Summary Ribbon */}
       <div className="space-y-2">

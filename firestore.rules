@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isValidId(id) {
+      return id is string && id.matches('^[a-zA-Z0-9_\\-\\.:]+$') && id.size() <= 128;
+    }
+
+    function isValidProjectScenario(data) {
+      return data.keys().hasAll(['id', 'name', 'scenarioDataJson', 'updatedAt']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.name is string && data.name.size() <= 256 &&
+        data.scenarioDataJson is string && data.scenarioDataJson.size() <= 500000 &&
+        data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    function isValidSnapshot(data) {
+      return data.keys().hasAll(['id', 'scenarioId', 'scenarioName', 'scenarioDataJson', 'timestamp']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.scenarioId is string && data.scenarioId.size() <= 128 &&
+        data.scenarioName is string && data.scenarioName.size() <= 256 &&
+        data.scenarioDataJson is string && data.scenarioDataJson.size() <= 500000 &&
+        data.timestamp is string && data.timestamp.size() <= 64;
+    }
+
+    function isValidPodcastEpisode(data) {
+      return data.keys().hasAll(['id', 'scenarioId', 'title', 'dialogueJson', 'createdAt']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.scenarioId is string && data.scenarioId.size() <= 128 &&
+        data.title is string && data.title.size() <= 256 &&
+        data.dialogueJson is string && data.dialogueJson.size() <= 250000 &&
+        data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    // Project Scenarios collection
+    match /project_scenarios/{scenarioId} {
+      allow read: if true;
+      allow create: if isValidId(scenarioId) && isValidProjectScenario(request.resource.data);
+      allow update: if isValidId(scenarioId) && isValidProjectScenario(request.resource.data);
+      allow delete: if isValidId(scenarioId);
+    }
+
+    // Universal Snapshots collection
+    match /universal_snapshots/{snapshotId} {
+      allow read: if true;
+      allow create: if isValidId(snapshotId) && isValidSnapshot(request.resource.data);
+      allow update: if isValidId(snapshotId) && isValidSnapshot(request.resource.data);
+      allow delete: if isValidId(snapshotId);
+    }
+
+    // Podcast Episodes collection
+    match /podcast_episodes/{episodeId} {
+      allow read: if true;
+      allow create: if isValidId(episodeId) && isValidPodcastEpisode(request.resource.data);
+      allow update: if isValidId(episodeId) && isValidPodcastEpisode(request.resource.data);
+      allow delete: if isValidId(episodeId);
+    }
+  }
+}

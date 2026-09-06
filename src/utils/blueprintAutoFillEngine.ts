@@ -861,7 +861,7 @@ Operating Scale:
 Total Defensible Effort: ${hours.toLocaleString()} Hours (~${pm} Person-Months)
 Peak FTE Concurrency: ${(hours / (weeks * 40) * 1.35).toFixed(1)} FTEs (Build / CRP2 & SIT)
 Average FTE Concurrency: ${(hours / (weeks * 40)).toFixed(1)} FTEs
-Sourcing Mix: ${scenario.deliveryMix.onshore}% Onshore / ${scenario.deliveryMix.nearshore}% Nearshore / ${scenario.deliveryMix.offshore}% GDC Offshore
+Sourcing Mix: ${scenario.deliveryMix.onshore}% Onshore / ${scenario.deliveryMix.offshore}% GDC Offshore
 
 3. COMMERCIAL & PRICING SUMMARY (BOARD-READY)
 --------------------------------------------------------------------------------

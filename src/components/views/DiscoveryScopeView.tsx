@@ -43,7 +43,8 @@ import {
   Search,
   ExternalLink,
   Tag,
-  ListChecks
+  ListChecks,
+  Network
 } from 'lucide-react';
 import { ProjectScenario, ScaleDrivers, OracleModule, RolloutApproach, BlackoutPeriod, TShirtSize } from '../../types';
 import {
@@ -61,6 +62,7 @@ import { AddCustomModuleModal } from '../modals/AddCustomModuleModal';
 import { AddCustomQuestionModal } from '../modals/AddCustomQuestionModal';
 import { Module20QuestionsModal } from '../modals/Module20QuestionsModal';
 import { TechnicalInventoryManager } from '../technical/TechnicalInventoryManager';
+import { IntegrationScopeStudio } from '../technical/IntegrationScopeStudio';
 import { TestingAssuranceView } from './TestingAssuranceView';
 import { DEFAULT_TECHNICAL_INTEGRATIONS } from '../../data/technicalScopingData';
 import { SmartBlueprintAutoFillDrawer } from '../ai/SmartBlueprintAutoFillDrawer';
@@ -867,6 +869,9 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
         </div>
       )}
 
+      {/* SCOPE MODE TOGGLE: Hidden for future enablement as requested */}
+      {/* Integrations-Only option is kept in code but hidden from active proposal workflow */}
+
       {/* In-Page Sub-Section Navigation Bar */}
       <div className="bg-white border border-slate-200 p-1.5 shadow-2xs overflow-x-auto">
         <div className="flex items-center gap-1 min-w-max">
@@ -965,6 +970,8 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
       {/* SECTION 1: Module Footprint & Granular 20-Question Scoping */}
       {activeSection === 'modules' && (
         <div className="space-y-3">
+          {/* Integrations-only banner hidden for future enablement */}
+
           {/* TABULAR SCOPING SHEET (Clean, High-Density Professional Table) */}
           <div className="space-y-3 animate-in fade-in duration-150">
 
@@ -1600,6 +1607,12 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
       {/* SECTION 2: Technical Objects & S/M/C Matrix */}
       {activeSection === 'technical' && (
         <div className="space-y-6 animate-in fade-in duration-150">
+          <IntegrationScopeStudio
+            scenario={scenario}
+            onUpdateScenario={onUpdateScenario}
+            data={projectData}
+          />
+
           <TechnicalInventoryManager
             scenario={scenario}
             onUpdateScenario={onUpdateScenario}
@@ -2527,6 +2540,34 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
                 sub="Data models & pixel perfect"
                 value={scenario.scaleDrivers.tech_reports_bip}
                 onChange={(v) => updateScaleDriver('tech_reports_bip', v)}
+              />
+              <NumericCounter
+                label="OTBI Dashboards & Reports"
+                sub="Real-time transactional analyses"
+                value={scenario.scaleDrivers.tech_reports_otbi ?? 15}
+                onChange={(v) => updateScaleDriver('tech_reports_otbi', v)}
+              />
+              <NumericCounter
+                label="Mock Conversion Cycles"
+                sub="Iterations (1=100%, 2=80%, 3=60%, 4=40%)"
+                value={scenario.scaleDrivers.tech_conversion_cycles ?? 3}
+                min={1}
+                max={6}
+                onChange={(v) => updateScaleDriver('tech_conversion_cycles', v)}
+              />
+              <NumericCounter
+                label="Historical Data Depth (Yrs)"
+                sub="Legacy transactional history (0-5 yrs)"
+                value={scenario.scaleDrivers.tech_historical_years ?? 1}
+                min={0}
+                max={5}
+                onChange={(v) => updateScaleDriver('tech_historical_years', v)}
+              />
+              <NumericCounter
+                label="Notification & Alert Workflows"
+                sub="Custom approval alerts & business events"
+                value={scenario.scaleDrivers.tech_workflows ?? 6}
+                onChange={(v) => updateScaleDriver('tech_workflows', v)}
               />
             </div>
           </div>

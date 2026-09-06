@@ -46,17 +46,19 @@ export async function generateExecutiveSlideDeck(
 
   // Derived Metrics & Calculations with Safe Fallbacks
   const thorId = scenario.thorId && scenario.thorId.trim() !== '' ? scenario.thorId : 'PROP-2026-001';
-  const totalHours = Math.round(data.targetHours || data.p80_DefensibleHours || 2400);
+  const totalHours = Math.round(data.targetHours ?? data.p80_DefensibleHours ?? 0);
   const totalDays = Math.round(totalHours / 8);
   const totalMonths = Math.round(data.targetPersonMonths || totalHours / 160);
-  const durationWeeks = data.recommendedDurationWeeks || scenario.projectWeeks || 24;
+  const durationWeeks = typeof data.recommendedDurationWeeks === 'number'
+    ? data.recommendedDurationWeeks
+    : (typeof scenario.projectWeeks === 'number' ? scenario.projectWeeks : 0);
   const deliveryModel = scenario.deliveryModel || 'Global Delivery (30% Onshore / 70% Offshore)';
   const tcvFormatted = data.deliveryRevenue 
     ? `$${(Math.round(data.deliveryRevenue / 1000) * 1000).toLocaleString()}`
     : `$${(Math.round((totalHours * 115) / 1000) * 1000).toLocaleString()}`;
   const blendedRate = data.blendedBillRate ? `$${Math.round(data.blendedBillRate)}/hr` : '$115/hr';
-  const peakFTE = data.peakFTE || Math.max(4, Math.round(totalHours / (durationWeeks * 40)));
-  const avgFTE = data.avgTotalFTE || Math.round((totalHours / (durationWeeks * 40)) * 10) / 10;
+  const peakFTE = data.peakFTE || (durationWeeks > 0 ? Math.max(4, Math.round(totalHours / (durationWeeks * 40))) : 0);
+  const avgFTE = data.avgTotalFTE ?? (durationWeeks > 0 ? Math.round((totalHours / (durationWeeks * 40)) * 10) / 10 : 0);
   const industry = (scenario as any).industry || (scenario as any).scaleDrivers?.industry || 'Enterprise Cross-Industry';
 
   // Selected Modules Breakdown
@@ -73,6 +75,33 @@ export async function generateExecutiveSlideDeck(
   const reportsCount = (scenario.scaleDrivers?.tech_reports_bip || 10) + (scenario.scaleDrivers?.tech_reports_otbi || 15);
   const extensionsCount = scenario.scaleDrivers?.tech_paas || 2;
   const workflowsCount = scenario.scaleDrivers?.tech_bpm_approval_groups || 4;
+
+  // Technical & Functional Scope Breakdown from Calculation Engine
+  const functionalHours = (data.moduleEstimates || []).reduce((sum, m) => sum + m.finalP80Hours, 0);
+  const crossWorkstreamHours = Math.max(0, totalHours - functionalHours);
+
+  // RICEFW Exact Hours & Complexity Distributions from Calculation Engine
+  const actualIntegrationHours = Math.round(data.technicalWorkstreamEstimate?.integrationsHours ?? (data.workstreamHours?.find(w => w.id === 'ws_tech_oic')?.hours ? data.workstreamHours.find(w => w.id === 'ws_tech_oic')!.hours * 0.55 : integrationsCount * 80 * (data.netClientModifier || 1) * (1 + (data.contingencyPct || 0.15))));
+  const actualConversionHours = Math.round(data.conversionMetrics?.totalConversionP80Hours ?? (data.workstreamHours?.find(w => w.id === 'ws_data_conv')?.hours || conversionsCount * 45 * (data.complexMultiplier || 1) * (data.netClientModifier || 1) * (1 + (data.contingencyPct || 0.15))));
+  const actualReportsHours = Math.round(data.technicalWorkstreamEstimate?.reportsHours ?? (((scenario.scaleDrivers?.tech_reports_bip || 0) * 45 + (scenario.scaleDrivers?.tech_reports_otbi || 0) * 18) * (data.netClientModifier || 1) * (1 + (data.contingencyPct || 0.15))));
+  const actualExtensionsHours = Math.round(data.technicalWorkstreamEstimate?.paasHours ?? ((scenario.scaleDrivers?.tech_paas || 0) * 550 * (data.netClientModifier || 1) * (1 + (data.contingencyPct || 0.15))));
+  const actualWorkflowsHours = Math.round(((data.technicalWorkstreamEstimate?.workflowsHours || 0) + (data.technicalWorkstreamEstimate?.securityRolesHours || 0)) || (((scenario.scaleDrivers?.tech_workflows || 0) * 55 + (scenario.scaleDrivers?.tech_security_roles || 0) * 35) * (data.netClientModifier || 1) * (1 + (data.contingencyPct || 0.15))));
+
+  const sInt = scenario.technicalIntegrations?.filter(i => i.complexity === 'S').length ?? 0;
+  const mInt = scenario.technicalIntegrations?.filter(i => i.complexity === 'M').length ?? 0;
+  const cInt = scenario.technicalIntegrations?.filter(i => i.complexity === 'C').length ?? 0;
+  const xlInt = scenario.technicalIntegrations?.filter(i => i.complexity === 'XL').length ?? 0;
+  const intComplexityLabel = (sInt + mInt + cInt + xlInt > 0)
+    ? `S: ${sInt} | M: ${mInt} | C: ${cInt}${xlInt > 0 ? ` | XL: ${xlInt}` : ''}`
+    : 'Simple / Med / Complex';
+
+  const bipCount = scenario.scaleDrivers?.tech_reports_bip || 0;
+  const otbiCount = scenario.scaleDrivers?.tech_reports_otbi || 0;
+  const reportsComplexityLabel = (bipCount + otbiCount > 0)
+    ? `BIP: ${bipCount} | OTBI: ${otbiCount}`
+    : 'BIP & OTBI';
+
+  const actualTechFactoryHours = Math.round((data.technicalWorkstreamEstimate?.totalHours || 0) + (data.conversionMetrics?.totalConversionP80Hours || 0)) || Math.round(totalHours * 0.35);
 
   // Helper function to add consistent Header and Footer on every slide
   const applyHeaderFooter = (slide: any, slideNumber: number, title: string, category: string) => {
@@ -201,10 +230,10 @@ export async function generateExecutiveSlideDeck(
     { text: `${scenario.targetStartDate || 'Immediate'}\n`, options: { color: COLOR_TEXT_DARK } },
     { text: 'Target Go-Live: ', options: { bold: true, color: COLOR_NAVY_DARK } },
     { text: `${scenario.clientTargetGoLiveDate || 'Aligned with Standard Schedule'}\n\n`, options: { color: COLOR_TEXT_DARK } },
-    { text: 'Core Business Transformation Thesis:\n', options: { bold: true, color: COLOR_INDIGO } },
-    { text: '• End-to-end modernization onto Oracle Fusion SaaS with clean-core architecture.\n', options: { color: COLOR_TEXT_DARK } },
-    { text: '• Multi-pillar standard business processes with rapid Enterprise Design (Wave 0).\n', options: { color: COLOR_TEXT_DARK } },
-    { text: '• Risk-mitigated 4-tier mock conversion scale and pre-built OIC integrations.\n', options: { color: COLOR_TEXT_DARK } },
+    { text: 'Scope Architecture & Effort Composition:\n', options: { bold: true, color: COLOR_INDIGO } },
+    { text: `• In-Scope Functional Modules: ${selectedModObjs.length} modules (${functionalHours.toLocaleString()} P80 hrs / ${Math.round(functionalHours / 160)} PM).\n`, options: { color: COLOR_TEXT_DARK } },
+    { text: `• Cross-Cutting Technical & Governance: ${crossWorkstreamHours.toLocaleString()} P80 hrs (OIC, Mock Cycles, QA, PMO).\n`, options: { color: COLOR_TEXT_DARK } },
+    { text: `• Total Program Turnkey Effort: ${totalHours.toLocaleString()} P80 hrs (${totalMonths} PM).\n`, options: { color: COLOR_TEXT_DARK, bold: true } },
     { text: '• Guaranteed delivery alignment with Oracle True Cloud Method (OUM) standards.', options: { color: COLOR_TEXT_DARK } }
   ], {
     x: 0.9,
@@ -321,11 +350,22 @@ export async function generateExecutiveSlideDeck(
   applyHeaderFooter(slide2, 2, 'Solution Architecture & Multi-Pillar Functional Scope', 'Proposal Dossier • Step 2');
 
   // Pillar Grid Cards (4 Cards across)
+  const getPillarHours = (pillarKey: string) => {
+    return (data.moduleEstimates || [])
+      .filter(m => {
+        if (pillarKey === 'ERP') return m.pillar === 'ERP';
+        if (pillarKey === 'SCM') return m.pillar === 'SCM';
+        if (pillarKey === 'HCM') return m.pillar === 'HCM';
+        return m.pillar !== 'ERP' && m.pillar !== 'SCM' && m.pillar !== 'HCM';
+      })
+      .reduce((sum, m) => sum + m.finalP80Hours, 0);
+  };
+
   const pillars = [
-    { name: 'Financials (ERP)', count: erpMods.length, modules: erpMods, color: '1E3A8A', bg: 'EFF6FF', line: 'BFDBFE' },
-    { name: 'Supply Chain (SCM)', count: scmMods.length, modules: scmMods, color: '065F46', bg: 'ECFDF5', line: 'A7F3D0' },
-    { name: 'Human Capital (HCM)', count: hcmMods.length, modules: hcmMods, color: '831843', bg: 'FDF2F8', line: 'FBCFE8' },
-    { name: 'EPM / CX & Other', count: otherMods.length, modules: otherMods, color: '4C1D95', bg: 'F5F3FF', line: 'DDD6FE' }
+    { name: 'Financials (ERP)', count: erpMods.length, hours: getPillarHours('ERP'), modules: erpMods, color: '1E3A8A', bg: 'EFF6FF', line: 'BFDBFE' },
+    { name: 'Supply Chain (SCM)', count: scmMods.length, hours: getPillarHours('SCM'), modules: scmMods, color: '065F46', bg: 'ECFDF5', line: 'A7F3D0' },
+    { name: 'Human Capital (HCM)', count: hcmMods.length, hours: getPillarHours('HCM'), modules: hcmMods, color: '831843', bg: 'FDF2F8', line: 'FBCFE8' },
+    { name: 'EPM / CX & Other', count: otherMods.length, hours: getPillarHours('OTHER'), modules: otherMods, color: '4C1D95', bg: 'F5F3FF', line: 'DDD6FE' }
   ];
 
   pillars.forEach((p, idx) => {
@@ -355,12 +395,12 @@ export async function generateExecutiveSlideDeck(
       fontFace: 'Arial'
     });
 
-    slide2.addText(`${p.count} In-Scope Modules`, {
+    slide2.addText(`${p.count} In-Scope Modules • ${p.hours.toLocaleString()} hrs`, {
       x: x + 0.15,
       y: y + 0.37,
       w: w - 0.3,
       h: 0.2,
-      fontSize: 8.5,
+      fontSize: 8,
       bold: true,
       color: COLOR_TEXT_MUTED,
       fontFace: 'Arial'
@@ -561,36 +601,36 @@ export async function generateExecutiveSlideDeck(
       { text: 'Interfaces (OIC)', options: { bold: true, fontSize: 8.5 } },
       { text: 'OIC Cloud Connectors, Inbound/Outbound REST/SOAP, FBDI pipelines', options: { fontSize: 8 } },
       { text: `${integrationsCount}`, options: { fontSize: 8.5, bold: true, align: 'center' } },
-      { text: 'Simple: 3 | Med: 3 | Cpx: 2', options: { fontSize: 8, align: 'center' } },
-      { text: `${Math.round(integrationsCount * 45)} hrs`, options: { fontSize: 8.5, bold: true, align: 'right' } }
+      { text: intComplexityLabel, options: { fontSize: 8, align: 'center' } },
+      { text: `${actualIntegrationHours.toLocaleString()} hrs`, options: { fontSize: 8.5, bold: true, align: 'right' } }
     ],
     [
       { text: 'Conversions', options: { bold: true, fontSize: 8.5 } },
       { text: `Data objects scaled across ${mockCycles} mock load iterations (FBDI/HDL/ADFdi)`, options: { fontSize: 8 } },
       { text: `${conversionsCount}`, options: { fontSize: 8.5, bold: true, align: 'center' } },
-      { text: `Tier 1-4 Mock Scale`, options: { fontSize: 8, align: 'center' } },
-      { text: `${Math.round(conversionsCount * mockCycles * 22)} hrs`, options: { fontSize: 8.5, bold: true, align: 'right' } }
+      { text: `${mockCycles} Mock Cycles`, options: { fontSize: 8, align: 'center' } },
+      { text: `${actualConversionHours.toLocaleString()} hrs`, options: { fontSize: 8.5, bold: true, align: 'right' } }
     ],
     [
       { text: 'Reports & Analytics', options: { bold: true, fontSize: 8.5 } },
       { text: 'BI Publisher operational forms, OTBI real-time dashboards & analytics', options: { fontSize: 8 } },
       { text: `${reportsCount}`, options: { fontSize: 8.5, bold: true, align: 'center' } },
-      { text: 'BIP: 10 | OTBI: 15', options: { fontSize: 8, align: 'center' } },
-      { text: `${Math.round(reportsCount * 18)} hrs`, options: { fontSize: 8.5, bold: true, align: 'right' } }
+      { text: reportsComplexityLabel, options: { fontSize: 8, align: 'center' } },
+      { text: `${actualReportsHours.toLocaleString()} hrs`, options: { fontSize: 8.5, bold: true, align: 'right' } }
     ],
     [
       { text: 'Extensions (PaaS)', options: { bold: true, fontSize: 8.5 } },
       { text: 'Visual Builder (VBCS) apps, OCI functions, external portals', options: { fontSize: 8 } },
       { text: `${extensionsCount}`, options: { fontSize: 8.5, bold: true, align: 'center' } },
       { text: 'PaaS / Low-Code', options: { fontSize: 8, align: 'center' } },
-      { text: `${Math.round(extensionsCount * 80)} hrs`, options: { fontSize: 8.5, bold: true, align: 'right' } }
+      { text: `${actualExtensionsHours.toLocaleString()} hrs`, options: { fontSize: 8.5, bold: true, align: 'right' } }
     ],
     [
       { text: 'Workflows & Rules', options: { bold: true, fontSize: 8.5 } },
       { text: 'BPM approval hierarchies, SLA accounting rules, Fast Formulas', options: { fontSize: 8 } },
       { text: `${workflowsCount}`, options: { fontSize: 8.5, bold: true, align: 'center' } },
       { text: 'Multi-tiered AME', options: { fontSize: 8, align: 'center' } },
-      { text: `${Math.round(workflowsCount * 30)} hrs`, options: { fontSize: 8.5, bold: true, align: 'right' } }
+      { text: `${actualWorkflowsHours.toLocaleString()} hrs`, options: { fontSize: 8.5, bold: true, align: 'right' } }
     ]
   ];
 
@@ -621,7 +661,7 @@ export async function generateExecutiveSlideDeck(
     },
     {
       title: 'Technical Factory Sizing',
-      desc: `• Total Tech Effort: ~${Math.round(totalHours * 0.42).toLocaleString()} hrs\n• Dev Squad FTE: ~${Math.max(2, Math.round(peakFTE * 0.45))} Offshore Tech FTEs\n• Lead Tech Architect: Onshore oversight\n• String & Unit Test Completion: Phase Gate 3`,
+      desc: `• Total Tech Effort: ~${actualTechFactoryHours.toLocaleString()} hrs\n• Dev Squad FTE: ~${Math.max(2, Math.round(peakFTE * 0.45))} Offshore Tech FTEs\n• Lead Tech Architect: Onshore oversight\n• String & Unit Test Completion: Phase Gate 3`,
       color: COLOR_EMERALD,
       bg: COLOR_EMERALD_LIGHT
     }
@@ -672,40 +712,125 @@ export async function generateExecutiveSlideDeck(
   const slide5 = pptx.addSlide();
   applyHeaderFooter(slide5, 5, 'Delivery Roadmap, Phased Gantt & Effort Breakdown', 'Proposal Dossier • Step 5');
 
-  // Visual Gantt Phases representation
-  const ganttPhases = [
-    { name: 'Wave 0: Mobilize & Enterprise Design', weeks: 'W1 - W8', pct: '25%', color: '334155', fill: '334155', textColor: 'FFFFFF' },
-    { name: 'Detailed Design & CRP Iterations', weeks: 'W9 - W14', pct: '15%', color: '1E3A8A', fill: '1E3A8A', textColor: 'FFFFFF' },
-    { name: 'Build, Integrations & Mock Loads', weeks: 'W13 - W20', pct: '30%', color: '4338CA', fill: '4338CA', textColor: 'FFFFFF' },
-    { name: 'System Integration Testing (SIT)', weeks: 'W19 - W22', pct: '12%', color: '0D9488', fill: '0D9488', textColor: 'FFFFFF' },
-    { name: 'User Acceptance Testing (UAT)', weeks: 'W22 - W24', pct: '8%', color: '059669', fill: '059669', textColor: 'FFFFFF' },
-    { name: 'Cutover, Go-Live & Hypercare', weeks: 'W24 - W28', pct: '10%', color: 'D97706', fill: 'D97706', textColor: 'FFFFFF' }
-  ];
+  const totalWeeks = Math.max(1, durationWeeks || scenario.projectWeeks || 28);
 
-  ganttPhases.forEach((gp, idx) => {
-    const y = 1.15 + idx * 0.52;
+  // Visual Gantt Phases representation (Derived from project calculation engine)
+  const ganttPhases = (data.phaseHours && data.phaseHours.length > 0)
+    ? data.phaseHours.map((ph) => {
+        const pct = totalHours > 0 ? Math.round((ph.hours / totalHours) * 100) : 0;
+        let color = '334155';
+        if (ph.id.includes('design')) color = '1E3A8A';
+        else if (ph.id.includes('build')) color = '4338CA';
+        else if (ph.id.includes('test') || ph.id.includes('sit')) color = '0D9488';
+        else if (ph.id.includes('uat')) color = '059669';
+        else if (ph.id.includes('cutover') || ph.id.includes('hypercare')) color = 'D97706';
+        return {
+          id: ph.id,
+          name: ph.name,
+          startWeek: ph.startWeek,
+          endWeek: ph.endWeek,
+          duration: Math.max(1, ph.endWeek - ph.startWeek + 1),
+          weeks: `W${ph.startWeek} - W${ph.endWeek}`,
+          pct: `${pct}%`,
+          color,
+          fill: color,
+          textColor: 'FFFFFF'
+        };
+      })
+    : [
+        { id: 'p1', name: 'Wave 0: Mobilize & Enterprise Design', startWeek: 1, endWeek: 8, duration: 8, weeks: 'W1 - W8', pct: '25%', color: '334155', fill: '334155', textColor: 'FFFFFF' },
+        { id: 'p2', name: 'Detailed Design & CRP Iterations', startWeek: 9, endWeek: 14, duration: 6, weeks: 'W9 - W14', pct: '15%', color: '1E3A8A', fill: '1E3A8A', textColor: 'FFFFFF' },
+        { id: 'p3', name: 'Build, Integrations & Mock Loads', startWeek: 13, endWeek: 20, duration: 8, weeks: 'W13 - W20', pct: '30%', color: '4338CA', fill: '4338CA', textColor: 'FFFFFF' },
+        { id: 'p4', name: 'System Integration Testing (SIT)', startWeek: 19, endWeek: 22, duration: 4, weeks: 'W19 - W22', pct: '12%', color: '0D9488', fill: '0D9488', textColor: 'FFFFFF' },
+        { id: 'p5', name: 'User Acceptance Testing (UAT)', startWeek: 22, endWeek: 24, duration: 3, weeks: 'W22 - W24', pct: '8%', color: '059669', fill: '059669', textColor: 'FFFFFF' },
+        { id: 'p6', name: 'Cutover, Go-Live & Hypercare', startWeek: 24, endWeek: 28, duration: 5, weeks: 'W24 - W28', pct: '10%', color: 'D97706', fill: 'D97706', textColor: 'FFFFFF' }
+      ];
 
-    // Phase Label
-    slide5.addText(gp.name, {
-      x: 0.6,
-      y,
-      w: 3.4,
-      h: 0.42,
-      fontSize: 9,
+  // Timeline geometry
+  const timelineX = 4.2;
+  const timelineW = 8.5;
+  const numPhases = ganttPhases.length;
+  const rowHeight = Math.min(0.48, 2.9 / Math.max(1, numPhases));
+  const timelineBottomY = 1.32 + numPhases * rowHeight;
+
+  // Timeline Header Ruler background
+  slide5.addShape(pptx.ShapeType.rect, {
+    x: timelineX,
+    y: 1.05,
+    w: timelineW,
+    h: 0.22,
+    fill: { color: 'F1F5F9' },
+    line: { color: 'CBD5E1', width: 0.5 }
+  });
+
+  // Timeline Ruler Ticks and Vertical Grid Lines
+  const tickFractions = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
+  tickFractions.forEach((frac, fIdx) => {
+    const tickX = timelineX + frac * timelineW;
+    const weekNum = fIdx === 0 ? 1 : Math.round(totalWeeks * frac);
+
+    // Week Label in ruler
+    slide5.addText(`W${weekNum}`, {
+      x: Math.max(timelineX, tickX - 0.25),
+      y: 1.05,
+      w: 0.5,
+      h: 0.22,
+      fontSize: 7.5,
       bold: true,
-      color: COLOR_NAVY_DARK,
+      color: '64748B',
+      align: 'center',
+      valign: 'middle',
       fontFace: 'Arial'
     });
 
-    // Gantt Bar Box
-    const barX = 4.2 + (idx * 1.15);
-    const barW = Math.max(2.2, 5.0 - idx * 0.4);
+    // Vertical dashed guideline running down the chart
+    slide5.addShape(pptx.ShapeType.line, {
+      x: tickX,
+      y: 1.28,
+      w: 0,
+      h: timelineBottomY - 1.28,
+      line: { color: 'E2E8F0', dashType: 'dash', width: 0.5 }
+    });
+  });
+
+  // Render each Gantt Phase row
+  ganttPhases.forEach((gp, idx) => {
+    const y = 1.32 + idx * rowHeight;
+
+    // Phase Label on left
+    slide5.addText(gp.name, {
+      x: 0.6,
+      y,
+      w: 3.5,
+      h: rowHeight,
+      fontSize: 8.5,
+      bold: true,
+      color: COLOR_NAVY_DARK,
+      fontFace: 'Arial',
+      valign: 'middle'
+    });
+
+    // Background track lane
+    slide5.addShape(pptx.ShapeType.rect, {
+      x: timelineX,
+      y: y + 0.04,
+      w: timelineW,
+      h: rowHeight - 0.08,
+      fill: { color: idx % 2 === 0 ? 'FAFAFA' : 'FFFFFF' },
+      line: { color: 'F1F5F9', width: 0.5 }
+    });
+
+    // True proportional Gantt Bar positioning
+    const startFrac = Math.max(0, Math.min(0.96, (gp.startWeek - 1) / totalWeeks));
+    const endFrac = Math.max(startFrac + 0.04, Math.min(1.0, gp.endWeek / totalWeeks));
+    const barX = timelineX + (startFrac * timelineW);
+    const barW = Math.max(0.7, (endFrac - startFrac) * timelineW);
 
     slide5.addShape(pptx.ShapeType.roundRect, {
       x: barX,
       y: y + 0.05,
       w: barW,
-      h: 0.32,
+      h: rowHeight - 0.1,
       rectRadius: 0.04,
       fill: { color: gp.fill }
     });
@@ -714,8 +839,8 @@ export async function generateExecutiveSlideDeck(
       x: barX,
       y: y + 0.05,
       w: barW,
-      h: 0.32,
-      fontSize: 8,
+      h: rowHeight - 0.1,
+      fontSize: 7.5,
       bold: true,
       color: gp.textColor,
       align: 'center',

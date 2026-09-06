@@ -25,7 +25,9 @@ import {
   ChevronRight,
   FileQuestion,
   Plus,
-  Presentation
+  Presentation,
+  Save,
+  Headphones
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData, OracleModule, TShirtSize } from '../../types';
 import { ORACLE_MODULE_CATALOG, ORACLE_PATCH_COHORTS } from '../../data/oraclePhases';
@@ -35,6 +37,7 @@ import { TShirtBadge, T_SHIRT_CONFIG } from '../common/TShirtBadge';
 import { ModuleTShirtMatrix } from '../common/ModuleTShirtMatrix';
 import { getQuestionsForModule, ModuleScopingQuestion } from '../../data/moduleScopingQuestions';
 import { ReportSubSectionId, REPORT_SUB_ITEMS } from '../Sidebar';
+import { NotebookLMPodcastCard } from '../podcast/NotebookLMPodcastCard';
 
 interface ReportsViewProps {
   scenario: ProjectScenario;
@@ -44,6 +47,8 @@ interface ReportsViewProps {
   onUpdateScenario?: (updater: (prev: ProjectScenario) => ProjectScenario) => void;
   onOpenNewProposal?: () => void;
   onOpenSlideDeck?: () => void;
+  onSaveScenario?: () => void;
+  onOpenNotebookLmPodcast?: () => void;
 }
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
@@ -53,7 +58,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   onSelectSubSection,
   onUpdateScenario,
   onOpenNewProposal,
-  onOpenSlideDeck
+  onOpenSlideDeck,
+  onSaveScenario,
+  onOpenNotebookLmPodcast
 }) => {
   // Local state for 20-Q Matrix and Interview views
   const [selectedModId, setSelectedModId] = useState<OracleModule>(
@@ -118,6 +125,28 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {onSaveScenario && (
+            <button
+              type="button"
+              onClick={onSaveScenario}
+              className="px-3.5 py-1.5 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-xs border border-emerald-500"
+              title="Save all changes to proposal and refresh data across all screens"
+            >
+              <Save size={13} />
+              <span>Save & Refresh All Screens</span>
+            </button>
+          )}
+          {onOpenNotebookLmPodcast && (
+            <button
+              type="button"
+              onClick={onOpenNotebookLmPodcast}
+              className="px-3.5 py-1.5 rounded-none bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 hover:from-slate-800 hover:to-indigo-900 text-white text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-xs border border-indigo-500/50"
+              title="Listen Podcast - 2-Host Audio Overview & Deep Dive"
+            >
+              <Headphones size={14} className="stroke-[2.5] text-indigo-300" />
+              <span>Listen Podcast</span>
+            </button>
+          )}
           {onOpenSlideDeck ? (
             <button
               type="button"
@@ -225,6 +254,15 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               <span className="text-sm font-bold text-slate-900 block mt-1">{scenario.deliveryModel || 'Global Blended (30/70)'}</span>
             </div>
           </div>
+
+          {/* NotebookLM Audio Overview Banner Card */}
+          {onOpenNotebookLmPodcast && (
+            <NotebookLMPodcastCard
+              scenario={scenario}
+              data={data}
+              onOpenPodcastStudio={onOpenNotebookLmPodcast}
+            />
+          )}
 
           {/* Section 1: Executive Summary */}
           <div className="space-y-3">

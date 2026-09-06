@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { Sidebar, NavTabId, DiscoverySubSectionId, ReportSubSectionId } from './components/Sidebar';
 import { DashboardView } from './components/views/DashboardView';
@@ -24,10 +24,19 @@ import { NewProposalModal } from './components/modals/NewProposalModal';
 import { SmartsheetExportModal } from './components/governance/SmartsheetExportModal';
 import { ExecutiveSlideDeckModal } from './components/modals/ExecutiveSlideDeckModal';
 import { ExecutiveDealBanner } from './components/common/ExecutiveDealBanner';
+import { NotebookLMPodcastStudio } from './components/podcast/NotebookLMPodcastStudio';
+import { FloatingPodcastBar } from './components/podcast/FloatingPodcastBar';
+import { PodcastView } from './components/views/PodcastView';
 import { PRESET_SCENARIOS } from './data/templates';
-import { ProjectScenario, OracleModule } from './types';
+import { ProjectScenario, OracleModule, PodcastEpisode, PodcastTurn } from './types';
 import { calculateProjectMetrics } from './utils/calculator';
 import { Menu, X, Database, Sparkles } from 'lucide-react';
+import {
+  saveScenarioToCloud,
+  listCloudScenarios,
+  deleteScenarioFromCloud,
+  subscribeToCloudScenarios
+} from './services/firestoreService';
 
 const STORAGE_CUSTOM_PROPOSALS_KEY = 'pb_estimo_custom_proposals';
 
@@ -37,7 +46,18 @@ export default function App() {
     try {
       const saved = localStorage.getItem(STORAGE_CUSTOM_PROPOSALS_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map((p: ProjectScenario) => {
+            if (p.deliveryMix && p.deliveryMix.nearshore !== 0) {
+              return {
+                ...p,
+                deliveryMix: { onshore: 20, nearshore: 0, offshore: 80 }
+              };
+            }
+            return p;
+          });
+        }
       }
     } catch (e) {
       console.error('Failed to load custom proposals from storage', e);
@@ -51,7 +71,17 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed[0];
+          let scenario = parsed[0];
+          if (scenario.scopeMode === 'integrations_only') {
+            scenario = { ...scenario, scopeMode: 'full' };
+          }
+          if (scenario.deliveryMix && scenario.deliveryMix.nearshore !== 0) {
+            return {
+              ...scenario,
+              deliveryMix: { onshore: 20, nearshore: 0, offshore: 80 }
+            };
+          }
+          return scenario;
         }
       }
     } catch (e) {
@@ -74,7 +104,80 @@ export default function App() {
   const [newProposalModalOpen, setNewProposalModalOpen] = useState(false);
   const [smartsheetExportModalOpen, setSmartsheetExportModalOpen] = useState(false);
   const [slideDeckModalOpen, setSlideDeckModalOpen] = useState(false);
+  const [notebookLmPodcastOpen, setNotebookLmPodcastOpen] = useState(false);
+  const [podcastPlaybackState, setPodcastPlaybackState] = useState<{
+    isPlaying: boolean;
+    episode: PodcastEpisode | null;
+    currentTurn: PodcastTurn | null;
+  }>({
+    isPlaying: false,
+    episode: null,
+    currentTurn: null
+  });
+
+  const handlePodcastPlayStateChange = React.useCallback(
+    (isPlaying: boolean, episode: PodcastEpisode | null, currentTurn: PodcastTurn | null) => {
+      setPodcastPlaybackState(prev => {
+        if (
+          prev.isPlaying === isPlaying &&
+          prev.episode?.id === episode?.id &&
+          prev.currentTurn?.id === currentTurn?.id
+        ) {
+          return prev;
+        }
+        return { isPlaying, episode, currentTurn };
+      });
+    },
+    []
+  );
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Real-time synchronization of custom proposals with Firestore Cloud Database
+  useEffect(() => {
+    // Initial fetch from cloud database
+    listCloudScenarios()
+      .then((cloudList) => {
+        if (cloudList.length > 0) {
+          setCustomProposals((prev) => {
+            // Merge cloud scenarios with local ones without duplicates
+            const map = new Map<string, ProjectScenario>();
+            cloudList.forEach(p => map.set(p.id, p));
+            prev.forEach(p => {
+              if (!map.has(p.id)) map.set(p.id, p);
+            });
+            const merged = Array.from(map.values());
+            try {
+              localStorage.setItem(STORAGE_CUSTOM_PROPOSALS_KEY, JSON.stringify(merged));
+            } catch (e) {
+              // ignore
+            }
+            return merged;
+          });
+        }
+      })
+      .catch((err) => {
+        console.warn('Initial cloud database sync notice:', err);
+      });
+
+    // Subscribe to ongoing cloud changes across tabs or systems
+    const unsubscribe = subscribeToCloudScenarios((cloudScenarios) => {
+      if (cloudScenarios.length > 0) {
+        setCustomProposals((prev) => {
+          const map = new Map<string, ProjectScenario>();
+          cloudScenarios.forEach(p => map.set(p.id, p));
+          prev.forEach(p => {
+            if (!map.has(p.id)) map.set(p.id, p);
+          });
+          return Array.from(map.values());
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Helper to save custom proposals
   const saveCustomProposals = (proposals: ProjectScenario[]) => {
@@ -89,6 +192,10 @@ export default function App() {
   const handleCreateProposal = (newScenario: ProjectScenario) => {
     const updated = [newScenario, ...customProposals.filter(p => p.id !== newScenario.id)];
     saveCustomProposals(updated);
+    // Asynchronously persist to Cloud Firestore
+    saveScenarioToCloud(newScenario).catch(err => {
+      console.warn('Cloud sync error for new proposal:', err);
+    });
     setActiveScenario(newScenario);
     setDiscoverySubSection('modules');
     setActiveTab('discovery');
@@ -97,6 +204,10 @@ export default function App() {
   const handleDeleteCustomProposal = (id: string) => {
     const updated = customProposals.filter(p => p.id !== id);
     saveCustomProposals(updated);
+    // Also delete from Cloud Firestore
+    deleteScenarioFromCloud(id).catch(err => {
+      console.warn('Cloud deletion error:', err);
+    });
     if (activeScenario.id === id) {
       if (updated.length > 0) {
         setActiveScenario(updated[0]);
@@ -110,6 +221,36 @@ export default function App() {
   const calculatedData = useMemo(() => {
     return calculateProjectMetrics(activeScenario);
   }, [activeScenario]);
+
+  const [lastSavedTimestamp, setLastSavedTimestamp] = useState<string | null>(null);
+
+  const handleSaveScenario = () => {
+    const isCustom = customProposals.some(p => p.id === activeScenario.id);
+    if (isCustom) {
+      const updated = customProposals.map(p => p.id === activeScenario.id ? activeScenario : p);
+      saveCustomProposals(updated);
+    } else {
+      try {
+        localStorage.setItem('oracle_active_scenario_saved', JSON.stringify(activeScenario));
+      } catch (e) {
+        console.error('Failed to save scenario to local storage', e);
+      }
+    }
+    // Also persist to Cloud Firestore for cross-system accessibility
+    saveScenarioToCloud(activeScenario).catch(err => {
+      console.warn('Cloud Firestore auto-sync notification:', err);
+    });
+    // Refresh active scenario state to ensure all child views and calculations synchronize
+    setActiveScenario(prev => ({ ...prev }));
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setLastSavedTimestamp(timeStr);
+  };
+
+  const handleResetDefaults = () => {
+    const originalPreset = PRESET_SCENARIOS.find(p => p.id === activeScenario.id) || PRESET_SCENARIOS[0];
+    setActiveScenario(JSON.parse(JSON.stringify(originalPreset)));
+    setLastSavedTimestamp(null);
+  };
 
   const handleSelectScenario = (scenario: ProjectScenario) => {
     setActiveScenario(scenario);
@@ -185,6 +326,7 @@ export default function App() {
             onUpdateScenario={setActiveScenario}
             onOpenComplexityStudio={handleOpenComplexityStudio}
             onOpenTraceMath={handleOpenTraceMath}
+            onSaveScenario={handleSaveScenario}
           />
         );
       case 'delivery_confidence':
@@ -203,6 +345,7 @@ export default function App() {
             data={calculatedData}
             onUpdateScenario={setActiveScenario}
             onOpenComplexityStudio={handleOpenComplexityStudio}
+            onSaveScenario={handleSaveScenario}
           />
         );
       case 'leadership':
@@ -219,6 +362,7 @@ export default function App() {
             scenario={activeScenario}
             data={calculatedData}
             onUpdateScenario={setActiveScenario}
+            onSaveScenario={handleSaveScenario}
           />
         );
       case 'governance':
@@ -227,6 +371,14 @@ export default function App() {
             scenario={activeScenario}
             data={calculatedData}
             onUpdateScenario={setActiveScenario}
+          />
+        );
+      case 'podcast':
+        return (
+          <PodcastView
+            scenario={activeScenario}
+            data={calculatedData}
+            onPlayStateChange={handlePodcastPlayStateChange}
           />
         );
       case 'reports':
@@ -239,6 +391,8 @@ export default function App() {
             onUpdateScenario={(updater) => setActiveScenario(updater)}
             onOpenNewProposal={() => setNewProposalModalOpen(true)}
             onOpenSlideDeck={() => setSlideDeckModalOpen(true)}
+            onSaveScenario={handleSaveScenario}
+            onOpenNotebookLmPodcast={() => setNotebookLmPodcastOpen(true)}
           />
         );
       default:
@@ -249,6 +403,10 @@ export default function App() {
             onNavigateTab={(tab) => setActiveTab(tab)}
             onOpenTraceMath={handleOpenTraceMath}
             onOpenNewProposal={() => setNewProposalModalOpen(true)}
+            onUpdateScenario={setActiveScenario}
+            onSaveScenario={handleSaveScenario}
+            onResetDefaults={handleResetDefaults}
+            onOpenNotebookLmPodcast={() => setNotebookLmPodcastOpen(true)}
           />
         );
     }
@@ -277,6 +435,8 @@ export default function App() {
         onOpenNewProposal={() => setNewProposalModalOpen(true)}
         onOpenSmartsheetExport={() => setSmartsheetExportModalOpen(true)}
         onOpenSlideDeck={() => setSlideDeckModalOpen(true)}
+        onOpenNotebookLmPodcast={() => setNotebookLmPodcastOpen(true)}
+        isPodcastPlaying={podcastPlaybackState.isPlaying}
         customScenarios={customProposals}
         onDeleteCustomScenario={handleDeleteCustomProposal}
       />
@@ -302,6 +462,7 @@ export default function App() {
           onOpenComplexityStudio={() => handleOpenComplexityStudio('complexity')}
           onOpenNewProposal={() => setNewProposalModalOpen(true)}
           onOpenSlideDeck={() => setSlideDeckModalOpen(true)}
+          onOpenNotebookLmPodcast={() => setNotebookLmPodcastOpen(true)}
         />
 
         {/* Mobile Navigation Drawer Trigger */}
@@ -343,7 +504,6 @@ export default function App() {
                     { id: 'dashboard', label: 'Executive Command' },
                     { id: 'framework_slider', label: 'Framework One-Slider (Voice)' },
                     { id: 'discovery', label: 'Scope & Architecture' },
-                    { id: 'benchmark_master', label: 'Benchmark & Master Calibration' },
                     { id: 'multivendor', label: 'Multi-Vendor & BI Demarcation' },
                     { id: 'estimation', label: 'Estimation Engine' },
                     { id: 'schedule', label: 'Schedule & Gantt' },
@@ -459,6 +619,10 @@ export default function App() {
             onSelectTab={setActiveTab}
             onOpenNewProposal={() => setNewProposalModalOpen(true)}
             onOpenSlideDeck={() => setSlideDeckModalOpen(true)}
+            onUpdateScenario={setActiveScenario}
+            onSaveScenario={handleSaveScenario}
+            onResetDefaults={handleResetDefaults}
+            lastSavedTimestamp={lastSavedTimestamp}
           />
           {renderActiveTabContent()}
         </main>
@@ -545,6 +709,44 @@ export default function App() {
         scenario={activeScenario}
         data={calculatedData}
       />
+
+      {/* Google NotebookLM 2-Host Audio Overview Studio Modal */}
+      {notebookLmPodcastOpen && (
+        <NotebookLMPodcastStudio
+          scenario={activeScenario}
+          data={calculatedData}
+          isOpen={notebookLmPodcastOpen}
+          onClose={() => setNotebookLmPodcastOpen(false)}
+          onPlayStateChange={handlePodcastPlayStateChange}
+        />
+      )}
+
+      {/* Floating Audio Bar (when studio is minimized or while browsing) */}
+      {!notebookLmPodcastOpen && (podcastPlaybackState.isPlaying || podcastPlaybackState.episode) && (
+        <FloatingPodcastBar
+          episode={podcastPlaybackState.episode}
+          currentTurn={podcastPlaybackState.currentTurn}
+          isPlaying={podcastPlaybackState.isPlaying}
+          onTogglePlay={() => {
+            if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+              if (podcastPlaybackState.isPlaying) {
+                window.speechSynthesis.pause();
+                setPodcastPlaybackState(prev => ({ ...prev, isPlaying: false }));
+              } else {
+                window.speechSynthesis.resume();
+                setPodcastPlaybackState(prev => ({ ...prev, isPlaying: true }));
+              }
+            }
+          }}
+          onOpenStudio={() => setNotebookLmPodcastOpen(true)}
+          onStop={() => {
+            if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+              window.speechSynthesis.cancel();
+            }
+            setPodcastPlaybackState({ isPlaying: false, episode: null, currentTurn: null });
+          }}
+        />
+      )}
 
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white text-slate-500 py-6 text-center text-xs print:hidden">

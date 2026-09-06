@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData, TechnicalObjectSmcRow } from '../../types';
 import { TECHNICAL_OBJECT_SMC_CATALOG } from '../../data/technicalScopingData';
+import { getEffectiveSmcCounts, syncIntegrationsFromCount, syncIntegrationsFromOverrides } from '../../utils/technicalSync';
 
 interface UnifiedRicefwSummaryGridProps {
   scenario: ProjectScenario;
@@ -51,15 +52,9 @@ export const UnifiedRicefwSummaryGrid: React.FC<UnifiedRicefwSummaryGridProps> =
     { id: 'fast_formulas', label: 'Fast Formulas' }
   ];
 
-  // Helper to fetch current counts and hours for a row
+  // Helper to fetch current counts and hours for a row honoring clean-slate & dynamic scale drivers
   const getRowStats = (row: TechnicalObjectSmcRow) => {
-    const override = scenario.technicalSmcOverrides?.[row.typeId];
-    const simple = override?.simple !== undefined ? override.simple : row.simpleCount;
-    const medium = override?.medium !== undefined ? override.medium : row.mediumCount;
-    const complex = override?.complex !== undefined ? override.complex : row.complexCount;
-    const totalCount = simple + medium + complex;
-    const totalHours = (simple * row.simpleHours) + (medium * row.mediumHours) + (complex * row.complexHours);
-    return { simple, medium, complex, totalCount, totalHours };
+    return getEffectiveSmcCounts(row, scenario);
   };
 
   // Filtered rows
@@ -99,7 +94,7 @@ export const UnifiedRicefwSummaryGrid: React.FC<UnifiedRicefwSummaryGridProps> =
     });
 
     return { totalItems, totalHours, simpleItems, mediumItems, complexItems, catHours, catCounts };
-  }, [scenario.technicalSmcOverrides]);
+  }, [scenario.technicalSmcOverrides, scenario.scaleDrivers, scenario.technicalIntegrations, scenario.selectedModules]);
 
   // Update handler for cell changes
   const handleUpdateCount = (typeId: string, complexity: 'simple' | 'medium' | 'complex', value: number) => {
@@ -108,11 +103,12 @@ export const UnifiedRicefwSummaryGrid: React.FC<UnifiedRicefwSummaryGridProps> =
       const currentOverrides = prev.technicalSmcOverrides || {};
       const currentTypeOverride = currentOverrides[typeId] || {};
       const defaultRow = TECHNICAL_OBJECT_SMC_CATALOG.find(r => r.typeId === typeId);
+      const effectiveDefaults = defaultRow ? getEffectiveSmcCounts(defaultRow, prev) : { simple: 0, medium: 0, complex: 0 };
       
       const newOverride = {
-        simple: currentTypeOverride.simple !== undefined ? currentTypeOverride.simple : (defaultRow?.simpleCount || 0),
-        medium: currentTypeOverride.medium !== undefined ? currentTypeOverride.medium : (defaultRow?.mediumCount || 0),
-        complex: currentTypeOverride.complex !== undefined ? currentTypeOverride.complex : (defaultRow?.complexCount || 0),
+        simple: currentTypeOverride.simple !== undefined ? currentTypeOverride.simple : effectiveDefaults.simple,
+        medium: currentTypeOverride.medium !== undefined ? currentTypeOverride.medium : effectiveDefaults.medium,
+        complex: currentTypeOverride.complex !== undefined ? currentTypeOverride.complex : effectiveDefaults.complex,
         [complexity]: clamped
       };
 
@@ -126,19 +122,22 @@ export const UnifiedRicefwSummaryGrid: React.FC<UnifiedRicefwSummaryGridProps> =
         const rows = TECHNICAL_OBJECT_SMC_CATALOG.filter(r => r.category === cat);
         return rows.reduce((sum, r) => {
           const ov = updatedOverrides[r.typeId];
-          const s = ov?.simple !== undefined ? ov.simple : r.simpleCount;
-          const m = ov?.medium !== undefined ? ov.medium : r.mediumCount;
-          const c = ov?.complex !== undefined ? ov.complex : r.complexCount;
+          const eff = getEffectiveSmcCounts(r, prev);
+          const s = ov?.simple !== undefined ? ov.simple : eff.simple;
+          const m = ov?.medium !== undefined ? ov.medium : eff.medium;
+          const c = ov?.complex !== undefined ? ov.complex : eff.complex;
           return sum + s + m + c;
         }, 0);
       };
 
-      return {
+      const totalOic = getSumForCategory('integrations');
+
+      const intermediateScenario: ProjectScenario = {
         ...prev,
         technicalSmcOverrides: updatedOverrides,
         scaleDrivers: {
           ...prev.scaleDrivers,
-          tech_oic: getSumForCategory('integrations'),
+          tech_oic: totalOic,
           tech_paas: getSumForCategory('paas'),
           tech_reports_bip: getSumForCategory('reports_bip'),
           tech_reports_otbi: getSumForCategory('reports_otbi'),
@@ -148,11 +147,45 @@ export const UnifiedRicefwSummaryGrid: React.FC<UnifiedRicefwSummaryGridProps> =
           tech_data_objects: getSumForCategory('conversions')
         }
       };
+
+      const isIntegrationRow = TECHNICAL_OBJECT_SMC_CATALOG.some(r => r.typeId === typeId && r.category === 'integrations');
+      if (isIntegrationRow) {
+        return syncIntegrationsFromOverrides(intermediateScenario);
+      }
+
+      return intermediateScenario;
     });
   };
 
   // Quick preset loader
-  const handleApplyPreset = (preset: 'lean' | 'standard' | 'enterprise') => {
+  const handleApplyPreset = (preset: 'clean' | 'lean' | 'standard' | 'enterprise') => {
+    if (preset === 'clean') {
+      onUpdateScenario(prev => {
+        const updatedOverrides: Record<string, { simple: number; medium: number; complex: number }> = {};
+        TECHNICAL_OBJECT_SMC_CATALOG.forEach(r => {
+          updatedOverrides[r.typeId] = { simple: 0, medium: 0, complex: 0 };
+        });
+
+        return {
+          ...prev,
+          technicalSmcOverrides: updatedOverrides,
+          scaleDrivers: {
+            ...prev.scaleDrivers,
+            tech_oic: 0,
+            tech_paas: 0,
+            tech_reports_bip: 0,
+            tech_reports_otbi: 0,
+            tech_fast_formulas: 0,
+            tech_workflows: 0,
+            tech_security_roles: 0,
+            tech_data_objects: 0
+          },
+          technicalIntegrations: []
+        };
+      });
+      return;
+    }
+
     const multipliers = {
       lean: 0.6,
       standard: 1.0,
@@ -179,12 +212,14 @@ export const UnifiedRicefwSummaryGrid: React.FC<UnifiedRicefwSummaryGridProps> =
         }, 0);
       };
 
-      return {
+      const totalOic = getSumForCategory('integrations');
+
+      const intermediateScenario: ProjectScenario = {
         ...prev,
         technicalSmcOverrides: updatedOverrides,
         scaleDrivers: {
           ...prev.scaleDrivers,
-          tech_oic: getSumForCategory('integrations'),
+          tech_oic: totalOic,
           tech_paas: getSumForCategory('paas'),
           tech_reports_bip: getSumForCategory('reports_bip'),
           tech_reports_otbi: getSumForCategory('reports_otbi'),
@@ -194,25 +229,54 @@ export const UnifiedRicefwSummaryGrid: React.FC<UnifiedRicefwSummaryGridProps> =
           tech_data_objects: getSumForCategory('conversions')
         }
       };
+
+      return syncIntegrationsFromCount(totalOic, intermediateScenario);
     });
   };
 
   const handleResetDefaults = () => {
-    onUpdateScenario(prev => ({
-      ...prev,
-      technicalSmcOverrides: {},
-      scaleDrivers: {
-        ...prev.scaleDrivers,
-        tech_oic: 18,
-        tech_paas: 5,
-        tech_reports_bip: 20,
-        tech_reports_otbi: 31,
-        tech_fast_formulas: 18,
-        tech_workflows: 15,
-        tech_security_roles: 20,
-        tech_data_objects: 14
+    onUpdateScenario(prev => {
+      const isCleanSlate = prev.selectedModules.length === 0;
+      if (isCleanSlate) {
+        const zeroSmcOverrides: Record<string, { simple: number; medium: number; complex: number }> = {};
+        TECHNICAL_OBJECT_SMC_CATALOG.forEach(r => {
+          zeroSmcOverrides[r.typeId] = { simple: 0, medium: 0, complex: 0 };
+        });
+        return {
+          ...prev,
+          technicalSmcOverrides: zeroSmcOverrides,
+          scaleDrivers: {
+            ...prev.scaleDrivers,
+            tech_oic: 0,
+            tech_paas: 0,
+            tech_reports_bip: 0,
+            tech_reports_otbi: 0,
+            tech_fast_formulas: 0,
+            tech_workflows: 0,
+            tech_security_roles: 0,
+            tech_data_objects: 0
+          },
+          technicalIntegrations: []
+        };
       }
-    }));
+
+      const defaultScenario: ProjectScenario = {
+        ...prev,
+        technicalSmcOverrides: {},
+        scaleDrivers: {
+          ...prev.scaleDrivers,
+          tech_oic: 18,
+          tech_paas: 5,
+          tech_reports_bip: 20,
+          tech_reports_otbi: 31,
+          tech_fast_formulas: 18,
+          tech_workflows: 15,
+          tech_security_roles: 20,
+          tech_data_objects: 14
+        }
+      };
+      return syncIntegrationsFromCount(18, defaultScenario);
+    });
   };
 
   return (
@@ -323,6 +387,14 @@ export const UnifiedRicefwSummaryGrid: React.FC<UnifiedRicefwSummaryGridProps> =
           </span>
           <button
             type="button"
+            onClick={() => handleApplyPreset('clean')}
+            className="px-2.5 py-1 text-xs font-semibold rounded-sm bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition cursor-pointer"
+            title="Clean Slate: Zero out all technical objects and integrations"
+          >
+            Clean Slate (0)
+          </button>
+          <button
+            type="button"
             onClick={() => handleApplyPreset('lean')}
             className="px-2.5 py-1 text-xs font-semibold rounded-sm bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
             title="Calibrate counts to 60% lean footprint"
@@ -412,13 +484,32 @@ export const UnifiedRicefwSummaryGrid: React.FC<UnifiedRicefwSummaryGridProps> =
                     {/* Simple Column (Editable Count) */}
                     <td className="py-2.5 px-3 text-center align-middle bg-slate-50/50">
                       <div className="inline-flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          title="Decrease Simple Count"
+                          onClick={() => handleUpdateCount(row.typeId, 'simple', Math.max(0, stats.simple - 1))}
+                          className="w-5 h-6 bg-white hover:bg-slate-100 active:bg-slate-200 border border-slate-300 rounded-xs text-xs font-bold text-slate-600 flex items-center justify-center transition select-none cursor-pointer"
+                        >
+                          -
+                        </button>
                         <input
                           type="number"
                           min="0"
                           value={stats.simple}
-                          onChange={(e) => handleUpdateCount(row.typeId, 'simple', parseInt(e.target.value) || 0)}
-                          className="w-12 px-1.5 py-1 text-center font-mono font-bold text-xs bg-white border border-slate-300 rounded-sm focus:outline-hidden focus:border-indigo-500"
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                            handleUpdateCount(row.typeId, 'simple', isNaN(val) ? 0 : Math.max(0, val));
+                          }}
+                          className="w-12 px-1 py-1 text-center font-mono font-bold text-xs bg-white border border-slate-300 rounded-xs focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                         />
+                        <button
+                          type="button"
+                          title="Increase Simple Count"
+                          onClick={() => handleUpdateCount(row.typeId, 'simple', stats.simple + 1)}
+                          className="w-5 h-6 bg-white hover:bg-slate-100 active:bg-slate-200 border border-slate-300 rounded-xs text-xs font-bold text-slate-600 flex items-center justify-center transition select-none cursor-pointer"
+                        >
+                          +
+                        </button>
                       </div>
                       <div className="text-[10px] text-slate-400 font-mono mt-0.5">
                         @{row.simpleHours}h = <span className="font-semibold text-slate-700">{stats.simple * row.simpleHours}h</span>
@@ -428,13 +519,32 @@ export const UnifiedRicefwSummaryGrid: React.FC<UnifiedRicefwSummaryGridProps> =
                     {/* Medium Column (Editable Count) */}
                     <td className="py-2.5 px-3 text-center align-middle bg-slate-50/50 border-x border-slate-200">
                       <div className="inline-flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          title="Decrease Medium Count"
+                          onClick={() => handleUpdateCount(row.typeId, 'medium', Math.max(0, stats.medium - 1))}
+                          className="w-5 h-6 bg-white hover:bg-slate-100 active:bg-slate-200 border border-slate-300 rounded-xs text-xs font-bold text-slate-600 flex items-center justify-center transition select-none cursor-pointer"
+                        >
+                          -
+                        </button>
                         <input
                           type="number"
                           min="0"
                           value={stats.medium}
-                          onChange={(e) => handleUpdateCount(row.typeId, 'medium', parseInt(e.target.value) || 0)}
-                          className="w-12 px-1.5 py-1 text-center font-mono font-bold text-xs bg-white border border-slate-300 rounded-sm focus:outline-hidden focus:border-indigo-500"
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                            handleUpdateCount(row.typeId, 'medium', isNaN(val) ? 0 : Math.max(0, val));
+                          }}
+                          className="w-12 px-1 py-1 text-center font-mono font-bold text-xs bg-white border border-slate-300 rounded-xs focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                         />
+                        <button
+                          type="button"
+                          title="Increase Medium Count"
+                          onClick={() => handleUpdateCount(row.typeId, 'medium', stats.medium + 1)}
+                          className="w-5 h-6 bg-white hover:bg-slate-100 active:bg-slate-200 border border-slate-300 rounded-xs text-xs font-bold text-slate-600 flex items-center justify-center transition select-none cursor-pointer"
+                        >
+                          +
+                        </button>
                       </div>
                       <div className="text-[10px] text-slate-400 font-mono mt-0.5">
                         @{row.mediumHours}h = <span className="font-semibold text-slate-700">{stats.medium * row.mediumHours}h</span>
@@ -444,13 +554,32 @@ export const UnifiedRicefwSummaryGrid: React.FC<UnifiedRicefwSummaryGridProps> =
                     {/* Complex Column (Editable Count) */}
                     <td className="py-2.5 px-3 text-center align-middle bg-slate-50/50">
                       <div className="inline-flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          title="Decrease Complex Count"
+                          onClick={() => handleUpdateCount(row.typeId, 'complex', Math.max(0, stats.complex - 1))}
+                          className="w-5 h-6 bg-white hover:bg-slate-100 active:bg-slate-200 border border-slate-300 rounded-xs text-xs font-bold text-slate-600 flex items-center justify-center transition select-none cursor-pointer"
+                        >
+                          -
+                        </button>
                         <input
                           type="number"
                           min="0"
                           value={stats.complex}
-                          onChange={(e) => handleUpdateCount(row.typeId, 'complex', parseInt(e.target.value) || 0)}
-                          className="w-12 px-1.5 py-1 text-center font-mono font-bold text-xs bg-white border border-slate-300 rounded-sm focus:outline-hidden focus:border-indigo-500"
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                            handleUpdateCount(row.typeId, 'complex', isNaN(val) ? 0 : Math.max(0, val));
+                          }}
+                          className="w-12 px-1 py-1 text-center font-mono font-bold text-xs bg-white border border-slate-300 rounded-xs focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                         />
+                        <button
+                          type="button"
+                          title="Increase Complex Count"
+                          onClick={() => handleUpdateCount(row.typeId, 'complex', stats.complex + 1)}
+                          className="w-5 h-6 bg-white hover:bg-slate-100 active:bg-slate-200 border border-slate-300 rounded-xs text-xs font-bold text-slate-600 flex items-center justify-center transition select-none cursor-pointer"
+                        >
+                          +
+                        </button>
                       </div>
                       <div className="text-[10px] text-slate-400 font-mono mt-0.5">
                         @{row.complexHours}h = <span className="font-semibold text-slate-700">{stats.complex * row.complexHours}h</span>

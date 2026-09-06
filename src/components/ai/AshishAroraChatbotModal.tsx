@@ -97,7 +97,7 @@ export const AshishAroraChatbotModal: React.FC<AshishAroraChatbotModalProps> = (
 
 **3-Point Breakdown:**
 - **1. Scope & Scale:** ${scenario.selectedModules.length} Oracle Cloud modules across ${scenario.scaleDrivers.fin_ent || 3} legal entities.
-- **2. Team Sizing:** Peak team of ${(data.peakFTE || 14.5).toFixed(1)} FTEs with ${scenario.deliveryMix?.onshore || 25}% Onshore / ${scenario.deliveryMix?.offshore || 75}% Offshore staffing.
+- **2. Team Sizing:** Peak team of ${(typeof data.peakFTE === 'number' ? data.peakFTE : (data.totalHours > 0 ? 14.5 : 0)).toFixed(1)} FTEs with ${scenario.deliveryMix?.onshore || 25}% Onshore / ${scenario.deliveryMix?.offshore || 75}% Offshore staffing.
 - **3. Defensibility:** Fully grounded in True Cloud Method (TCM) stage-gate benchmarks.
 
 💡 **Recommended Action:** Ask any question below or click an action button to inspect the active plan.`,

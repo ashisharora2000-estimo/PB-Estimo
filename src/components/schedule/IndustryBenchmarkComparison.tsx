@@ -113,15 +113,7 @@ export const IndustryBenchmarkComparison: React.FC<IndustryBenchmarkComparisonPr
         </div>
 
         <div className="flex items-center gap-2">
-          {scenario.projectWeeks !== sf.industryBenchmarkDurationWeeks && (
-            <button
-              onClick={handleApplyIndustryDuration}
-              className="px-3 py-1.5 rounded-sm bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-xs transition"
-            >
-              <ShieldCheck size={14} />
-              <span>Adopt Industry Standard ({sf.industryBenchmarkDurationWeeks} Wks)</span>
-            </button>
-          )}
+          {/* Adopt Industry Standard hidden for proposal customization */}
           {scenario.projectWeeks > sf.crashDurationWeeks && (
             <button
               onClick={handleApplyCrashDuration}

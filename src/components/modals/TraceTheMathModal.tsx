@@ -607,41 +607,43 @@ export const TraceTheMathModal: React.FC<TraceTheMathModalProps> = ({
                     Global Delivery Model & Regional Mix
                   </h4>
                   <p className="text-xs text-slate-600">
-                    Resource distribution across Onsite Lead, Nearshore Hub, and Offshore Global Delivery Center (GDC).
+                    Resource distribution across Onsite Lead and Offshore Global Delivery Center (GDC).
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className={`grid grid-cols-1 ${deliveryMix.nearshore > 0 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-4`}>
                   <div className="p-4 rounded-sm bg-slate-50 border border-slate-200 space-y-1">
                     <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                      <span>Onsite Lead & Arch</span>
-                      <span className="font-mono text-slate-900">{Math.round(deliveryMix.onshore * 100)}%</span>
+                      <span>Onsite Lead & Architecture</span>
+                      <span className="font-mono text-blue-700 font-bold">{Math.round(deliveryMix.onshore * 100)}%</span>
                     </div>
                     <div className="text-xl font-mono font-bold text-slate-900">
                       {onshoreHours.toLocaleString()} <span className="text-xs font-normal text-slate-500">hrs</span>
                     </div>
                     <div className="text-[10px] text-slate-500">
-                      Solution design, governance, client workshops & cutover leads
+                      Solution design, governance, client workshops, cutover leads & PMO
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-sm bg-slate-50 border border-slate-200 space-y-1">
-                    <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                      <span>Nearshore Hub</span>
-                      <span className="font-mono text-slate-900">{Math.round(deliveryMix.nearshore * 100)}%</span>
+                  {deliveryMix.nearshore > 0 && (
+                    <div className="p-4 rounded-sm bg-slate-50 border border-slate-200 space-y-1">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                        <span>Nearshore Hub</span>
+                        <span className="font-mono text-slate-900">{Math.round(deliveryMix.nearshore * 100)}%</span>
+                      </div>
+                      <div className="text-xl font-mono font-bold text-slate-900">
+                        {nearshoreHours.toLocaleString()} <span className="text-xs font-normal text-slate-500">hrs</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500">
+                        Timezone-aligned technical leads & functional consultants
+                      </div>
                     </div>
-                    <div className="text-xl font-mono font-bold text-slate-900">
-                      {nearshoreHours.toLocaleString()} <span className="text-xs font-normal text-slate-500">hrs</span>
-                    </div>
-                    <div className="text-[10px] text-slate-500">
-                      Timezone-aligned technical leads & functional consultants
-                    </div>
-                  </div>
+                  )}
 
                   <div className="p-4 rounded-sm bg-slate-50 border border-slate-200 space-y-1">
                     <div className="flex items-center justify-between text-xs font-bold text-slate-700">
                       <span>Offshore Delivery (GDC)</span>
-                      <span className="font-mono text-slate-900">{Math.round(deliveryMix.offshore * 100)}%</span>
+                      <span className="font-mono text-emerald-700 font-bold">{Math.round(deliveryMix.offshore * 100)}%</span>
                     </div>
                     <div className="text-xl font-mono font-bold text-slate-900">
                       {offshoreHours.toLocaleString()} <span className="text-xs font-normal text-slate-500">hrs</span>
