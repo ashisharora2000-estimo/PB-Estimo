@@ -59,13 +59,6 @@ export const ScheduleFeasibilityCard: React.FC<ScheduleFeasibilityCardProps> = (
     }));
   };
 
-  const handleAdoptIndustryStandard = () => {
-    onUpdateScenario(prev => ({
-      ...prev,
-      projectWeeks: sf.industryBenchmarkDurationWeeks
-    }));
-  };
-
   const handleApplyFastTracking = () => {
     onUpdateScenario(prev => ({
       ...prev,

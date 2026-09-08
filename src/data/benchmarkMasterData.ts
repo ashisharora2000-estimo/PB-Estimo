@@ -876,7 +876,7 @@ export interface DeliveryModelPreset {
   targetBlendedBillRate: number;
   targetBlendedCostRate: number;
   targetGrossMarginPct: number;
-  recommendedUseCases: string[];
+  recommendedUseCases?: string[];
 }
 
 export const DEFAULT_DELIVERY_PYRAMIDS: DeliveryModelPreset[] = [

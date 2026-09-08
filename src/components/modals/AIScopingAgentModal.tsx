@@ -379,28 +379,42 @@ export const AIScopingAgentModal: React.FC<AIScopingAgentModalProps> = ({
     if (!blueprintResult) return;
     captureSnapshot('Blueprint Ingestion');
 
+    // Extract module IDs from inferredModules or detectedModules
+    const extractedModuleIds: OracleModule[] = (blueprintResult.inferredModules || []).map((m: any) =>
+      typeof m === 'string' ? m : m.id
+    );
+    if (extractedModuleIds.length === 0 && Array.isArray(blueprintResult.detectedModules)) {
+      extractedModuleIds.push(...blueprintResult.detectedModules);
+    }
+
+    const newScaleDrivers = blueprintResult.rawScaleDriversPayload || blueprintResult.scaleDrivers || {};
+    const newModifiers = blueprintResult.rawModifiersPayload || blueprintResult.clientModifiers || {};
+
     onUpdateScenario(prev => {
       let finalModules = prev.selectedModules;
       if (mergeMode === 'overwrite') {
-        finalModules = blueprintResult.detectedModules;
+        finalModules = extractedModuleIds.length > 0 ? extractedModuleIds : prev.selectedModules;
       } else {
-        const set = new Set([...prev.selectedModules, ...blueprintResult.detectedModules]);
+        const set = new Set([...prev.selectedModules, ...extractedModuleIds]);
         (blueprintResult.excludedModules || []).forEach((ex: string) => set.delete(ex as any));
         finalModules = Array.from(set);
       }
 
       return {
         ...prev,
+        name: blueprintResult.clientName && blueprintResult.clientName !== 'Enterprise Client'
+          ? `${blueprintResult.clientName} Oracle Fusion Implementation`
+          : prev.name,
         selectedModules: finalModules,
-        scaleDrivers: { ...prev.scaleDrivers, ...blueprintResult.scaleDrivers },
-        clientModifiers: { ...prev.clientModifiers, ...blueprintResult.clientModifiers },
+        scaleDrivers: { ...prev.scaleDrivers, ...newScaleDrivers },
+        clientModifiers: { ...prev.clientModifiers, ...newModifiers },
         aiExtractionMeta: {
           lastExtractedAt: new Date().toISOString(),
-          source: 'AI Scoping Agent',
+          source: blueprintResult.extractionSource === 'live_ai' ? 'AI Scoping Agent (Gemini Live)' : 'AI Scoping Agent (Heuristic Engine)',
           rawInputLength: blueprintPrompt.length,
-          detectedCount: blueprintResult.detectedModules.length,
-          confidenceScore: blueprintResult.confidenceScore,
-          matchedAttributes: blueprintResult.attributes
+          detectedCount: extractedModuleIds.length,
+          confidenceScore: blueprintResult.overallConfidencePct || blueprintResult.confidenceScore || 85,
+          matchedAttributes: blueprintResult.summaryFindings || blueprintResult.attributes
         }
       };
     });
@@ -518,19 +532,7 @@ export const AIScopingAgentModal: React.FC<AIScopingAgentModalProps> = ({
               <Zap size={14} />
               <span>3. Quick Blueprint Auto-Fill</span>
             </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveMode('presets')}
-              className={`px-3.5 py-2 text-xs font-bold transition flex items-center gap-2 rounded-sm cursor-pointer ${
-                activeMode === 'presets'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
-              }`}
-            >
-              <Layers size={14} />
-              <span>Industry Presets ({INTEL_PACKAGE_PRESETS.length})</span>
-            </button>
+            {/* Mode 4 Industry Presets hidden for simplified proposal scoping */}
           </div>
 
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
@@ -664,29 +666,6 @@ export const AIScopingAgentModal: React.FC<AIScopingAgentModalProps> = ({
                   </div>
                 </div>
               )}
-
-              {/* Sample Quick Loader */}
-              <div className="bg-white border border-slate-200 p-3.5 rounded-sm space-y-2">
-                <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
-                  <span>Or test with an Industry Sample RFP:</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {SAMPLE_PROPOSAL_TEMPLATES.map((sample, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setUploadedFileName(`${sample.name.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`);
-                        setRfpText(sample.content);
-                      }}
-                      className="p-2.5 text-left border border-slate-200 hover:border-indigo-400 bg-slate-50 hover:bg-indigo-50/40 rounded-sm transition cursor-pointer"
-                    >
-                      <div className="font-bold text-xs text-slate-900">{sample.name}</div>
-                      <div className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{sample.description}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               {/* RFP Extraction Results Preview */}
               {rfpResult && (
@@ -925,68 +904,60 @@ export const AIScopingAgentModal: React.FC<AIScopingAgentModalProps> = ({
               </div>
 
               {/* Blueprint Extraction Result */}
-              {blueprintResult && (
-                <div className="bg-white border border-indigo-200 rounded-sm p-4 space-y-3 shadow-xs">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                    <div className="font-bold text-xs text-indigo-950 flex items-center gap-2">
-                      <CheckCircle2 size={16} className="text-emerald-600" />
-                      <span>Blueprint Extraction Matrix</span>
+              {blueprintResult && (() => {
+                const modulesList: Array<{ id: string; name?: string; pillar?: string; confidencePct?: number }> = 
+                  (blueprintResult.inferredModules && blueprintResult.inferredModules.length > 0)
+                    ? blueprintResult.inferredModules.map((m: any) => typeof m === 'string' ? { id: m } : m)
+                    : (blueprintResult.detectedModules || []).map((m: string) => ({ id: m }));
+                const confidence = blueprintResult.overallConfidencePct || blueprintResult.confidenceScore || 85;
+
+                return (
+                  <div className="bg-white border border-indigo-200 rounded-sm p-4 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                      <div className="font-bold text-xs text-indigo-950 flex items-center gap-2">
+                        <CheckCircle2 size={16} className="text-emerald-600" />
+                        <span>Blueprint Extraction: {blueprintResult.clientName || 'Enterprise Scope'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-xs ${
+                          confidence >= 80 ? 'bg-emerald-100 text-emerald-800' :
+                          confidence >= 60 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {confidence}% Confidence
+                        </span>
+                        <span className="text-xs font-mono font-bold px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-xs">
+                          {modulesList.length} Modules Detected
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-xs font-mono font-bold px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-xs">
-                      {blueprintResult.detectedModules.length} Modules Detected
-                    </span>
-                  </div>
 
-                  <div className="flex flex-wrap gap-1.5">
-                    {blueprintResult.detectedModules.map((m: string) => (
-                      <span key={m} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-xs border border-indigo-200">
-                        {m}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="text-xs text-slate-600 italic">
-                    {blueprintResult.rationaleNotes?.[0] || 'Optimized scale drivers and risk modifiers configured.'}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* MODE 4: PRESET PACKAGES */}
-          {activeMode === 'presets' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {INTEL_PACKAGE_PRESETS.map((preset) => (
-                <div
-                  key={preset.id}
-                  className="p-4 bg-white border border-slate-200 hover:border-indigo-500 transition rounded-sm shadow-xs flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-700 font-mono text-[10px] font-bold uppercase border border-slate-200 rounded-xs">
-                        {preset.industry}
-                      </span>
-                      <span className="text-[10px] font-mono text-indigo-600 font-bold">
-                        Pre-Calibrated
-                      </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {modulesList.map((m) => {
+                        const catalogItem = ORACLE_MODULE_CATALOG.find(c => c.id === m.id);
+                        return (
+                          <span key={m.id} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-xs border border-indigo-200 flex items-center gap-1">
+                            <span>{catalogItem?.name || m.name || m.id}</span>
+                            {m.confidencePct && (
+                              <span className="text-[10px] opacity-75 font-mono">({m.confidencePct}%)</span>
+                            )}
+                          </span>
+                        );
+                      })}
                     </div>
-                    <h4 className="font-bold text-slate-900 text-sm">{preset.name}</h4>
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">{preset.tagline}</p>
-                  </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-[10px] font-mono text-slate-400">Complete Spec Included</span>
-                    <button
-                      type="button"
-                      onClick={() => handleSelectPreset(preset)}
-                      className="px-3 py-1.5 bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold rounded-sm transition flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <span>Load & Synthesize</span>
-                      <ArrowRight size={12} />
-                    </button>
+                    {blueprintResult.summaryFindings && blueprintResult.summaryFindings.length > 0 && (
+                      <div className="text-xs text-slate-600 space-y-1 bg-slate-50 p-2.5 rounded-xs border border-slate-200">
+                        {blueprintResult.summaryFindings.slice(0, 3).map((finding: string, idx: number) => (
+                          <div key={idx} className="flex items-start gap-1.5">
+                            <span className="text-indigo-600 font-bold">•</span>
+                            <span>{finding}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })()}
             </div>
           )}
         </div>

@@ -113,18 +113,12 @@ export const GovernanceView: React.FC<GovernanceViewProps> = ({
             Deal Classification, Risk Log & Approval Chain
           </h2>
           <p className="text-xs text-slate-600 mt-1 max-w-2xl">
-            Evaluate corporate gating requirements, mitigate high-impact implementation risks, freeze project baselines, and trigger Smartsheet plan execution.
+            Evaluate corporate gating requirements, mitigate high-impact implementation risks, freeze project baselines, and enforce governance controls.
           </p>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <button
-            onClick={() => setSmartsheetModalOpen(true)}
-            className="px-4 py-2.5 bg-gradient-to-r from-[#002A54] via-[#004A8F] to-[#0073EA] hover:from-[#001D3D] hover:to-[#004A8F] text-white rounded-xs text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-xs transition cursor-pointer"
-          >
-            <Sparkles size={15} />
-            <span>Trigger Smartsheet Plan</span>
-          </button>
+          {/* Trigger Smartsheet Plan - Hidden for future release */}
 
           <button
             onClick={toggleBaselineFreeze}
@@ -396,11 +390,11 @@ export const GovernanceView: React.FC<GovernanceViewProps> = ({
 
           <div className="p-4 rounded-xs bg-white border border-slate-200 space-y-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700 block">
-              3. Smartsheet Plan Initiation
+              3. Baseline Plan Initiation
             </span>
-            <h4 className="font-bold text-slate-900">Automated PMO Rollout</h4>
+            <h4 className="font-bold text-slate-900">Project Plan Baseline Lock</h4>
             <p className="text-slate-600 leading-relaxed">
-              Once frozen, Smartsheet integration is triggered to instantiate date-wise WBS, activity task plans, stage gates, risk logs, and pod runbooks directly into Smartsheet sheets with owners and dependencies.
+              Once frozen, the deterministic date-wise WBS, activity task plans, stage gates, risk logs, and pod runbooks are baseline locked directly with designated owners, milestones, and dependencies.
             </p>
           </div>
         </div>

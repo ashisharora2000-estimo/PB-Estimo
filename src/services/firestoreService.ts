@@ -14,6 +14,7 @@ import {
 import { db, auth } from '../lib/firebase';
 import { ProjectScenario, PodcastEpisode } from '../types';
 import { ScenarioSnapshotItem } from '../components/common/UniversalSnapshotManager';
+import { isMakeAutoSyncEnabled, sendScenarioToMakeDatabase } from './makeIntegrationService';
 
 export enum OperationType {
   CREATE = 'create',
@@ -100,6 +101,13 @@ export async function saveScenarioToCloud(scenario: ProjectScenario): Promise<vo
       authorEmail: auth.currentUser?.email || 'user@company.com'
     };
     await setDoc(docRef, payload, { merge: true });
+
+    // Optional Make Database trigger (non-blocking)
+    if (isMakeAutoSyncEnabled()) {
+      sendScenarioToMakeDatabase(scenario).catch((err) => {
+        console.warn('Make Database auto-sync notice:', err);
+      });
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }

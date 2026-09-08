@@ -144,40 +144,90 @@ export function parseProposalDocument(proposalText: string): ProposalParseResult
   const extractedScaleDrivers: Partial<ScaleDrivers> = {};
 
   // Extract Legal Entities
-  const entityMatch = proposalText.match(/(\d+)\s*(?:legal\s*entities|operating\s*entities|entities|companies)/i);
+  const entityMatch = proposalText.match(/(\d+)\s*(?:legal\s*entities|operating\s*entities|entities|companies|operating\s*units)/i);
   if (entityMatch) extractedScaleDrivers.fin_ent = parseInt(entityMatch[1], 10);
+
+  // Extract Ledgers
+  const ledgersMatch = proposalText.match(/(\d+)\s*(?:primary\s*ledgers?|ledgers?|secondary\s*ledgers?|valuation\s*ledgers?)/i);
+  if (ledgersMatch) extractedScaleDrivers.fin_led = parseInt(ledgersMatch[1], 10);
+
+  // Extract Currencies
+  const curMatch = proposalText.match(/(\d+)\s*(?:currencies|currency\s*ledgers?|currency\s*types)/i);
+  if (curMatch) extractedScaleDrivers.fin_cur = parseInt(curMatch[1], 10);
+
+  // Extract COA Segments
+  const coaMatch = proposalText.match(/(\d+)\s*(?:chart\s*of\s*accounts\s*segments?|coa\s*segments?|segments?|account\s*segments?)/i);
+  if (coaMatch) extractedScaleDrivers.fin_coa_segments = parseInt(coaMatch[1], 10);
 
   // Extract Plants
   const plantsMatch = proposalText.match(/(\d+)\s*(?:manufacturing\s*plants|plants|factories|facilities|mills)/i);
   if (plantsMatch) extractedScaleDrivers.scm_plants = parseInt(plantsMatch[1], 10);
 
   // Extract Warehouses
-  const whMatch = proposalText.match(/(\d+)\s*(?:distribution\s*warehouses|warehouses|3pl\s*hubs|hubs|dc[s]?)/i);
+  const whMatch = proposalText.match(/(\d+)\s*(?:distribution\s*warehouses|warehouses|3pl\s*hubs|hubs|dc[s]?|distribution\s*centers)/i);
   if (whMatch) extractedScaleDrivers.scm_wh = parseInt(whMatch[1], 10);
+
+  // Extract Inventory Organizations
+  const invMatch = proposalText.match(/(\d+)\s*(?:inventory\s*orgs?|inv\s*orgs?|stocking\s*locations|inventory\s*organizations?)/i);
+  if (invMatch) extractedScaleDrivers.scm_inv = parseInt(invMatch[1], 10);
 
   // Extract Headcount
   const hcMatch = proposalText.match(/(\d[\d,]*)\s*(?:employees|workers|headcount|professionals|staff)/i);
   if (hcMatch) extractedScaleDrivers.hcm_hc = parseInt(hcMatch[1].replace(/,/g, ''), 10);
 
-  // Extract OIC Integrations
-  const oicMatch = proposalText.match(/(\d+)\s*(?:oic|integrations|interfaces|api\s*flows|middleware)/i);
-  if (oicMatch) extractedScaleDrivers.tech_oic = parseInt(oicMatch[1], 10);
-
-  // Extract Data Objects
-  const dataObjMatch = proposalText.match(/(\d+)\s*(?:fbdi|data\s*objects|conversion\s*objects|entities\s*to\s*migrate)/i);
-  if (dataObjMatch) extractedScaleDrivers.tech_data_objects = parseInt(dataObjMatch[1], 10);
-
-  // Extract Conversion Mock Cycles
-  const mockCycleMatch = proposalText.match(/(\d+)\s*(?:mock|rehearsal|conversion\s*cycle|load\s*cycle)/i);
-  if (mockCycleMatch) extractedScaleDrivers.tech_conversion_cycles = parseInt(mockCycleMatch[1], 10);
-
-  // Extract Historical Years
-  const histYearsMatch = proposalText.match(/(\d+)\s*(?:years?\s*(?:of\s*)?(?:legacy\s*)?(?:historical|history|data|records))/i);
-  if (histYearsMatch) extractedScaleDrivers.tech_historical_years = parseInt(histYearsMatch[1], 10);
+  // Extract Payroll Countries
+  const payCountriesMatch = proposalText.match(/(\d+)\s*(?:payroll\s*countries|operating\s*countries|geographies|countries)/i);
+  if (payCountriesMatch) extractedScaleDrivers.hcm_pay_countries = parseInt(payCountriesMatch[1], 10);
 
   // Extract Unions
   const unionMatch = proposalText.match(/(\d+)\s*(?:collective\s*bargaining|unions|bargaining\s*agreements|cba[s]?)/i);
   if (unionMatch) extractedScaleDrivers.hcm_union_groups = parseInt(unionMatch[1], 10);
+
+  // --- RICEFW TECHNICAL OBJECT EXTRACTION ---
+
+  // 1. Integrations (OIC / APIs / Interfaces)
+  const oicMatch = proposalText.match(/(\d+)\s*(?:oic(?:\s*integrations?)?|integrations?|interfaces?|api\s*flows?|middleware\s*flows?|integration\s*flows?)/i);
+  if (oicMatch) extractedScaleDrivers.tech_oic = parseInt(oicMatch[1], 10);
+
+  // 2. Data Conversion Objects (FBDI / HDL / Migrations)
+  const dataObjMatch = proposalText.match(/(\d+)\s*(?:fbdi|data\s*objects?|conversion\s*objects?|conversion\s*entities|entities\s*to\s*migrate|migration\s*objects?)/i);
+  if (dataObjMatch) extractedScaleDrivers.tech_data_objects = parseInt(dataObjMatch[1], 10);
+
+  // 3. Conversion Mock Load Cycles
+  const mockCycleMatch = proposalText.match(/(\d+)\s*(?:mock(?:\s*data)?\s*(?:load|conversion)?\s*cycles?|rehearsals?|conversion\s*cycles?|load\s*cycles?)/i);
+  if (mockCycleMatch) extractedScaleDrivers.tech_conversion_cycles = parseInt(mockCycleMatch[1], 10);
+
+  // 4. Historical Legacy Data Years
+  const histYearsMatch = proposalText.match(/(\d+)\s*(?:years?\s*(?:of\s*)?(?:legacy\s*)?(?:historical|history|data|records))/i);
+  if (histYearsMatch) extractedScaleDrivers.tech_historical_years = parseInt(histYearsMatch[1], 10);
+
+  // 5. Reports (BIP, OTBI, Analytics)
+  const reportsMatch = proposalText.match(/(\d+)\s*(?:custom\s*reports?|bip\s*reports?|otbi\s*reports?|analytics\s*reports?|reports?\s*(?:and|&)\s*dashboards?|reports?)/i);
+  if (reportsMatch) {
+    const totalReports = parseInt(reportsMatch[1], 10);
+    extractedScaleDrivers.tech_reports_bip = Math.round(totalReports * 0.6);
+    extractedScaleDrivers.tech_reports_otbi = Math.round(totalReports * 0.4);
+  }
+  const bipDirectMatch = proposalText.match(/(\d+)\s*(?:bip|bi\s*publisher|pixel\s*perfect)\s*reports?/i);
+  if (bipDirectMatch) extractedScaleDrivers.tech_reports_bip = parseInt(bipDirectMatch[1], 10);
+  const otbiDirectMatch = proposalText.match(/(\d+)\s*(?:otbi|analytics|subject\s*area)\s*reports?/i);
+  if (otbiDirectMatch) extractedScaleDrivers.tech_reports_otbi = parseInt(otbiDirectMatch[1], 10);
+
+  // 6. Extensions / PaaS
+  const paasMatch = proposalText.match(/(\d+)\s*(?:paas\s*extensions?|vbcs\s*apps?|custom\s*applications?|extensions?)/i);
+  if (paasMatch) extractedScaleDrivers.tech_paas = parseInt(paasMatch[1], 10);
+
+  // 7. Workflows & Approvals (BPM / AME)
+  const workflowMatch = proposalText.match(/(\d+)\s*(?:approval\s*workflows?|bpm\s*workflows?|custom\s*workflows?|workflows?)/i);
+  if (workflowMatch) extractedScaleDrivers.tech_workflows = parseInt(workflowMatch[1], 10);
+
+  // 8. Fast Formulas (Payroll / Absence / Compensation)
+  const ffMatch = proposalText.match(/(\d+)\s*(?:fast\s*formulas?|payroll\s*formulas?|custom\s*formulas?)/i);
+  if (ffMatch) extractedScaleDrivers.tech_fast_formulas = parseInt(ffMatch[1], 10);
+
+  // 9. Security Roles & SOD
+  const secRolesMatch = proposalText.match(/(\d+)\s*(?:custom\s*security\s*roles?|job\s*roles?|duty\s*roles?|security\s*roles?)/i);
+  if (secRolesMatch) extractedScaleDrivers.tech_security_roles = parseInt(secRolesMatch[1], 10);
 
   // 3. Question Answering & Confidence Derivation
   const questionAnswers: Record<string, number[]> = {};
@@ -410,13 +460,13 @@ function inferQuestionAnswer(
     };
   }
 
-  // General default benchmark inference
+  // General default benchmark inference (unconfirmed - proposal was silent)
   return {
     optIdx: 1,
-    confidence: 'medium',
-    percentage: 68,
-    citation: 'Estimated using Oracle Modern Best Practice (MBP) C2 benchmark.',
-    clarificationNeeded: false,
-    notes: 'Standard enterprise default applied.'
+    confidence: 'unconfirmed',
+    percentage: 18,
+    citation: 'Not mentioned in proposal text. Baseline industry benchmark assumed.',
+    clarificationNeeded: true,
+    notes: 'Default benchmark applied; requires validation with client architecture team.'
   };
 }

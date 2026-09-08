@@ -147,14 +147,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* NotebookLM Audio Overview Banner Card */}
-      {onOpenNotebookLmPodcast && (
-        <NotebookLMPodcastCard
-          scenario={scenario}
-          data={data}
-          onOpenPodcastStudio={onOpenNotebookLmPodcast}
-        />
-      )}
+      {/* NotebookLM Audio Overview Banner Card - Hidden for future release */}
+
 
       {/* KPI Cards Grid (Geometric Balance - Schedule & Efforts Focus) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

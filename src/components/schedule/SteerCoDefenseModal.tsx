@@ -208,15 +208,6 @@ ${sf.recommendations.map(r => `• ${r}`).join('\n')}
                   <strong>Senior Solution Architect Answer:</strong> We have mapped the 5-Tier pod landscape (DEV1, DEV2, TEST, STAGE, PROD) against <strong>Cohort {scenario.podCohort}</strong>. Non-prod pods receive updates on the 1st Friday of release months while PROD updates on the 3rd Friday. Our plan schedules {data.environmentStrategy?.p2tEvents.length || 3} P2T Golden Refreshes with freeze gates prior to SIT and UAT. If a patch release falls inside Cutover or UAT, we execute automated 2-day regression scripts or submit a formal Oracle Maintenance Exemption to protect the critical path.
                 </p>
               </div>
-
-              <div className="p-3 rounded-sm bg-slate-50 border border-slate-200 space-y-1">
-                <div className="text-xs font-bold text-slate-900">
-                  Q: "How does this compare to industry benchmarks?"
-                </div>
-                <p className="text-[11px] text-slate-600">
-                  <strong>Senior Delivery Lead Answer:</strong> The Oracle True Cloud Method (TCM) benchmark for this scope tier ({sf.industryBenchmarkLabel}) is <strong>{sf.industryBenchmarkDurationWeeks} weeks</strong>. Our {data.recommendedDurationWeeks}-week sizing aligns tightly with Tier-1 SI delivery averages.
-                </p>
-              </div>
             </div>
           </div>
         </div>

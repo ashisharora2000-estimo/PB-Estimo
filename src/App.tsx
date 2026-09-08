@@ -30,6 +30,7 @@ import { PodcastView } from './components/views/PodcastView';
 import { PRESET_SCENARIOS } from './data/templates';
 import { ProjectScenario, OracleModule, PodcastEpisode, PodcastTurn } from './types';
 import { calculateProjectMetrics } from './utils/calculator';
+import { generateBlankSlateScenario } from './utils/technicalSync';
 import { Menu, X, Database, Sparkles } from 'lucide-react';
 import {
   saveScenarioToCloud,
@@ -87,7 +88,13 @@ export default function App() {
     } catch (e) {
       // fallback
     }
-    return PRESET_SCENARIOS[0];
+    return generateBlankSlateScenario({
+      proposalName: 'Apex Global Oracle Implementation Proposal',
+      thorId: 'THOR-PROPOSAL-001',
+      clientName: 'Apex Global Industries',
+      industry: 'General Enterprise',
+      projectWeeks: 36
+    });
   });
 
   const [activeTab, setActiveTab] = useState<NavTabId>('dashboard');
@@ -392,7 +399,6 @@ export default function App() {
             onOpenNewProposal={() => setNewProposalModalOpen(true)}
             onOpenSlideDeck={() => setSlideDeckModalOpen(true)}
             onSaveScenario={handleSaveScenario}
-            onOpenNotebookLmPodcast={() => setNotebookLmPodcastOpen(true)}
           />
         );
       default:
@@ -406,7 +412,6 @@ export default function App() {
             onUpdateScenario={setActiveScenario}
             onSaveScenario={handleSaveScenario}
             onResetDefaults={handleResetDefaults}
-            onOpenNotebookLmPodcast={() => setNotebookLmPodcastOpen(true)}
           />
         );
     }
@@ -433,10 +438,7 @@ export default function App() {
         onOpenTraceMath={handleOpenTraceMath}
         onOpenAshishCopilot={() => setAshishCopilotOpen(true)}
         onOpenNewProposal={() => setNewProposalModalOpen(true)}
-        onOpenSmartsheetExport={() => setSmartsheetExportModalOpen(true)}
         onOpenSlideDeck={() => setSlideDeckModalOpen(true)}
-        onOpenNotebookLmPodcast={() => setNotebookLmPodcastOpen(true)}
-        isPodcastPlaying={podcastPlaybackState.isPlaying}
         customScenarios={customProposals}
         onDeleteCustomScenario={handleDeleteCustomProposal}
       />
@@ -462,7 +464,6 @@ export default function App() {
           onOpenComplexityStudio={() => handleOpenComplexityStudio('complexity')}
           onOpenNewProposal={() => setNewProposalModalOpen(true)}
           onOpenSlideDeck={() => setSlideDeckModalOpen(true)}
-          onOpenNotebookLmPodcast={() => setNotebookLmPodcastOpen(true)}
         />
 
         {/* Mobile Navigation Drawer Trigger */}
@@ -693,14 +694,7 @@ export default function App() {
         onCreateProposal={handleCreateProposal}
       />
 
-      {/* Smartsheet Enterprise PMO Plan Initiation Modal */}
-      <SmartsheetExportModal
-        isOpen={smartsheetExportModalOpen}
-        onClose={() => setSmartsheetExportModalOpen(false)}
-        scenario={activeScenario}
-        data={calculatedData}
-        onUpdateScenario={setActiveScenario}
-      />
+      {/* Smartsheet Enterprise PMO Plan Initiation Modal - Hidden for future release */}
 
       {/* Executive 5-Slide PowerPoint Deck Modal */}
       <ExecutiveSlideDeckModal
@@ -710,43 +704,7 @@ export default function App() {
         data={calculatedData}
       />
 
-      {/* Google NotebookLM 2-Host Audio Overview Studio Modal */}
-      {notebookLmPodcastOpen && (
-        <NotebookLMPodcastStudio
-          scenario={activeScenario}
-          data={calculatedData}
-          isOpen={notebookLmPodcastOpen}
-          onClose={() => setNotebookLmPodcastOpen(false)}
-          onPlayStateChange={handlePodcastPlayStateChange}
-        />
-      )}
-
-      {/* Floating Audio Bar (when studio is minimized or while browsing) */}
-      {!notebookLmPodcastOpen && (podcastPlaybackState.isPlaying || podcastPlaybackState.episode) && (
-        <FloatingPodcastBar
-          episode={podcastPlaybackState.episode}
-          currentTurn={podcastPlaybackState.currentTurn}
-          isPlaying={podcastPlaybackState.isPlaying}
-          onTogglePlay={() => {
-            if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-              if (podcastPlaybackState.isPlaying) {
-                window.speechSynthesis.pause();
-                setPodcastPlaybackState(prev => ({ ...prev, isPlaying: false }));
-              } else {
-                window.speechSynthesis.resume();
-                setPodcastPlaybackState(prev => ({ ...prev, isPlaying: true }));
-              }
-            }
-          }}
-          onOpenStudio={() => setNotebookLmPodcastOpen(true)}
-          onStop={() => {
-            if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-              window.speechSynthesis.cancel();
-            }
-            setPodcastPlaybackState({ isPlaying: false, episode: null, currentTurn: null });
-          }}
-        />
-      )}
+      {/* Google NotebookLM 2-Host Audio Overview Studio Modal & Floating Bar - Hidden for future release */}
 
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white text-slate-500 py-6 text-center text-xs print:hidden">

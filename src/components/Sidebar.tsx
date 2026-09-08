@@ -106,7 +106,7 @@ interface SidebarProps {
 // 4 Core Pursuit Steps for streamlined Bid Management
 const CORE_PURSUIT_STEPS: Array<{ id: NavTabId; stepNumber: string; label: string; sub: string; icon: React.ElementType; badge?: string; badgeColor?: string }> = [
   { id: 'discovery', stepNumber: '1', label: 'Deal Setup & Scope', sub: 'Thor ID, Modules & RICEFW', icon: Target },
-  { id: 'schedule', stepNumber: '2', label: 'Effort & Schedule', sub: 'Wave Timelines & Smartsheet WBS', icon: CalendarDays, badge: 'Sizing' },
+  { id: 'schedule', stepNumber: '2', label: 'Effort & Schedule', sub: 'Wave Timelines & 30-Col WBS', icon: CalendarDays, badge: 'Sizing' },
   { id: 'commercial', stepNumber: '3', label: 'Commercials & Staffing', sub: 'Pyramid, Sourcing & Margins', icon: Users },
   { id: 'reports', stepNumber: '4', label: 'Proposal Dossier', sub: 'RFP Brief & Executive Exports', icon: FileText }
 ];
@@ -116,12 +116,12 @@ const ADVANCED_INSIGHT_ITEMS: Array<{ id: NavTabId; label: string; sub: string; 
   { id: 'dashboard', label: 'Executive Command', sub: 'KPIs, Health & Footprint', icon: LayoutDashboard },
   { id: 'testing', label: 'Business Testing & QA', sub: 'Testing 1 (SIT) & 2 (UAT)', icon: ListChecks, badge: 'SIT/UAT' },
   { id: 'delivery_confidence', label: 'Delivery Confidence', sub: 'P80 Risk Buffer & Contingency', icon: BarChart2, badge: 'P80' },
-  { id: 'estimation', label: 'Estimation Engine', sub: '3-Point P10/P50/P80 Ranges', icon: Scale },
+  // Estimation Engine (3-Point P10/P50/P80 Ranges) hidden for simplified proposal workflow
   { id: 'leadership', label: 'Leadership Review', sub: '5 Scheduling/Sizing Gaps', icon: Award, badge: '5 Gaps' },
   { id: 'governance', label: 'Governance & DoA', sub: 'Tiered DoA Sign-off & Audit', icon: ShieldCheck },
   // Benchmark Master hidden for future enablement as standard loading is not preferred for proposals
-  { id: 'multivendor', label: 'Multi-Vendor Split', sub: 'SI Demarcation Matrix', icon: GitMerge, badge: 'Multi-SI' },
-  { id: 'framework_slider', label: 'Framework One-Slider', sub: 'TCM Protocol + Audio', icon: Headphones, badge: 'Voice' }
+  { id: 'multivendor', label: 'Multi-Vendor Split', sub: 'SI Demarcation Matrix', icon: GitMerge, badge: 'Multi-SI' }
+  // Framework One-Slider hidden for simplified proposal workflow
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -191,29 +191,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           )}
 
-          {onOpenNotebookLmPodcast && (
-            <button
-              type="button"
-              onClick={onOpenNotebookLmPodcast}
-              className="w-full flex items-center justify-between p-2.5 rounded-sm bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 hover:from-slate-800 hover:to-indigo-900 text-white font-bold text-xs transition shadow-xs cursor-pointer border border-indigo-500/40 group"
-              title="Listen Podcast - 2-Host Audio Overview & Deep Dive"
-            >
-              <div className="flex items-center gap-2">
-                <div className="p-1 rounded-xs bg-indigo-500/30 text-indigo-200 group-hover:scale-110 transition-transform">
-                  <Headphones size={14} className="stroke-[2.5]" />
-                </div>
-                <div className="text-left">
-                  <div className="text-xs font-bold leading-tight flex items-center gap-1.5">
-                    <span>Listen Podcast</span>
-                  </div>
-                  <div className="text-[10px] text-slate-400 font-normal leading-tight">2-Host Audio Overview</div>
-                </div>
-              </div>
-              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-indigo-950 text-indigo-300 border border-indigo-500/40 rounded-xs uppercase">
-                Audio
-              </span>
-            </button>
-          )}
+          {/* Listen Podcast - Hidden for future release */}
+
         </div>
 
         {/* SECTION 1: 4-Step Bid Pursuit Lifecycle */}

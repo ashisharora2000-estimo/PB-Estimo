@@ -300,24 +300,50 @@ export function parseComprehensiveIntel(
   const unionMatch = combined.match(/(\d+)\s*(?:collective\s*bargaining|unions|bargaining\s*agreements|cba[s]?)/i);
   if (unionMatch) scaleDrivers.hcm_union_groups = parseInt(unionMatch[1], 10);
 
-  const oicMatch = combined.match(/(\d+)\s*(?:oic|integrations|interfaces|api\s*flows|middleware)/i);
+  // --- RICEFW Scope Regex Expansion ---
+  // Integrations (OIC / APIs / Interfaces)
+  const oicMatch = combined.match(/(\d+)\s*(?:oic(?:\s*integrations?)?|integrations?|interfaces?|api\s*flows?|middleware\s*flows?|integration\s*flows?)/i);
   if (oicMatch) scaleDrivers.tech_oic = parseInt(oicMatch[1], 10);
 
-  const dataObjMatch = combined.match(/(\d+)\s*(?:fbdi|data\s*objects|conversion\s*entities|entities\s*to\s*migrate|conversion\s*objects)/i);
+  // Data Conversion Objects (FBDI / HDL)
+  const dataObjMatch = combined.match(/(\d+)\s*(?:fbdi|data\s*objects?|conversion\s*entities|entities\s*to\s*migrate|conversion\s*objects?|migration\s*objects?)/i);
   if (dataObjMatch) scaleDrivers.tech_data_objects = parseInt(dataObjMatch[1], 10);
 
-  const mockCycleMatch = combined.match(/(\d+)\s*(?:mock|rehearsal|conversion\s*cycle|load\s*cycle)/i);
+  // Mock Cycles
+  const mockCycleMatch = combined.match(/(\d+)\s*(?:mock(?:\s*data)?\s*(?:load|conversion)?\s*cycles?|rehearsals?|conversion\s*cycles?|load\s*cycles?)/i);
   if (mockCycleMatch) scaleDrivers.tech_conversion_cycles = parseInt(mockCycleMatch[1], 10);
 
+  // Historical Years
   const histYearsMatch = combined.match(/(\d+)\s*(?:years?\s*(?:of\s*)?(?:legacy\s*)?(?:historical|history|data|records))/i);
   if (histYearsMatch) scaleDrivers.tech_historical_years = parseInt(histYearsMatch[1], 10);
 
-  const reportsMatch = combined.match(/(\d+)\s*(?:custom\s*reports|bip\s*reports|otbi\s*reports|reports|dashboards)/i);
+  // Reports (BIP & OTBI)
+  const reportsMatch = combined.match(/(\d+)\s*(?:custom\s*reports?|bip\s*reports?|otbi\s*reports?|analytics\s*reports?|reports?\s*(?:and|&)\s*dashboards?|reports?)/i);
   if (reportsMatch) {
     const rCount = parseInt(reportsMatch[1], 10);
     scaleDrivers.tech_reports_bip = Math.round(rCount * 0.6);
     scaleDrivers.tech_reports_otbi = Math.round(rCount * 0.4);
   }
+  const bipMatch = combined.match(/(\d+)\s*(?:bip|bi\s*publisher|pixel\s*perfect)\s*reports?/i);
+  if (bipMatch) scaleDrivers.tech_reports_bip = parseInt(bipMatch[1], 10);
+  const otbiMatch = combined.match(/(\d+)\s*(?:otbi|analytics|subject\s*area)\s*reports?/i);
+  if (otbiMatch) scaleDrivers.tech_reports_otbi = parseInt(otbiMatch[1], 10);
+
+  // Extensions / PaaS
+  const paasMatch = combined.match(/(\d+)\s*(?:paas\s*extensions?|vbcs\s*apps?|custom\s*applications?|extensions?)/i);
+  if (paasMatch) scaleDrivers.tech_paas = parseInt(paasMatch[1], 10);
+
+  // Workflows (BPM)
+  const workflowMatch = combined.match(/(\d+)\s*(?:approval\s*workflows?|bpm\s*workflows?|custom\s*workflows?|workflows?)/i);
+  if (workflowMatch) scaleDrivers.tech_workflows = parseInt(workflowMatch[1], 10);
+
+  // Fast Formulas
+  const ffMatch = combined.match(/(\d+)\s*(?:fast\s*formulas?|payroll\s*formulas?|custom\s*formulas?)/i);
+  if (ffMatch) scaleDrivers.tech_fast_formulas = parseInt(ffMatch[1], 10);
+
+  // Security Roles
+  const secMatch = combined.match(/(\d+)\s*(?:custom\s*security\s*roles?|job\s*roles?|duty\s*roles?|security\s*roles?)/i);
+  if (secMatch) scaleDrivers.tech_security_roles = parseInt(secMatch[1], 10);
 
   // 3. Extract Client Modifiers
   const clientModifiers: Partial<ProjectScenario['clientModifiers']> = {};
@@ -801,13 +827,13 @@ function evaluateQuestionWithIntel(
     }
   }
 
-  // Default Medium or Low Fallback
+  // Default Fallback (Unconfirmed - source text silent)
   return {
     optIdx: 1, // Standard Modern Best Practice option
-    confidence: 'medium',
-    percentage: 75,
-    citation: 'Inferred from industry standard benchmark baseline and modern best practice alignment.',
-    clarificationNeeded: false,
-    notes: 'Configured to standard Oracle Modern Best Practice (MBP).'
+    confidence: 'low',
+    percentage: 20,
+    citation: 'Not explicitly documented in provided intel or spec sheet. Baseline MBP assumed.',
+    clarificationNeeded: true,
+    notes: 'Configured to standard Oracle Modern Best Practice (MBP); requires confirmation during workshop.'
   };
 }

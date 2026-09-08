@@ -87,7 +87,8 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
   const [thorId, setThorId] = useState('');
   const [thorIdError, setThorIdError] = useState<string | null>(null);
   const [proposalName, setProposalName] = useState('New Oracle Implementation Proposal (Clean Slate)');
-  const [clientName, setClientName] = useState('Acme Corporation');
+  const [clientName, setClientName] = useState('Apex Global Industries');
+  const [clientNameError, setClientNameError] = useState<string | null>(null);
   const [industry, setIndustry] = useState(INDUSTRY_OPTIONS[0]);
   const [targetStartDate, setTargetStartDate] = useState('2026-09-01');
   const [targetGoLiveDate, setTargetGoLiveDate] = useState('2027-06-30');
@@ -95,22 +96,48 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
   const [selectedPillars, setSelectedPillars] = useState<string[]>([]); // Clean slate: 0 modules selected by default
   const [description, setDescription] = useState('Clean slate Oracle Cloud digital transformation roadmap and implementation sizing.');
 
+  // Smart client name derivation helper
+  const deriveDefaultClientName = (activeClient?: string, currentThorId?: string) => {
+    if (activeClient && activeClient.trim() && activeClient.trim() !== 'Acme Corporation') {
+      return activeClient.trim();
+    }
+    if (currentThorId && currentThorId.includes('-')) {
+      const parts = currentThorId.split('-');
+      for (const part of parts) {
+        const pUpper = part.toUpperCase().trim();
+        if (
+          pUpper.length >= 3 &&
+          !['THOR', 'ORCL', 'NEW', 'DEAL', 'PROPOSAL', 'INT', 'CORP', 'DEMO', '001', '002'].includes(pUpper) &&
+          !/^\d+$/.test(pUpper)
+        ) {
+          return pUpper.charAt(0) + pUpper.slice(1).toLowerCase() + ' Enterprises';
+        }
+      }
+    }
+    return 'Apex Global Industries';
+  };
+
   // Reset to pristine Blank Slate whenever modal opens
   useEffect(() => {
     if (isOpen) {
       setCreationMode('scratch');
       setSelectedPillars([]); // Clean slate: 0 modules
-      setThorId(activeScenario.thorId ? `${activeScenario.thorId}-NEW` : '');
+      const initialThorId = activeScenario.thorId ? `${activeScenario.thorId}-NEW` : '';
+      setThorId(initialThorId);
       setThorIdError(null);
-      setProposalName('New Oracle Implementation Proposal (Clean Slate)');
-      setClientName('Acme Corporation');
-      setIndustry(INDUSTRY_OPTIONS[0]);
-      setTargetStartDate('2026-09-01');
-      setTargetGoLiveDate('2027-06-30');
+
+      const initialClient = deriveDefaultClientName(activeScenario.clientName, initialThorId);
+      setClientName(initialClient);
+      setClientNameError(null);
+
+      setProposalName(`${initialClient} Oracle Implementation (Clean Slate)`);
+      setIndustry(activeScenario.industry || INDUSTRY_OPTIONS[0]);
+      setTargetStartDate(activeScenario.targetStartDate || '2026-09-01');
+      setTargetGoLiveDate(activeScenario.clientTargetGoLiveDate || '2027-06-30');
       setRolloutApproach('phased_geo');
-      setDescription('Clean slate Oracle Cloud digital transformation roadmap and implementation sizing.');
+      setDescription(`Clean slate Oracle Cloud digital transformation roadmap and implementation sizing for ${initialClient}.`);
     }
-  }, [isOpen, activeScenario.thorId]);
+  }, [isOpen, activeScenario.thorId, activeScenario.clientName, activeScenario.industry, activeScenario.targetStartDate, activeScenario.clientTargetGoLiveDate]);
 
   if (!isOpen) return null;
 
@@ -125,8 +152,16 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
   };
 
   const handleCreate = () => {
+    let hasError = false;
     if (!thorId.trim()) {
       setThorIdError('Thor ID is mandatory. Please enter a valid Thor ID.');
+      hasError = true;
+    }
+    if (!clientName.trim()) {
+      setClientNameError('Client name is mandatory. Please enter a valid client or enterprise account name.');
+      hasError = true;
+    }
+    if (hasError) {
       return;
     }
 
@@ -137,6 +172,7 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
       baseScenario = JSON.parse(JSON.stringify(activeScenario));
       baseScenario.id = newId;
       baseScenario.thorId = thorId.trim();
+      baseScenario.clientName = clientName.trim();
       baseScenario.name = proposalName.trim() || `${activeScenario.name} (Copy)`;
       baseScenario.description = description.trim() || activeScenario.description;
       baseScenario.targetStartDate = targetStartDate;
@@ -146,7 +182,8 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
       baseScenario = JSON.parse(JSON.stringify(template));
       baseScenario.id = newId;
       baseScenario.thorId = thorId.trim();
-      baseScenario.name = proposalName.trim() || `${template.name} - ${clientName}`;
+      baseScenario.clientName = clientName.trim();
+      baseScenario.name = proposalName.trim() || `${template.name} - ${clientName.trim()}`;
       baseScenario.description = description.trim() || template.description;
       baseScenario.targetStartDate = targetStartDate;
       baseScenario.clientTargetGoLiveDate = targetGoLiveDate;
@@ -164,16 +201,16 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
       // Use the authoritative generateBlankSlateScenario to guarantee 100% clean baseline
       baseScenario = generateBlankSlateScenario({
         proposalName: proposalName.trim() || (isCleanSlate 
-          ? `${clientName} Oracle Implementation (Clean Slate)` 
-          : `${clientName} Oracle Cloud Implementation`),
+          ? `${clientName.trim()} Oracle Implementation (Clean Slate)` 
+          : `${clientName.trim()} Oracle Cloud Implementation`),
         thorId: thorId.trim() || 'THOR-PROPOSAL-001',
-        clientName: clientName.trim() || 'Acme Corporation',
+        clientName: clientName.trim(),
         industry: industry,
         targetStartDate: targetStartDate,
         clientTargetGoLiveDate: targetGoLiveDate,
         description: description.trim() || (isCleanSlate
-          ? `Clean slate Oracle Cloud implementation proposal for ${clientName} (${industry}). Pristine zero-module baseline ready for custom scoping or integrations.`
-          : `Oracle Fusion implementation proposal for ${clientName} (${industry}).`),
+          ? `Clean slate Oracle Cloud implementation proposal for ${clientName.trim()} (${industry}). Pristine zero-module baseline ready for custom scoping or integrations.`
+          : `Oracle Fusion implementation proposal for ${clientName.trim()} (${industry}).`),
         rolloutApproach: rolloutApproach,
         projectWeeks: isCleanSlate ? 0 : 36
       });
@@ -244,7 +281,7 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2.5">
               Select Proposal Baseline
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Option 1: Clean Slate */}
               <button
                 type="button"
@@ -307,34 +344,7 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
                 </div>
               </button>
 
-              {/* Option 3: Industry Blueprint */}
-              <button
-                type="button"
-                onClick={() => setCreationMode('template')}
-                className={`p-3.5 rounded-sm border text-left transition cursor-pointer flex flex-col justify-between ${
-                  creationMode === 'template'
-                    ? 'border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-600 shadow-xs'
-                    : 'border-slate-200 hover:border-slate-300 bg-white'
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="p-1.5 rounded-sm bg-blue-100 text-blue-700">
-                      <Building2 size={16} />
-                    </span>
-                    {creationMode === 'template' && <CheckCircle2 size={16} className="text-indigo-600" />}
-                  </div>
-                  <div className="font-bold text-xs text-slate-900">Industry Blueprint</div>
-                  <div className="text-[11px] text-slate-500 mt-1 leading-snug">
-                    Use pre-calibrated enterprise templates (Mfg, Retail, Financials, SCM).
-                  </div>
-                </div>
-                <div className="mt-3 text-[10px] font-mono font-bold text-blue-700 uppercase">
-                  {PRESET_SCENARIOS.length} Templates
-                </div>
-              </button>
-
-              {/* Option 4: Duplicate Active */}
+              {/* Option 3: Duplicate Active */}
               <button
                 type="button"
                 onClick={() => {
@@ -365,32 +375,6 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
               </button>
             </div>
           </div>
-
-          {/* Template Selection Dropdown if in Template Mode */}
-          {creationMode === 'template' && (
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-sm space-y-2">
-              <label className="block text-xs font-bold text-slate-700">
-                Choose Industry Blueprint Template:
-              </label>
-              <select
-                value={selectedTemplateId}
-                onChange={(e) => {
-                  setSelectedTemplateId(e.target.value);
-                  const selected = PRESET_SCENARIOS.find(p => p.id === e.target.value);
-                  if (selected) {
-                    setProposalName(`${clientName} - ${selected.name}`);
-                  }
-                }}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-sm text-xs font-semibold text-slate-800 focus:outline-hidden focus:border-indigo-500"
-              >
-                {PRESET_SCENARIOS.map(preset => (
-                  <option key={preset.id} value={preset.id}>
-                    {preset.name} ({preset.selectedModules.length} Modules • {preset.projectWeeks} Wks)
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
 
           {/* Core Proposal Details Form */}
           <div className="space-y-4 pt-2 border-t border-slate-100">
@@ -437,24 +421,37 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
               </div>
 
               <div className="sm:col-span-4">
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Client / Enterprise Account *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Client / Enterprise Account <span className="text-red-500 font-bold">*</span>
+                  </label>
+                  {clientNameError && (
+                    <span className="text-[10px] font-semibold text-red-600 animate-pulse">
+                      {clientNameError}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={clientName}
                   onChange={(e) => {
-                    setClientName(e.target.value);
+                    const val = e.target.value;
+                    setClientName(val);
+                    if (val.trim()) {
+                      setClientNameError(null);
+                    }
                     if (creationMode === 'scratch') {
                       setProposalName(
                         selectedPillars.length === 0
-                          ? `${e.target.value} Oracle Implementation (Clean Slate)`
-                          : `${e.target.value} Oracle Cloud Implementation`
+                          ? `${val.trim() || 'Enterprise'} Oracle Implementation (Clean Slate)`
+                          : `${val.trim() || 'Enterprise'} Oracle Cloud Implementation`
                       );
                     }
                   }}
                   placeholder="e.g. Apex Global Industries"
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-sm text-xs font-semibold text-slate-800 focus:outline-hidden focus:border-indigo-500"
+                  className={`w-full px-3 py-2 bg-white border ${
+                    clientNameError ? 'border-red-500 ring-1 ring-red-400' : 'border-slate-300'
+                  } rounded-sm text-xs font-semibold text-slate-800 focus:outline-hidden focus:border-indigo-500`}
                 />
               </div>
             </div>

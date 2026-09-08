@@ -36,7 +36,11 @@ import { UnifiedRicefwSummaryGrid } from './UnifiedRicefwSummaryGrid';
 import { IntelUploadHubModal } from '../modals/IntelUploadHubModal';
 import { IntegrationInventoryIngestModal } from './IntegrationInventoryIngestModal';
 import { IntegrationInventoryParseResult } from '../../utils/integrationInventoryParser';
-import { syncIntegrationsFromInventory } from '../../utils/technicalSync';
+import {
+  syncIntegrationsFromInventory,
+  sanitizeIntegrationItem,
+  STANDARD_ENTERPRISE_INTEGRATIONS_CATALOG
+} from '../../utils/technicalSync';
 
 interface TechnicalInventoryManagerProps {
   scenario: ProjectScenario;
@@ -59,9 +63,10 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
   const [tierFilter, setTierFilter] = useState<string>('all');
 
   // Reliable integrations list honoring Clean Slate (tech_oic === 0 with no items)
-  const integrations = scenario.technicalIntegrations !== undefined
+  const rawIntegrations = scenario.technicalIntegrations !== undefined
     ? scenario.technicalIntegrations
     : (scenario.scaleDrivers?.tech_oic === 0 ? [] : DEFAULT_TECHNICAL_INTEGRATIONS);
+  const integrations = rawIntegrations.map(sanitizeIntegrationItem);
 
   const handleOpenCalculator = (item: TechnicalIntegrationItem) => {
     setEditingIntegration(item);
@@ -71,15 +76,17 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
   const handleAddNewIntegration = () => {
     const nextIndex = integrations.length + 1;
     const newId = `int_custom_${Date.now()}`;
+    const code = `INT-${String(nextIndex).padStart(2, '0')}`;
+    const std = STANDARD_ENTERPRISE_INTEGRATIONS_CATALOG[code];
     const newItem: TechnicalIntegrationItem = {
       id: newId,
-      code: `INT-CUST-${String(nextIndex).padStart(2, '0')}`,
-      name: `Custom Integration Endpoint #${nextIndex}`,
-      pillar: 'ERP',
-      sourceSystem: 'External Enterprise System',
-      targetSystem: 'Oracle Cloud ERP',
-      type: 'inbound_rest',
-      complexity: 'M',
+      code,
+      name: std ? std.name : `Enterprise Middleware Interface (${code})`,
+      pillar: std ? std.pillar : 'ERP',
+      sourceSystem: std ? std.sourceSystem : 'Enterprise Source Platform',
+      targetSystem: std ? std.targetSystem : 'Oracle Cloud ERP & Financials',
+      type: std ? std.type : 'inbound_rest',
+      complexity: std ? std.complexity : 'M',
       isQuestionDriven: true,
       questionAnswers: {
         patternDirection: 0,
@@ -93,7 +100,7 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
       calculatedHours: 78,
       calculationFormula: '45h × 1.00 (Type) × 1.00 (Flow) × 1.20 (Mapping) × 1.15 (Protocol) × 1.00 (Volume) × 1.20 (Error) × 0.90 (API) = 78h',
       compositeScore: 1.67,
-      rationale: 'Standard/Medium footprint. Direct question-driven baseline calculation.'
+      rationale: std ? std.rationale : 'Standard production enterprise interface for automated data synchronization and transactional integrity.'
     };
 
     setEditingIntegration(newItem);

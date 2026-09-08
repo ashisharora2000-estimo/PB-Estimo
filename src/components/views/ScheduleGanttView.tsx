@@ -253,25 +253,8 @@ export const ScheduleGanttView: React.FC<ScheduleGanttViewProps> = ({
             </button>
           )}
 
-          {/* Smartsheet Direct Trigger Button */}
-          <button
-            onClick={() => setShowSmartsheetModal(true)}
-            className={`px-3.5 py-2 rounded-sm text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer shadow-xs shrink-0 ${
-              scenario.isScheduleFrozen
-                ? 'bg-gradient-to-r from-[#002A54] to-[#0073EA] hover:from-[#001D3D] hover:to-[#004A8F] text-white shadow-md'
-                : 'bg-sky-100 hover:bg-sky-200 text-sky-950 border border-sky-300'
-            }`}
-          >
-            <Sparkles size={13} className={scenario.isScheduleFrozen ? 'text-sky-300 animate-pulse' : 'text-[#0073EA]'} />
-            <span>Trigger Smartsheet Plan</span>
-            <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded-full font-bold ${
-              scenario.isScheduleFrozen
-                ? 'bg-emerald-400 text-emerald-950'
-                : 'bg-amber-200 text-amber-950'
-            }`}>
-              {scenario.isScheduleFrozen ? 'LOCKED' : 'FREEZE REQ'}
-            </span>
-          </button>
+          {/* Smartsheet Direct Trigger Button - Hidden for future release */}
+
 
           {/* SteerCo Defense Quick Launcher */}
           <button

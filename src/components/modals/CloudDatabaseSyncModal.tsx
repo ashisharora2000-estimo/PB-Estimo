@@ -13,7 +13,9 @@ import {
   ShieldCheck,
   AlertCircle,
   Copy,
-  Check
+  Check,
+  Link2,
+  Zap
 } from 'lucide-react';
 import { ProjectScenario } from '../../types';
 import {
@@ -22,6 +24,13 @@ import {
   deleteScenarioFromCloud,
   subscribeToCloudScenarios
 } from '../../services/firestoreService';
+import {
+  getMakeWebhookUrl,
+  setMakeWebhookUrl,
+  isMakeAutoSyncEnabled,
+  setMakeAutoSyncEnabled,
+  sendScenarioToMakeDatabase
+} from '../../services/makeIntegrationService';
 import { testFirestoreConnection } from '../../lib/firebase';
 import firebaseConfig from '../../lib/firebaseConfig';
 
@@ -44,6 +53,65 @@ export const CloudDatabaseSyncModal: React.FC<CloudDatabaseSyncModalProps> = ({
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [copiedUrl, setCopiedUrl] = useState(false);
+
+  // Agent integration state
+  const [makeWebhookUrl, setLocalMakeWebhookUrl] = useState('');
+  const [makeAutoSync, setLocalMakeAutoSync] = useState(false);
+  const [isSendingToMake, setIsSendingToMake] = useState(false);
+
+  // Load Agent integration settings on modal open
+  useEffect(() => {
+    if (isOpen) {
+      setLocalMakeWebhookUrl(getMakeWebhookUrl());
+      setLocalMakeAutoSync(isMakeAutoSyncEnabled());
+    }
+  }, [isOpen]);
+
+  const handleSaveMakeSettings = () => {
+    setMakeWebhookUrl(makeWebhookUrl);
+    setMakeAutoSyncEnabled(makeAutoSync);
+    setFeedback({
+      type: 'success',
+      message: 'Agent connection settings saved.'
+    });
+    setTimeout(() => setFeedback(null), 3000);
+  };
+
+  const handleTestMakeSync = async (scenarioToSync?: ProjectScenario) => {
+    const target = scenarioToSync || currentScenario;
+    if (!makeWebhookUrl.trim()) {
+      setFeedback({
+        type: 'error',
+        message: 'Please paste your Agent Webhook URL first.'
+      });
+      return;
+    }
+    setIsSendingToMake(true);
+    setFeedback(null);
+    try {
+      setMakeWebhookUrl(makeWebhookUrl);
+      const res = await sendScenarioToMakeDatabase(target, makeWebhookUrl.trim());
+      if (res.success) {
+        setFeedback({
+          type: 'success',
+          message: `Successfully transmitted "${target.name}" (50+ complete database fields) to Agent!`
+        });
+      } else {
+        setFeedback({
+          type: 'error',
+          message: res.message
+        });
+      }
+    } catch (e: any) {
+      setFeedback({
+        type: 'error',
+        message: `Agent sync error: ${e.message || String(e)}`
+      });
+    } finally {
+      setIsSendingToMake(false);
+      setTimeout(() => setFeedback(null), 5000);
+    }
+  };
 
   // Check connection and fetch initial documents
   useEffect(() => {
@@ -301,6 +369,19 @@ export const CloudDatabaseSyncModal: React.FC<CloudDatabaseSyncModalProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
+                        {makeWebhookUrl && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTestMakeSync(item);
+                            }}
+                            className="p-1.5 text-purple-600 hover:text-purple-800 rounded-xs hover:bg-purple-100 transition cursor-pointer"
+                            title="Push this scenario directly to Agent"
+                          >
+                            <Zap size={13} />
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={(e) => handleCopyShareableId(item.id, e)}
@@ -371,6 +452,78 @@ export const CloudDatabaseSyncModal: React.FC<CloudDatabaseSyncModalProps> = ({
                 <strong>Snapshots & Podcasts:</strong> Also available at <code className="font-mono bg-white px-1 py-0.5 rounded border border-slate-200 text-slate-800">/api/snapshots</code> and <code className="font-mono bg-white px-1 py-0.5 rounded border border-slate-200 text-slate-800">/api/podcasts</code>.
               </li>
             </ul>
+          </div>
+
+          {/* Agent Database/Webhook Sync Section */}
+          <div className="p-3.5 rounded-sm bg-purple-50/50 border border-purple-200 text-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-purple-950 font-bold">
+                <Zap size={14} className="text-purple-600" />
+                <span>Agent / Webhook Integration</span>
+              </div>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-2xs bg-purple-100 text-purple-800 font-bold">
+                Agent Webhook Sync
+              </span>
+            </div>
+
+            <p className="text-[11px] text-purple-900/80 leading-relaxed">
+              Paste your Agent <strong>Custom Webhook URL</strong> below to mirror scenarios into your <strong>Agent Data Store</strong> or trigger automated multi-system routing.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+                  <Link2 size={13} />
+                </div>
+                <input
+                  type="url"
+                  value={makeWebhookUrl}
+                  onChange={(e) => setLocalMakeWebhookUrl(e.target.value)}
+                  placeholder="https://agent-webhook-url... or https://hook.make.com/..."
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xs border border-purple-200 bg-white text-[11px] font-mono text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-1 focus:ring-purple-500"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleSaveMakeSettings}
+                  className="px-2.5 py-1.5 rounded-xs bg-purple-600 hover:bg-purple-700 text-white font-semibold text-[11px] transition cursor-pointer"
+                >
+                  Save URL
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTestMakeSync()}
+                  disabled={isSendingToMake || !makeWebhookUrl}
+                  className="px-2.5 py-1.5 rounded-xs bg-slate-900 hover:bg-slate-800 text-white font-semibold text-[11px] transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  title="Push current scenario into Agent"
+                >
+                  <Zap size={11} className={isSendingToMake ? 'animate-spin' : ''} />
+                  <span>{isSendingToMake ? 'Sending...' : 'Sync to Agent'}</span>
+                </button>
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] text-purple-950">
+              <input
+                type="checkbox"
+                checked={makeAutoSync}
+                onChange={(e) => {
+                  setLocalMakeAutoSync(e.target.checked);
+                  setMakeAutoSyncEnabled(e.target.checked);
+                  setFeedback({
+                    type: 'success',
+                    message: e.target.checked
+                      ? 'Auto-sync enabled: Cloud saves will also push to Agent.'
+                      : 'Auto-sync to Agent disabled.'
+                  });
+                  setTimeout(() => setFeedback(null), 3000);
+                }}
+                className="rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
+              />
+              <span>Automatically send to Agent whenever I click <strong>"Sync to Cloud"</strong></span>
+            </label>
           </div>
         </div>
 

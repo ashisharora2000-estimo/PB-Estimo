@@ -292,7 +292,7 @@ export const TestingAssuranceView: React.FC<TestingAssuranceViewProps> = ({
             { id: 'architecture' as const, label: '1. Testing Cycles & Calibration', icon: Sliders },
             { id: 'traceability' as const, label: '2. Transparent Math Traceability', icon: Activity },
             { id: 'commercials' as const, label: '3. QA Grade Pyramid & Rates', icon: DollarSign },
-            { id: 'wbs' as const, label: '4. Smartsheet WBS Tasks (30-Col)', icon: FileText }
+            { id: 'wbs' as const, label: '4. Deterministic WBS Tasks (30-Col)', icon: FileText }
           ].map((t) => {
             const isSelected = activeTab === t.id;
             const Icon = t.icon;
@@ -848,14 +848,14 @@ export const TestingAssuranceView: React.FC<TestingAssuranceViewProps> = ({
         </div>
       )}
 
-      {/* TAB 4: Smartsheet WBS Tasks */}
+      {/* TAB 4: Deterministic WBS Tasks */}
       {activeTab === 'wbs' && (
         <div className="space-y-4">
           <div className="bg-white border border-slate-200 rounded-sm shadow-xs p-4 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">
-                  Smartsheet WBS Quality Assurance Deliverables
+                  Deterministic WBS Quality Assurance Deliverables
                 </h3>
                 <p className="text-[11px] text-slate-500">
                   Deterministic task expansion mapped to <strong className="text-slate-700">Business Testing 1 - SIT</strong> and <strong className="text-slate-700">Business Testing 2 - UAT</strong>

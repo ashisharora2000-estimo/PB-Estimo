@@ -136,17 +136,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               <span>Save & Refresh All Screens</span>
             </button>
           )}
-          {onOpenNotebookLmPodcast && (
-            <button
-              type="button"
-              onClick={onOpenNotebookLmPodcast}
-              className="px-3.5 py-1.5 rounded-none bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 hover:from-slate-800 hover:to-indigo-900 text-white text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-xs border border-indigo-500/50"
-              title="Listen Podcast - 2-Host Audio Overview & Deep Dive"
-            >
-              <Headphones size={14} className="stroke-[2.5] text-indigo-300" />
-              <span>Listen Podcast</span>
-            </button>
-          )}
+          {/* Listen Podcast - Hidden for future release */}
+
           {onOpenSlideDeck ? (
             <button
               type="button"
@@ -255,14 +246,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             </div>
           </div>
 
-          {/* NotebookLM Audio Overview Banner Card */}
-          {onOpenNotebookLmPodcast && (
-            <NotebookLMPodcastCard
-              scenario={scenario}
-              data={data}
-              onOpenPodcastStudio={onOpenNotebookLmPodcast}
-            />
-          )}
+          {/* NotebookLM Audio Overview Banner Card - Hidden for future release */}
+
 
           {/* Section 1: Executive Summary */}
           <div className="space-y-3">
