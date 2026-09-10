@@ -310,6 +310,7 @@ export default function App() {
       case 'benchmark_master':
         return (
           <BenchmarkMasterView
+            key={activeScenario.id}
             scenario={activeScenario}
             data={calculatedData}
             onUpdateScenario={setActiveScenario}

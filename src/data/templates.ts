@@ -22,6 +22,9 @@ export const PRESET_SCENARIOS: ProjectScenario[] = [
       fin_secondary_ledgers: 2,
       fin_sla_rules: 4,
       fin_intercompany_pairs: 5,
+      fin_einvoicing_countries: 2, // 2 Mandated e-Invoicing Jurisdictions (e.g. Poland KSeF, Mexico CFDI)
+      fin_bank_cert_weeks: 8,      // 8-week Tier-1 bank certification testing window (SWIFT / ISO 20022)
+      fin_cutover_strategy: 'day1_fiscal', // First Day of Fiscal Year Clean Cutover (prevents mid-year depreciation catch-up)
       hcm_hc: 6500,
       hcm_pay_countries: 4,
       hcm_union_groups: 3,
@@ -149,6 +152,9 @@ export const PRESET_SCENARIOS: ProjectScenario[] = [
       fin_secondary_ledgers: 0,
       fin_sla_rules: 1,
       fin_intercompany_pairs: 1,
+      fin_einvoicing_countries: 0, // Domestic standard scope, no real-time government pre-clearance
+      fin_bank_cert_weeks: 4,      // 4-week standard domestic ACH/NACHA testing window
+      fin_cutover_strategy: 'day1_fiscal', // Clean Day 1 Fiscal Year Cutover
       hcm_hc: 1200,
       hcm_pay_countries: 1,
       hcm_union_groups: 0,
@@ -254,6 +260,9 @@ export const PRESET_SCENARIOS: ProjectScenario[] = [
       fin_secondary_ledgers: 0,
       fin_sla_rules: 2,
       fin_intercompany_pairs: 2,
+      fin_einvoicing_countries: 0, // Domestic Healthcare, no international B2G tax authority clearance
+      fin_bank_cert_weeks: 6,      // 6-week regional healthcare bank cash concentration testing
+      fin_cutover_strategy: 'day1_fiscal', // Clean Day 1 Fiscal Year Cutover
       hcm_hc: 18500,
       hcm_pay_countries: 1,
       hcm_union_groups: 6,
@@ -361,6 +370,9 @@ export const PRESET_SCENARIOS: ProjectScenario[] = [
       fin_secondary_ledgers: 1,
       fin_sla_rules: 2,
       fin_intercompany_pairs: 3,
+      fin_einvoicing_countries: 1, // 1 Mandated European/regional e-invoicing country (e.g. Italy SDI)
+      fin_bank_cert_weeks: 8,      // 8-week Tier-1 commercial bank certification window
+      fin_cutover_strategy: 'day1_fiscal', // Clean Day 1 Fiscal Year Cutover
       hcm_hc: 4200,
       hcm_pay_countries: 2,
       hcm_union_groups: 1,
@@ -465,6 +477,9 @@ export const PRESET_SCENARIOS: ProjectScenario[] = [
       fin_secondary_ledgers: 0,
       fin_sla_rules: 0,
       fin_intercompany_pairs: 0,
+      fin_einvoicing_countries: 0,
+      fin_bank_cert_weeks: 8,
+      fin_cutover_strategy: 'day1_fiscal',
       hcm_hc: 0,
       hcm_pay_countries: 0,
       hcm_union_groups: 0,

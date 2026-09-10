@@ -189,6 +189,21 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
     scaleBaseHours += (scaleDrivers.fin_secondary_ledgers || 0) * 220; // Secondary Statutory / Multi-GAAP Ledgers
     scaleBaseHours += (scaleDrivers.fin_sla_rules || 0) * 85; // Custom Subledger Accounting Derivation Rules
     scaleBaseHours += (scaleDrivers.fin_intercompany_pairs || 0) * 110; // AGIS Intercompany Balancing & Trading Pairs
+
+    // --- 3 Surgical Finance Architecture Additions ---
+    // 1. Statutory E-Invoicing & Government Clearance Footprint (ZATCA, KSeF, SDI, CFDI, etc.)
+    scaleBaseHours += (scaleDrivers.fin_einvoicing_countries || 0) * 160;
+
+    // 2. Bank Connectivity & Certification Lead-Time Window (ISO 20022 XML, Host-to-Host payment format testing)
+    const bankCertLeadWeeks = scaleDrivers.fin_bank_cert_weeks || 8;
+    const bankCertEffortHours = bankCertLeadWeeks <= 4 ? 30 : (bankCertLeadWeeks <= 8 ? 80 : (bankCertLeadWeeks <= 12 ? 160 : 240));
+    scaleBaseHours += bankCertEffortHours;
+
+    // 3. Financial Cutover & Fiscal Year-End Alignment Strategy
+    // Clean Day 1 Fiscal Year = 0h; Quarter-End = +60h; Mid-Year with FA depreciation catch-up & GR-IR debt = +220h; Complex Multi-GAAP = +380h
+    const cutoverStrategy = scaleDrivers.fin_cutover_strategy || 'day1_fiscal';
+    const cutoverStrategyHours = cutoverStrategy === 'quarter_end' ? 60 : (cutoverStrategy === 'mid_year_fa_catchup' ? 220 : (cutoverStrategy === 'complex_multi_gaap' ? 380 : 0));
+    scaleBaseHours += cutoverStrategyHours;
     // HCM
     const hc = scaleDrivers.hcm_hc || 0;
     scaleBaseHours += hc > 0 ? Math.min(2500, Math.sqrt(hc) * 22) : 0; // Damped sublinear scaling for headcount
@@ -518,13 +533,55 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   const dataDebtImpact = scheduleModifiers.dataReadinessScore === 3 ? 2.5 : (scheduleModifiers.dataReadinessScore === 2 ? 1.0 : 0);
   const conversionCyclesImpact = conversionCycles >= 4 ? (conversionCycles - 3) * 0.75 : (conversionCycles <= 1 ? -0.5 : 0);
   const sitOicImpact = oicCount > 15 ? (oicCount - 15) * 0.08 : 0;
-  const baseTest1Weeks = isZeroScope ? 0 : Math.max(4, Math.round((4 + (selectedModules.length * 0.2) + sitOicImpact + dataDebtImpact + conversionCyclesImpact) / velocityMultiplier));
+
+  // 3 Surgical Finance Additions impacts on SIT / Test 1 & Schedule Floors:
+  const einvoicingCountries = scaleDrivers.fin_einvoicing_countries || 0;
+  const einvoicingSITImpact = einvoicingCountries > 0 ? Math.min(3.0, einvoicingCountries * 0.75) : 0;
+
+  const bankCertWeeks = scaleDrivers.fin_bank_cert_weeks || 8;
+  const bankCertSITImpact = bankCertWeeks > 8 ? Math.min(2.5, (bankCertWeeks - 8) * 0.4) : 0;
+
+  const cutoverStrategy = scaleDrivers.fin_cutover_strategy || 'day1_fiscal';
+  const cutoverSITImpact = cutoverStrategy === 'complex_multi_gaap' ? 2.0 : (cutoverStrategy === 'mid_year_fa_catchup' ? 1.0 : (cutoverStrategy === 'quarter_end' ? 0.5 : 0));
+  const cutoverPhaseExtraWeeks = cutoverStrategy === 'complex_multi_gaap' ? 1.5 : (cutoverStrategy === 'mid_year_fa_catchup' ? 1.0 : 0);
+
+  const baseTest1Weeks = isZeroScope ? 0 : Math.max(4, Math.round((4 + (selectedModules.length * 0.2) + sitOicImpact + dataDebtImpact + conversionCyclesImpact + einvoicingSITImpact + bankCertSITImpact + cutoverSITImpact) / velocityMultiplier));
 
   if (!isZeroScope && (dataDebtImpact > 0 || conversionCyclesImpact !== 0)) {
     complexityDriversBreakdown.push({
       name: `Legacy Data Cleansing & ${conversionCycles} Mock Conversion Cycles`,
       impactWeeks: Math.round((dataDebtImpact + conversionCyclesImpact) * 10) / 10,
       rationale: `${conversionCycles} Mock Conversion Loads across ${dataObjects} FBDI/HDL Data Objects (${historicalYears} yrs history) require iterative validation & reconciliation in SIT.`
+    });
+  }
+
+  // Surgical Driver 1: Statutory E-Invoicing & Clearance
+  if (!isZeroScope && einvoicingCountries > 0) {
+    complexityDriversBreakdown.push({
+      name: `Statutory E-Invoicing & Clearance (${einvoicingCountries} Mandated Countries)`,
+      impactWeeks: Math.round(einvoicingSITImpact * 10) / 10,
+      rationale: `Real-time government pre-clearance (ZATCA, KSeF, SDI, CFDI) requires external tax authority sandbox certification, digital signature keys, and XML invoice clearance in SIT.`
+    });
+  }
+
+  // Surgical Driver 2: Bank Connectivity & Certification Lead-Time Floor
+  if (!isZeroScope && bankCertWeeks >= 8) {
+    complexityDriversBreakdown.push({
+      name: `External Bank Certification Lead-Time Floor (${bankCertWeeks} Weeks)`,
+      impactWeeks: Math.round(bankCertSITImpact * 10) / 10,
+      rationale: `Tier-1 global cash management banks impose a non-negotiable ${bankCertWeeks}-week external testing and queue certification window (ISO 20022 / SWIFT) that cannot be compressed by adding FTE.`
+    });
+  }
+
+  // Surgical Driver 3: Financial Cutover Strategy
+  if (!isZeroScope && cutoverStrategy !== 'day1_fiscal') {
+    const cutoverLabel = cutoverStrategy === 'mid_year_fa_catchup' 
+      ? 'Mid-Year Historical Cutover with FA Depreciation Catch-up & GR-IR Reconciliation'
+      : (cutoverStrategy === 'complex_multi_gaap' ? 'Complex Multi-GAAP Historical Restatement Cutover' : 'Quarter-End Cutover');
+    complexityDriversBreakdown.push({
+      name: `Financial Cutover Strategy: ${cutoverLabel}`,
+      impactWeeks: Math.round((cutoverSITImpact + cutoverPhaseExtraWeeks) * 10) / 10,
+      rationale: `Non-Day-1 fiscal cutover introduces open PO/AP GR-IR clearing reconciliation, life-to-date fixed asset depreciation recalculation, and requires additional mock trial balance verification.`
     });
   }
 
@@ -550,7 +607,7 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   // Phase 6: Cutover & Go-Live
   const dataObjectsCount = scaleDrivers.tech_data_objects || 0;
   const cutoverRehearsalWeeks = conversionCycles >= 4 ? 1 : 0;
-  const baseCutoverWeeks = isZeroScope ? 0 : Math.max(2, Math.round(2 + (dataObjectsCount > 20 ? 1 : 0) + cutoverRehearsalWeeks + (rolloutWaves > 1 ? 1 : 0)));
+  const baseCutoverWeeks = isZeroScope ? 0 : Math.max(2, Math.round(2 + (dataObjectsCount > 20 ? 1 : 0) + cutoverRehearsalWeeks + cutoverPhaseExtraWeeks + (rolloutWaves > 1 ? 1 : 0)));
 
   if (!isZeroScope && cutoverRehearsalWeeks > 0) {
     complexityDriversBreakdown.push({
@@ -750,12 +807,16 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
         const currencies = sd.fin_cur || 1;
         const entities = sd.fin_ent || 1;
         const icPairs = sd.fin_intercompany_pairs || 0;
-        hours += ledgers * 220 + secLedgers * 140 + Math.max(0, coaSegs - 4) * 60 + currencies * 40 + entities * 50 + icPairs * 75;
+        const cutover = sd.fin_cutover_strategy || 'day1_fiscal';
+        const cutoverHours = cutover === 'complex_multi_gaap' ? 180 : (cutover === 'mid_year_fa_catchup' ? 110 : (cutover === 'quarter_end' ? 40 : 0));
+        hours += ledgers * 220 + secLedgers * 140 + Math.max(0, coaSegs - 4) * 60 + currencies * 40 + entities * 50 + icPairs * 75 + cutoverHours;
         if (ledgers > 1) drivers.push(`${ledgers} Primary Ledgers`);
         if (secLedgers > 0) drivers.push(`${secLedgers} Secondary Statutory Ledgers`);
         if (coaSegs > 6) drivers.push(`${coaSegs} COA Segments`);
         if (icPairs > 1) drivers.push(`${icPairs} AGIS Intercompany Balancing Pairs`);
         if (currencies > 3) drivers.push(`${currencies} Currencies`);
+        if (cutover === 'mid_year_fa_catchup') drivers.push('Mid-Year Historical Cutover & Depreciation Catch-up');
+        if (cutover === 'complex_multi_gaap') drivers.push('Multi-GAAP Historical Restatement Cutover');
         break;
       }
       case 'erp_ap': {
@@ -765,11 +826,15 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
         const wf = sd.tech_workflows || 0;
         const bpm = sd.tech_bpm_approval_groups || 0;
         const sla = sd.fin_sla_rules || 0;
-        hours += ent * 45 + bus * 40 + tax * 40 + wf * 15 + bpm * 30 + sla * 45;
+        const einvoicing = sd.fin_einvoicing_countries || 0;
+        const bankWeeks = sd.fin_bank_cert_weeks || 8;
+        hours += ent * 45 + bus * 40 + tax * 40 + wf * 15 + bpm * 30 + sla * 45 + einvoicing * 80;
         if (bus > 2) drivers.push(`${bus} Business Units (Shared Services)`);
         if (tax > 2) drivers.push(`${tax} Tax Regimes`);
         if (bpm > 2) drivers.push(`${bpm} Tiered BPM Invoice Approval Matrices`);
         if (sla > 2) drivers.push(`${sla} Custom SLA Subledger Rules`);
+        if (einvoicing > 0) drivers.push(`${einvoicing} Statutory E-Invoicing Regimes (Real-Time Clearance)`);
+        if (bankWeeks >= 8) drivers.push(`${bankWeeks}-Week Bank Testing & ISO 20022 Certification Floor`);
         break;
       }
       case 'erp_ar': {
@@ -783,22 +848,30 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
       case 'erp_fa': {
         const ent = sd.fin_ent || 1;
         const ledgers = sd.fin_led || 1;
-        hours += ent * 35 + ledgers * 60;
+        const cutover = sd.fin_cutover_strategy || 'day1_fiscal';
+        const faCatchupHours = (cutover === 'mid_year_fa_catchup' || cutover === 'complex_multi_gaap') ? 70 : 0;
+        hours += ent * 35 + ledgers * 60 + faCatchupHours;
         if (ledgers > 1) drivers.push(`Multi-Book Asset Depreciation`);
+        if (faCatchupHours > 0) drivers.push(`Mid-Year Asset Life-to-Date Depreciation Catch-up`);
         break;
       }
       case 'erp_cm': {
         const cur = sd.fin_cur || 1;
         const ent = sd.fin_ent || 1;
-        hours += cur * 35 + ent * 35;
+        const bankWeeks = sd.fin_bank_cert_weeks || 8;
+        const bankCertHours = bankWeeks <= 4 ? 20 : (bankWeeks <= 8 ? 50 : 90);
+        hours += cur * 35 + ent * 35 + bankCertHours;
         if (cur > 2) drivers.push(`Multi-Currency Treasury Accounts`);
+        if (bankWeeks >= 8) drivers.push(`${bankWeeks}-Week Host-to-Host Bank Statement & MT940 Certification`);
         break;
       }
       case 'erp_tax': {
         const tax = sd.fin_tax || 1;
         const ent = sd.fin_ent || 1;
-        hours += tax * 100 + ent * 30;
+        const einvoicing = sd.fin_einvoicing_countries || 0;
+        hours += tax * 100 + ent * 30 + einvoicing * 80;
         if (tax > 1) drivers.push(`${tax} Statutory Tax Regimes & E-Invoicing`);
+        if (einvoicing > 0) drivers.push(`${einvoicing} Government Pre-Clearance Portals (ZATCA/KSeF/SDI)`);
         break;
       }
       case 'erp_ppm': {

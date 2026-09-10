@@ -67,6 +67,10 @@ export interface ScaleDrivers {
   fin_secondary_ledgers?: number;  // Secondary Statutory / Local GAAP Ledgers (default 0)
   fin_sla_rules?: number;          // Custom Subledger Accounting (SLA) Derivation Rules (default 2)
   fin_intercompany_pairs?: number; // AGIS Intercompany Transacting Entity Pairs (default 1)
+  // Senior Finance Leader Surgical Architecture & Schedule Bottlenecks
+  fin_einvoicing_countries?: number; // Statutory E-Invoicing & Government Clearance Footprint (0: None/Domestic, 1: 1-2 Mandated e.g. KSeF/ZATCA, 2: 3-5 Mandated, 3: 6+ High-Frequency)
+  fin_bank_cert_weeks?: number;      // External Bank Connectivity & Certification Lead-Time Window (weeks: 4, 8, 12, 16)
+  fin_cutover_strategy?: 'day1_fiscal' | 'quarter_end' | 'mid_year_fa_catchup' | 'complex_multi_gaap'; // Financial Cutover & Fiscal Year-End Alignment Strategy
   // HCM & Workforce
   hcm_hc: number;
   hcm_pay_countries: number;
@@ -448,6 +452,10 @@ export interface ProjectScenario {
   // Benchmark Master Calibration & Intrinsic Modifiers
   benchmarkMasterConfig?: any;
   moduleMultipliers?: Record<string, number>;
+  // Bid-Specific Defaults & Input Reduction Profile
+  scopingInputMode?: ScopingInputMode;
+  bidDefaultsConfig?: BidDefaultsConfig;
+  fieldConfidenceMeta?: Record<string, FieldConfidenceMeta>;
 }
 
 export interface ClientIntelData {
@@ -641,10 +649,34 @@ export interface TechnicalScopingQuestion {
   options: TechnicalScopingQuestionOption[];
 }
 
+export type ScopingInputMode = 'fast_track' | 'standard' | 'comprehensive';
+
+export interface FieldConfidenceMeta {
+  fieldName: string;
+  confidence: 'high' | 'medium' | 'low' | 'unconfirmed';
+  percentage: number; // 0 to 100
+  source: 'ai_ingestion' | 'bid_default' | 'user_override' | 'default_benchmark';
+  citation?: string;
+  rationale?: string;
+  lastUpdated?: string;
+}
+
+export interface BidDefaultsConfig {
+  inputMode: ScopingInputMode;
+  defaultTShirtSize: TShirtSize;
+  defaultQuestionOptionIdx: number; // 0 = Fit-to-Standard (MBP), 1 = Standard (C2), 2 = Complex (C3)
+  defaultScaleDrivers: Partial<ScaleDrivers>;
+  defaultClientModifiers: Partial<ProjectScenario['clientModifiers']>;
+  confidenceScoreForDefaults: number; // e.g., 75
+  aiConfidenceThreshold: number; // e.g., 70 (flag below this for client Q&A)
+  autoApplyDefaultsOnIngestion: boolean;
+  profileName?: string;
+}
+
 export interface QuestionConfidenceMeta {
   confidence: 'high' | 'medium' | 'low' | 'unconfirmed';
   percentage: number; // 0 to 100
-  source: 'ai_proposal' | 'manual_override' | 'default_benchmark' | 'client_confirmed';
+  source: 'ai_proposal' | 'manual_override' | 'default_benchmark' | 'client_confirmed' | 'bid_default';
   proposalCitation?: string;
   clientClarificationNeeded?: boolean;
   clientNotes?: string;

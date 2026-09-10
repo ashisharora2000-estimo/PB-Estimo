@@ -212,8 +212,8 @@ export const SmartsheetExportModal: React.FC<SmartsheetExportModalProps> = ({
 
   const totalEffortHours = Math.round(data.targetHours || 8540);
   const contingencyHours = Math.round(data.contingencyHours || 1280);
-  const blendedRate = Math.round(data.blendedRate || 145);
-  const totalFinancialBudget = Math.round(data.finalPrice || totalEffortHours * blendedRate);
+  const blendedRate = Math.round(data.blendedBillRate || data.blendedRate || 145);
+  const totalFinancialBudget = Math.round(data.deliveryRevenue || data.finalPrice || (totalEffortHours * blendedRate));
 
   // Generate Oracle Cloud Standard WBS and Schedule (v1.0 YAML Spec)
   const standardPlan: StandardProjectPlanOutput = React.useMemo(() => {

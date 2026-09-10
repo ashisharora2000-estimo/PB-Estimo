@@ -229,6 +229,38 @@ export function parseProposalDocument(proposalText: string): ProposalParseResult
   const secRolesMatch = proposalText.match(/(\d+)\s*(?:custom\s*security\s*roles?|job\s*roles?|duty\s*roles?|security\s*roles?)/i);
   if (secRolesMatch) extractedScaleDrivers.tech_security_roles = parseInt(secRolesMatch[1], 10);
 
+  // --- 3 Surgical Finance Scale Drivers Extraction ---
+  // A. Statutory E-Invoicing & Clearance Footprint
+  const einvoicingMatch = proposalText.match(/(\d+)\s*(?:e-?invoicing\s*(?:mandates?|jurisdictions?|countries?|regimes?)|clearance\s*jurisdictions?|statutory\s*e-?invoicing)/i);
+  if (einvoicingMatch) {
+    extractedScaleDrivers.fin_einvoicing_countries = parseInt(einvoicingMatch[1], 10);
+  } else if (/zatca|ksef|cfdi|sdi\s*b2g|peppol|clearance\s*model/i.test(proposalText)) {
+    extractedScaleDrivers.fin_einvoicing_countries = 1;
+  } else {
+    extractedScaleDrivers.fin_einvoicing_countries = 0;
+  }
+
+  // B. Bank Connectivity & Certification Lead-Time Window
+  const bankCertMatch = proposalText.match(/(\d+)\s*(?:weeks?|wks?)\s*(?:bank\s*certification|bank\s*testing\s*window|bank\s*connectivity\s*testing|swift\s*testing)/i);
+  if (bankCertMatch) {
+    extractedScaleDrivers.fin_bank_cert_weeks = parseInt(bankCertMatch[1], 10);
+  } else if (/swift|iso\s*20022|host-to-host|h2h\s*banking|tier-?1\s*bank/i.test(proposalText)) {
+    extractedScaleDrivers.fin_bank_cert_weeks = 8;
+  } else {
+    extractedScaleDrivers.fin_bank_cert_weeks = 8;
+  }
+
+  // C. Financial Cutover Strategy
+  if (/mid-?year|depreciation\s*catch-?up|gr-?ir\s*clearing|retained\s*earnings\s*interim/i.test(proposalText)) {
+    extractedScaleDrivers.fin_cutover_strategy = 'mid_year_fa_catchup';
+  } else if (/multi-?gaap\s*restatement|dual\s*reporting\s*cutover|ifrs\s*and\s*us\s*gaap\s*historical/i.test(proposalText)) {
+    extractedScaleDrivers.fin_cutover_strategy = 'complex_multi_gaap';
+  } else if (/quarter-?end\s*cutover/i.test(proposalText)) {
+    extractedScaleDrivers.fin_cutover_strategy = 'quarter_end';
+  } else {
+    extractedScaleDrivers.fin_cutover_strategy = 'day1_fiscal';
+  }
+
   // 3. Question Answering & Confidence Derivation
   const questionAnswers: Record<string, number[]> = {};
   const questionConfidenceMeta: Record<string, Record<number, QuestionConfidenceMeta>> = {};

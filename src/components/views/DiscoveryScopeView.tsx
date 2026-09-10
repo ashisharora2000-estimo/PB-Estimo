@@ -51,13 +51,15 @@ import {
   ORACLE_MODULE_CATALOG,
   COMPLEXITY_PILLARS
 } from '../../data/oraclePhases';
-import { getQuestionsForModule, ModuleScopingQuestion } from '../../data/moduleScopingQuestions';
+import { getQuestionsForModule, ModuleScopingQuestion, isQuestionMandatory } from '../../data/moduleScopingQuestions';
 import { ENTERPRISE_ROLLOUT_QUESTIONS, ROLLOUT_QUESTION_CATEGORIES } from '../../data/rolloutQuestions';
 import { calculateProjectMetrics } from '../../utils/calculator';
 import { TShirtBadge, T_SHIRT_CONFIG, TShirtSelect } from '../common/TShirtBadge';
 import { ModuleTShirtMatrix } from '../common/ModuleTShirtMatrix';
 import { AIScopingAgentModal, AgentInputMode } from '../modals/AIScopingAgentModal';
 import { ClientQaModal } from '../modals/ClientQaModal';
+import { BidDefaultsModal } from '../modals/BidDefaultsModal';
+import { getScenarioBidDefaults, setScenarioInputMode } from '../../utils/bidDefaultsManager';
 import { AddCustomModuleModal } from '../modals/AddCustomModuleModal';
 import { AddCustomQuestionModal } from '../modals/AddCustomQuestionModal';
 import { Module20QuestionsModal } from '../modals/Module20QuestionsModal';
@@ -148,6 +150,8 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
   const [isScopingAgentModalOpen, setIsScopingAgentModalOpen] = useState<boolean>(false);
   const [scopingAgentInitialMode, setScopingAgentInitialMode] = useState<AgentInputMode>('upload_rfp');
   const [isClientQaModalOpen, setIsClientQaModalOpen] = useState<boolean>(false);
+  const [isBidDefaultsModalOpen, setIsBidDefaultsModalOpen] = useState<boolean>(false);
+  const [moduleForceShowAllQuestions, setModuleForceShowAllQuestions] = useState<Record<string, boolean>>({});
 
   // SteerCo Baseline Blackout Freeze & Governance Audit Modal (Whiteboard Feature 4)
   const [isUnlockModalOpen, setIsUnlockModalOpen] = useState<boolean>(false);
@@ -745,6 +749,18 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
 
             <button
               type="button"
+              onClick={() => setIsBidDefaultsModalOpen(true)}
+              className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-300 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer font-mono shadow-2xs"
+              title="Configure Bid-Specific Defaults, Input Reduction Profile & AI Confidence calibration"
+            >
+              <Sliders size={13} className="text-indigo-600" />
+              <span>
+                Defaults: {scenario.scopingInputMode === 'fast_track' ? '⚡ Reduced Inputs' : scenario.scopingInputMode === 'comprehensive' ? 'Full Depth' : 'Standard'}
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setIsClientQaModalOpen(true)}
               className={`px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer border font-mono ${
                 clientClarificationCount > 0
@@ -791,7 +807,48 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            <div className="flex items-center gap-1">
+            {/* Input Reduction Depth Fast-Switcher */}
+            <div className="flex items-center gap-1 bg-white p-0.5 border border-slate-300 shadow-2xs">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 pl-1 font-mono">Inputs:</span>
+              <button
+                type="button"
+                onClick={() => onUpdateScenario(prev => setScenarioInputMode(prev, 'fast_track'))}
+                className={`px-1.5 py-0.5 text-[10px] font-mono font-bold transition cursor-pointer ${
+                  scenario.scopingInputMode === 'fast_track'
+                    ? 'bg-amber-100 text-amber-900 border border-amber-400 shadow-2xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+                title="⚡ Fast-Track: Show only 5 Core Architecture Drivers per module. Remaining 15 questions calibrated to bid defaults."
+              >
+                ⚡ Reduced (5-Q)
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdateScenario(prev => setScenarioInputMode(prev, 'standard'))}
+                className={`px-1.5 py-0.5 text-[10px] font-mono font-bold transition cursor-pointer ${
+                  (!scenario.scopingInputMode || scenario.scopingInputMode === 'standard')
+                    ? 'bg-slate-900 text-white shadow-2xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+                title="Standard scoping input depth"
+              >
+                Standard
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdateScenario(prev => setScenarioInputMode(prev, 'comprehensive'))}
+                className={`px-1.5 py-0.5 text-[10px] font-mono font-bold transition cursor-pointer ${
+                  scenario.scopingInputMode === 'comprehensive'
+                    ? 'bg-indigo-900 text-white shadow-2xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+                title="Comprehensive full deep-dive: all 20 questions exposed"
+              >
+                All 20-Q
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1 border-l border-slate-300 pl-2">
               {(['XS', 'S', 'M', 'L', 'XL', 'XXL'] as TShirtSize[]).map((size) => {
                 const cfg = T_SHIRT_CONFIG[size];
                 const count = (projectData.moduleEstimates || []).filter(m => m.tShirtSize === size && scenario.selectedModules.includes(m.moduleId)).length;
@@ -1456,6 +1513,23 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
                                         </button>
                                         <button
                                           type="button"
+                                          onClick={() => {
+                                            setModuleForceShowAllQuestions(prev => ({
+                                              ...prev,
+                                              [mod.id]: !prev[mod.id]
+                                            }));
+                                          }}
+                                          className={`px-2 py-1 text-[10px] font-bold uppercase border cursor-pointer font-mono ${
+                                            moduleForceShowAllQuestions[mod.id]
+                                              ? 'bg-amber-100 text-amber-900 border-amber-300'
+                                              : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+                                          }`}
+                                          title="Toggle between Core 5 Architecture Drivers and All 20 Questions"
+                                        >
+                                          {moduleForceShowAllQuestions[mod.id] ? '⚡ Core 5 Only' : 'All 20-Q'}
+                                        </button>
+                                        <button
+                                          type="button"
                                           onClick={() => open20QModal(mod.id, 'worksheet', 0)}
                                           className="px-2.5 py-1 text-[10px] font-bold uppercase bg-slate-900 hover:bg-slate-800 text-white border border-slate-900 flex items-center gap-1 cursor-pointer font-mono shadow-2xs"
                                           title="Open dedicated Fullscreen 20-Question Matrix modal"
@@ -1465,6 +1539,27 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
                                         </button>
                                       </div>
                                     </div>
+
+                                    {/* Fast-Track Input Reduction Notification Banner */}
+                                    {scenario.scopingInputMode === 'fast_track' && !moduleForceShowAllQuestions[mod.id] && (
+                                      <div className="p-2.5 bg-amber-50/90 border-b border-amber-300 text-amber-950 text-xs flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 bg-amber-200 text-amber-900 border border-amber-400 uppercase">
+                                            ⚡ Fast-Track Active
+                                          </span>
+                                          <span>
+                                            Displaying <strong>5 Core Architectural Drivers</strong>. 15 secondary questions are auto-calibrated to Bid Defaults (Fit-to-Standard MBP, 75% Confidence).
+                                          </span>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => setModuleForceShowAllQuestions(prev => ({ ...prev, [mod.id]: true }))}
+                                          className="px-2 py-0.5 text-[10px] font-mono font-bold bg-white text-slate-800 border border-slate-300 hover:bg-slate-50 cursor-pointer shrink-0 shadow-2xs"
+                                        >
+                                          Expand All 20-Q
+                                        </button>
+                                      </div>
+                                    )}
 
                                     {/* 20 Question Table Grid with robust horizontal scroll and fully visible questions & options */}
                                     <div className="overflow-x-auto border border-slate-200 pb-2">
@@ -1481,7 +1576,15 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
                                           </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-200 bg-white">
-                                          {questions.map((q, qIdx) => {
+                                          {questions
+                                            .map((q, idx) => ({ q, qIdx: idx }))
+                                            .filter(({ q, qIdx }) => {
+                                              if (scenario.scopingInputMode === 'fast_track' && !moduleForceShowAllQuestions[mod.id]) {
+                                                return isQuestionMandatory(q, qIdx);
+                                              }
+                                              return true;
+                                            })
+                                            .map(({ q, qIdx }) => {
                                             const currentOpt = currentAnswers[qIdx] !== undefined ? currentAnswers[qIdx] : 1;
                                             const qMeta = scenario.questionConfidenceMeta?.[mod.id]?.[qIdx];
                                             const isClarificationNeeded = qMeta?.clientClarificationNeeded;
@@ -1511,6 +1614,40 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
                                                         Proposal Reference: &ldquo;{qMeta.proposalCitation}&rdquo;
                                                       </div>
                                                     )}
+                                                    {/* Confidence Score & Source Stamp */}
+                                                    <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
+                                                      {qMeta ? (
+                                                        <span
+                                                          className={`px-1.5 py-0.5 text-[9px] font-mono font-bold border ${
+                                                            qMeta.confidence === 'high'
+                                                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                                              : qMeta.confidence === 'medium'
+                                                              ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                                                              : 'bg-rose-50 text-rose-800 border-rose-200'
+                                                          }`}
+                                                          title={`Confidence: ${qMeta.percentage}% | Source: ${qMeta.source}`}
+                                                        >
+                                                          {qMeta.percentage}% {qMeta.confidence.toUpperCase()} ({
+                                                            qMeta.source === 'ai_proposal'
+                                                              ? 'AI Ingested'
+                                                              : qMeta.source === 'bid_default'
+                                                              ? 'Bid Default'
+                                                              : qMeta.source === 'manual_override'
+                                                              ? 'User Set'
+                                                              : 'Default Benchmark'
+                                                          })
+                                                        </span>
+                                                      ) : (
+                                                        <span className="px-1.5 py-0.5 text-[9px] font-mono font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                                          70% DEFAULT BENCHMARK
+                                                        </span>
+                                                      )}
+                                                      {isClarificationNeeded && (
+                                                        <span className="px-1.5 py-0.5 text-[9px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                                          Client Clarification
+                                                        </span>
+                                                      )}
+                                                    </div>
                                                   </div>
                                                 </td>
                                                 <td className="p-2.5 border-r border-slate-100 align-top">
@@ -2468,6 +2605,37 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
                 min={4}
                 onChange={(v) => updateScaleDriver('fin_coa_segments', v)}
               />
+              <NumericCounter
+                label="E-Invoicing Mandates"
+                sub="ZATCA, KSeF, SDI, CFDI clearance"
+                value={scenario.scaleDrivers.fin_einvoicing_countries ?? 0}
+                min={0}
+                onChange={(v) => updateScaleDriver('fin_einvoicing_countries', v)}
+              />
+              <NumericCounter
+                label="Bank Testing Lead Time (Wks)"
+                sub="ISO 20022 / SWIFT testing queue"
+                value={scenario.scaleDrivers.fin_bank_cert_weeks ?? 8}
+                min={2}
+                max={24}
+                onChange={(v) => updateScaleDriver('fin_bank_cert_weeks', v)}
+              />
+              <div className="flex flex-col gap-1 sm:col-span-2 pt-2 border-t border-slate-200">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-semibold text-slate-700">Financial Cutover Strategy</span>
+                  <span className="text-[10px] text-slate-400">Fiscal alignment & conversion risk</span>
+                </div>
+                <select
+                  value={scenario.scaleDrivers.fin_cutover_strategy || 'day1_fiscal'}
+                  onChange={(e) => updateScaleDriver('fin_cutover_strategy', e.target.value as any)}
+                  className="text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                >
+                  <option value="day1_fiscal">Day 1 Fiscal Year (Standard Clean - No interim catch-up)</option>
+                  <option value="quarter_end">Quarter-End Cutover (+60h reconciliations)</option>
+                  <option value="mid_year_fa_catchup">Mid-Year Cutover (+220h FA depreciation catch-up & GR-IR debt)</option>
+                  <option value="complex_multi_gaap">Complex Multi-GAAP Restatement (+380h dual-book conversion)</option>
+                </select>
+              </div>
             </div>
 
             {/* HCM & Payroll Category */}
@@ -2759,6 +2927,14 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
           setAddQuestionTargetModule({ id: modId, name: modName });
         }}
         onOpenClientQa={() => setIsClientQaModalOpen(true)}
+      />
+
+      {/* Bid-Specific Defaults & Input Reduction Configuration Modal */}
+      <BidDefaultsModal
+        isOpen={isBidDefaultsModalOpen}
+        onClose={() => setIsBidDefaultsModalOpen(false)}
+        scenario={scenario}
+        onUpdateScenario={onUpdateScenario}
       />
       {/* SteerCo Baseline Unlock Reason Modal */}
       {isUnlockModalOpen && (

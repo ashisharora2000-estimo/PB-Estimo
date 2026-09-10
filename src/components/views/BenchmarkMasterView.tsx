@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ProjectScenario,
   CalculatedProjectData,
@@ -112,6 +112,11 @@ export const BenchmarkMasterView: React.FC<BenchmarkMasterViewProps> = ({
   const [selectedTab, setSelectedTab] = useState<BenchmarkMasterTab>('rates');
   const [viewPerspective, setViewPerspective] = useState<BenchmarkViewPerspective>('catalog');
   const [saveSuccessNotice, setSaveSuccessNotice] = useState<string | null>(null);
+
+  // Synchronize activeConfig whenever scenario or its master configuration changes (e.g., switching bids)
+  useEffect(() => {
+    setActiveConfig(initialConfig);
+  }, [initialConfig]);
 
   // Derived WBS totals across T-Shirt sizes
   const wbsTotals = useMemo(() => {
@@ -297,67 +302,88 @@ export const BenchmarkMasterView: React.FC<BenchmarkMasterViewProps> = ({
 
   // Handlers for state updates
   const handleUpdateRoleRate = (roleId: string, field: keyof RoleRateCardItem, value: any) => {
-    setActiveConfig(prev => ({
-      ...prev,
-      roleRateCards: prev.roleRateCards.map(r => r.roleId === roleId ? { ...r, [field]: value } : r)
-    }));
+    setActiveConfig(prev => {
+      const next = {
+        ...prev,
+        roleRateCards: prev.roleRateCards.map(r => r.roleId === roleId ? { ...r, [field]: value } : r)
+      };
+      onUpdateScenario(s => ({ ...s, benchmarkMasterConfig: next }));
+      return next;
+    });
   };
 
   const handleSelectPyramid = (id: string) => {
     const selected = activeConfig.deliveryPyramids.find(p => p.id === id);
     if (selected) {
-      setActiveConfig(prev => ({
-        ...prev,
-        activeDeliveryPyramidId: id
-      }));
-      onUpdateScenario(prev => ({
-        ...prev,
-        deliveryMix: selected.deliveryMix
-      }));
+      setActiveConfig(prev => {
+        const next = { ...prev, activeDeliveryPyramidId: id };
+        onUpdateScenario(s => ({
+          ...s,
+          benchmarkMasterConfig: next,
+          deliveryMix: selected.deliveryMix
+        }));
+        return next;
+      });
     }
   };
 
   const handleUpdatePhaseRule = (phaseId: string, field: keyof PhaseStaffingMixRule, value: any) => {
-    setActiveConfig(prev => ({
-      ...prev,
-      phaseStaffingRules: prev.phaseStaffingRules.map(p => p.phaseId === phaseId ? { ...p, [field]: value } : p)
-    }));
+    setActiveConfig(prev => {
+      const next = {
+        ...prev,
+        phaseStaffingRules: prev.phaseStaffingRules.map(p => p.phaseId === phaseId ? { ...p, [field]: value } : p)
+      };
+      onUpdateScenario(s => ({ ...s, benchmarkMasterConfig: next }));
+      return next;
+    });
   };
 
   const handleUpdateWorkstreamRule = (wsId: string, field: keyof WorkstreamStaffingMixRule, value: any) => {
-    setActiveConfig(prev => ({
-      ...prev,
-      workstreamStaffingRules: prev.workstreamStaffingRules.map(w => w.workstreamId === wsId ? { ...w, [field]: value } : w)
-    }));
+    setActiveConfig(prev => {
+      const next = {
+        ...prev,
+        workstreamStaffingRules: prev.workstreamStaffingRules.map(w => w.workstreamId === wsId ? { ...w, [field]: value } : w)
+      };
+      onUpdateScenario(s => ({ ...s, benchmarkMasterConfig: next }));
+      return next;
+    });
   };
 
   const handleUpdateCommercialGovernance = (field: keyof CommercialGovernanceConfig, value: any) => {
-    setActiveConfig(prev => ({
-      ...prev,
-      commercialGovernance: {
-        ...prev.commercialGovernance,
-        [field]: value
-      }
-    }));
+    setActiveConfig(prev => {
+      const next = {
+        ...prev,
+        commercialGovernance: {
+          ...prev.commercialGovernance,
+          [field]: value
+        }
+      };
+      onUpdateScenario(s => ({ ...s, benchmarkMasterConfig: next }));
+      return next;
+    });
   };
 
   const handleWbsHourChange = (activityId: string, size: TShirtSize, newHours: number) => {
     const validHours = Math.max(0, isNaN(newHours) ? 0 : newHours);
-    setActiveConfig(prev => ({
-      ...prev,
-      wbsActivities: prev.wbsActivities.map(act => {
-        if (act.id === activityId) {
-          return {
-            ...act,
-            hoursByTShirt: {
-              ...act.hoursByTShirt,
-              [size]: validHours
-            }
-          };
-        }
-        return act;
-      })
-    }));
+    setActiveConfig(prev => {
+      const next = {
+        ...prev,
+        wbsActivities: prev.wbsActivities.map(act => {
+          if (act.id === activityId) {
+            return {
+              ...act,
+              hoursByTShirt: {
+                ...act.hoursByTShirt,
+                [size]: validHours
+              }
+            };
+          }
+          return act;
+        })
+      };
+      onUpdateScenario(s => ({ ...s, benchmarkMasterConfig: next }));
+      return next;
+    });
   };
 
   const handleToggleModuleFeature = (modId: string, featureId: string) => {
@@ -441,6 +467,10 @@ export const BenchmarkMasterView: React.FC<BenchmarkMasterViewProps> = ({
   const handleResetToStandard = () => {
     const standard = CALIBRATION_PROFILES.oracle_tcm_standard;
     setActiveConfig(standard);
+    onUpdateScenario(prev => ({
+      ...prev,
+      benchmarkMasterConfig: standard
+    }));
     setSaveSuccessNotice('Reset all calibration settings to Oracle TCM Standard defaults.');
     setTimeout(() => setSaveSuccessNotice(null), 3000);
   };
