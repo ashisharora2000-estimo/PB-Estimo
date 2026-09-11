@@ -99,6 +99,8 @@ interface SidebarProps {
   doaTier: number;
   onOpenComplexityStudio?: () => void;
   onOpenNewProposal?: () => void;
+  onOpenWhatIfSimulator?: () => void;
+  onOpenDealDefense?: () => void;
   onOpenSlideDeck?: () => void;
   onOpenNotebookLmPodcast?: () => void;
 }
@@ -135,6 +137,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   doaTier,
   onOpenComplexityStudio,
   onOpenNewProposal,
+  onOpenWhatIfSimulator,
+  onOpenDealDefense,
   onOpenSlideDeck,
   onOpenNotebookLmPodcast
 }) => {
@@ -187,6 +191,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-indigo-950 text-indigo-200 border border-indigo-400/30 rounded-xs uppercase">
                 PPTX
+              </span>
+            </button>
+          )}
+
+          {onOpenWhatIfSimulator && (
+            <button
+              type="button"
+              onClick={onOpenWhatIfSimulator}
+              className="w-full flex items-center justify-between p-2.5 rounded-sm bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 active:from-amber-600 text-slate-950 font-bold text-xs transition shadow-xs cursor-pointer border border-amber-300 group"
+              title="Open What-If Margin & Scope Trade-off Simulator (Live Oral Defense Tool)"
+            >
+              <div className="flex items-center gap-2">
+                <div className="p-1 rounded-xs bg-slate-950/15 text-slate-950 group-hover:rotate-12 transition-transform">
+                  <SlidersHorizontal size={14} className="stroke-[2.5]" />
+                </div>
+                <div className="text-left">
+                  <div className="text-xs font-black leading-tight">What-If Simulator</div>
+                  <div className="text-[10px] text-amber-950/80 font-medium leading-tight">Live oral defense & trade-offs</div>
+                </div>
+              </div>
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-slate-950 text-amber-300 rounded-xs uppercase">
+                Oral
+              </span>
+            </button>
+          )}
+
+          {onOpenDealDefense && (
+            <button
+              type="button"
+              onClick={onOpenDealDefense}
+              className="w-full flex items-center justify-between p-2.5 rounded-sm bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 hover:from-slate-800 hover:to-indigo-900 active:from-slate-950 text-white font-bold text-xs transition shadow-xs cursor-pointer border border-indigo-500/40 group"
+              title="Open Deal Defense & SteerCo Justification Hub"
+            >
+              <div className="flex items-center gap-2">
+                <div className="p-1 rounded-xs bg-indigo-500/30 text-indigo-300 group-hover:scale-110 transition-transform">
+                  <Award size={14} className="stroke-[2.5]" />
+                </div>
+                <div className="text-left">
+                  <div className="text-xs font-bold leading-tight">Deal Defense Hub</div>
+                  <div className="text-[10px] text-indigo-200 font-normal leading-tight">SteerCo justification & orals</div>
+                </div>
+              </div>
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-indigo-500 text-white rounded-xs uppercase">
+                SteerCo
               </span>
             </button>
           )}

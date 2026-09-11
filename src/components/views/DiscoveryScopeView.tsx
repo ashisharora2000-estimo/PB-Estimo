@@ -44,7 +44,8 @@ import {
   ExternalLink,
   Tag,
   ListChecks,
-  Network
+  Network,
+  Zap
 } from 'lucide-react';
 import { ProjectScenario, ScaleDrivers, OracleModule, RolloutApproach, BlackoutPeriod, TShirtSize } from '../../types';
 import {
@@ -152,6 +153,18 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
   const [isClientQaModalOpen, setIsClientQaModalOpen] = useState<boolean>(false);
   const [isBidDefaultsModalOpen, setIsBidDefaultsModalOpen] = useState<boolean>(false);
   const [moduleForceShowAllQuestions, setModuleForceShowAllQuestions] = useState<Record<string, boolean>>({});
+
+  // Scoping Input Mode (Reduced 5-Core vs Full 20-Q)
+  const isReducedMode = scenario.scopingInputMode === 'fast_track';
+
+  const handleSetQuestionScopeMode = (mode: 'reduced' | 'full') => {
+    onUpdateScenario(prev => ({
+      ...prev,
+      scopingInputMode: mode === 'reduced' ? 'fast_track' : 'comprehensive'
+    }));
+    // Reset individual module force-all overrides so the global preference applies cleanly
+    setModuleForceShowAllQuestions({});
+  };
 
   // SteerCo Baseline Blackout Freeze & Governance Audit Modal (Whiteboard Feature 4)
   const [isUnlockModalOpen, setIsUnlockModalOpen] = useState<boolean>(false);
@@ -749,6 +762,20 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
 
             <button
               type="button"
+              onClick={() => handleSetQuestionScopeMode(isReducedMode ? 'full' : 'reduced')}
+              className={`px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer font-mono border shadow-2xs ${
+                isReducedMode
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 ring-1 ring-amber-400/40'
+                  : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
+              }`}
+              title="Toggle between Reduced Questions (5 Core Architectural Drivers) and Full 20 Questions"
+            >
+              <Zap size={13} className={isReducedMode ? 'fill-white text-white' : 'text-amber-600'} />
+              <span>Scope Q's: {isReducedMode ? '⚡ 5 Core (Reduced)' : '📋 20 Full'}</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setIsBidDefaultsModalOpen(true)}
               className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-300 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer font-mono shadow-2xs"
               title="Configure Bid-Specific Defaults, Input Reduction Profile & AI Confidence calibration"
@@ -936,9 +963,9 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
             {
               id: 'modules' as const,
               num: '1',
-              label: 'Modules & 20-Q Scope',
-              icon: Target,
-              badge: `${scenario.selectedModules.length} Modules`
+              label: isReducedMode ? 'Modules & Reduced Q\'s (5 Core)' : 'Modules & 20-Q Scope',
+              icon: isReducedMode ? Zap : Target,
+              badge: `${scenario.selectedModules.length} Mods • ${isReducedMode ? '⚡ 5 Core Qs' : '20-Q'}`
             },
             {
               id: 'technical' as const,
@@ -1031,6 +1058,69 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
 
           {/* TABULAR SCOPING SHEET (Clean, High-Density Professional Table) */}
           <div className="space-y-3 animate-in fade-in duration-150">
+
+              {/* PROMINENT SCOPING QUESTION DEPTH SWITCHER BANNER */}
+              <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-indigo-500/10 border-2 border-amber-400/80 p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className={`w-10 h-10 rounded-sm flex items-center justify-center shrink-0 shadow-xs ${
+                    isReducedMode ? 'bg-amber-500 text-white' : 'bg-slate-800 text-white'
+                  }`}>
+                    {isReducedMode ? <Zap size={22} className="fill-white" /> : <ListChecks size={22} />}
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold font-mono uppercase tracking-wider text-slate-900">
+                        Module Scoping Questionnaire Depth
+                      </span>
+                      <span className={`text-[10px] font-mono px-2 py-0.5 font-bold uppercase border ${
+                        isReducedMode
+                          ? 'bg-amber-500 text-white border-amber-600 shadow-2xs'
+                          : 'bg-slate-800 text-white border-slate-900 shadow-2xs'
+                      }`}>
+                        {isReducedMode ? '⚡ Reduced Questions Mode Active (5 Core Drivers)' : '📋 Full 20-Question Mode Active'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-700 leading-snug">
+                      {isReducedMode ? (
+                        <span>
+                          <strong>Fast-Track Scoping Active:</strong> Displaying the <strong>5 Core Mandatory Architectural Drivers</strong> per module (COA Segments, Multi-Ledger, Legal Entities, Volumes, Security). The other 15 secondary questions are auto-calibrated to Fit-to-Standard MBP.
+                        </span>
+                      ) : (
+                        <span>
+                          <strong>Comprehensive 20-Q Scoping Active:</strong> Displaying all <strong>20 detailed architectural questions</strong> across Process, Integrations, Data, Approvals, Reporting, and Compliance for full customization.
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 bg-white border border-slate-300 p-1 shrink-0 self-start md:self-auto shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => handleSetQuestionScopeMode('reduced')}
+                    className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
+                      isReducedMode
+                        ? 'bg-amber-500 text-white shadow-xs font-mono'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-mono'
+                    }`}
+                  >
+                    <Zap size={13} className={isReducedMode ? 'fill-white' : 'text-amber-600'} />
+                    <span>⚡ Reduced (5 Core Q's)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetQuestionScopeMode('full')}
+                    className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
+                      !isReducedMode
+                        ? 'bg-slate-900 text-white shadow-xs font-mono'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-mono'
+                    }`}
+                  >
+                    <ListChecks size={13} />
+                    <span>📋 Full 20 Questions</span>
+                  </button>
+                </div>
+              </div>
 
               {/* Table Filter Controls & Pillar Selector */}
               <div className="bg-white border border-slate-200 p-2.5 space-y-2.5 shadow-2xs">
@@ -1159,7 +1249,9 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
                       </th>
                       <th className="p-2 w-28 text-right border-r border-slate-800">Effort</th>
                       <th className="p-2 w-24 text-center border-r border-slate-800">Confidence</th>
-                      <th className="p-2 w-28 text-center">20-Q Scoping</th>
+                      <th className="p-2 w-36 text-center">
+                        {isReducedMode ? '⚡ 5 Core Q\'s' : '📋 20-Q Scoping'}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 text-xs">
@@ -1410,26 +1502,41 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
                                 )}
                               </td>
 
-                              {/* 20-Q Scoping Toggle & Score */}
+                              {/* Scoping Questions Toggle & Score */}
                               <td className="p-2 text-center">
                                 {isInScope ? (
-                                  <div className="space-y-0.5 flex flex-col items-center">
+                                  <div className="space-y-1 flex flex-col items-center">
                                     <div className="text-[9px] font-mono font-bold text-slate-700 leading-none">
                                       Score: <span className="text-indigo-600 font-bold">{avgScore.toFixed(1)}</span>/4.0
                                     </div>
                                     <button
                                       type="button"
                                       onClick={() => toggleRowExpanded(mod.id)}
-                                      className={`px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 transition cursor-pointer border ${
+                                      className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer border shadow-2xs ${
                                         isExpanded
                                           ? 'bg-indigo-600 text-white border-indigo-700'
+                                          : isReducedMode
+                                          ? 'bg-amber-50 hover:bg-amber-100 text-amber-950 border-amber-300 font-mono'
                                           : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
                                       }`}
-                                      title="Expand or collapse granular 20-question questionnaire for this module"
+                                      title={isExpanded ? 'Collapse questions' : `Expand ${isReducedMode ? '5 Reduced Core Questions' : 'All 20 Questions'}`}
                                     >
-                                      <span>{isExpanded ? 'Close' : '20-Q Sheet'}</span>
+                                      {isReducedMode ? (
+                                        <>
+                                          <Zap size={11} className={isExpanded ? 'text-amber-200 fill-amber-200' : 'text-amber-600 fill-amber-600'} />
+                                          <span>{isExpanded ? 'Close' : '⚡ 5 Core Q\'s'}</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Layers size={11} />
+                                          <span>{isExpanded ? 'Close' : '📋 20-Q Sheet'}</span>
+                                        </>
+                                      )}
                                       {isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
                                     </button>
+                                    <span className="text-[9px] font-mono text-slate-500">
+                                      {isReducedMode ? '5 Core Drivers' : '20 Questions'}
+                                    </span>
                                   </div>
                                 ) : (
                                   <button
@@ -1511,23 +1618,55 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
                                           <Play size={10} />
                                           <span>Step Wizard</span>
                                         </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setModuleForceShowAllQuestions(prev => ({
-                                              ...prev,
-                                              [mod.id]: !prev[mod.id]
-                                            }));
-                                          }}
-                                          className={`px-2 py-1 text-[10px] font-bold uppercase border cursor-pointer font-mono ${
-                                            moduleForceShowAllQuestions[mod.id]
-                                              ? 'bg-amber-100 text-amber-900 border-amber-300'
-                                              : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
-                                          }`}
-                                          title="Toggle between Core 5 Architecture Drivers and All 20 Questions"
-                                        >
-                                          {moduleForceShowAllQuestions[mod.id] ? '⚡ Core 5 Only' : 'All 20-Q'}
-                                        </button>
+                                        {/* Dedicated Fast-Track (5 Core) vs All 20-Q toggle buttons */}
+                                        <div className="flex items-center bg-white border border-slate-300 p-0.5 font-mono text-[10px] shadow-2xs">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (scenario.scopingInputMode === 'fast_track') {
+                                                setModuleForceShowAllQuestions(prev => {
+                                                  const next = { ...prev };
+                                                  delete next[mod.id];
+                                                  return next;
+                                                });
+                                              } else {
+                                                setModuleForceShowAllQuestions(prev => ({ ...prev, [mod.id]: false }));
+                                              }
+                                            }}
+                                            className={`px-2 py-1 font-bold uppercase flex items-center gap-1 transition cursor-pointer ${
+                                              ((scenario.scopingInputMode === 'fast_track' && !moduleForceShowAllQuestions[mod.id]) || moduleForceShowAllQuestions[mod.id] === false)
+                                                ? 'bg-amber-500 text-white shadow-xs'
+                                                : 'text-slate-600 hover:bg-slate-100'
+                                            }`}
+                                            title="Show only 5 Core Architecture Drivers for this module"
+                                          >
+                                            <Zap size={11} className={((scenario.scopingInputMode === 'fast_track' && !moduleForceShowAllQuestions[mod.id]) || moduleForceShowAllQuestions[mod.id] === false) ? 'fill-white' : 'text-amber-600'} />
+                                            <span>⚡ 5 Core Q's</span>
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (scenario.scopingInputMode === 'fast_track') {
+                                                setModuleForceShowAllQuestions(prev => ({ ...prev, [mod.id]: true }));
+                                              } else {
+                                                setModuleForceShowAllQuestions(prev => {
+                                                  const next = { ...prev };
+                                                  delete next[mod.id];
+                                                  return next;
+                                                });
+                                              }
+                                            }}
+                                            className={`px-2 py-1 font-bold uppercase flex items-center gap-1 transition cursor-pointer ${
+                                              !((scenario.scopingInputMode === 'fast_track' && !moduleForceShowAllQuestions[mod.id]) || moduleForceShowAllQuestions[mod.id] === false)
+                                                ? 'bg-slate-900 text-white shadow-xs'
+                                                : 'text-slate-600 hover:bg-slate-100'
+                                            }`}
+                                            title="Show all 20 detailed questions for this module"
+                                          >
+                                            <ListChecks size={11} />
+                                            <span>All 20-Q</span>
+                                          </button>
+                                        </div>
                                         <button
                                           type="button"
                                           onClick={() => open20QModal(mod.id, 'worksheet', 0)}
@@ -1541,22 +1680,62 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
                                     </div>
 
                                     {/* Fast-Track Input Reduction Notification Banner */}
-                                    {scenario.scopingInputMode === 'fast_track' && !moduleForceShowAllQuestions[mod.id] && (
-                                      <div className="p-2.5 bg-amber-50/90 border-b border-amber-300 text-amber-950 text-xs flex items-center justify-between gap-2">
+                                    {((scenario.scopingInputMode === 'fast_track' && !moduleForceShowAllQuestions[mod.id]) || moduleForceShowAllQuestions[mod.id] === false) ? (
+                                      <div className="p-3 bg-amber-500/10 border-b-2 border-amber-400 text-amber-950 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                         <div className="flex items-center gap-2">
-                                          <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 bg-amber-200 text-amber-900 border border-amber-400 uppercase">
-                                            ⚡ Fast-Track Active
+                                          <span className="font-mono font-bold text-[10px] px-2 py-0.5 bg-amber-500 text-white shadow-2xs uppercase">
+                                            ⚡ Reduced Questions Mode Active
                                           </span>
-                                          <span>
-                                            Displaying <strong>5 Core Architectural Drivers</strong>. 15 secondary questions are auto-calibrated to Bid Defaults (Fit-to-Standard MBP, 75% Confidence).
+                                          <span className="text-xs">
+                                            Displaying <strong>5 Core Architectural Drivers</strong> for {mod.name}. 15 secondary questions are pre-calibrated to Fit-to-Standard MBP (75% Confidence).
                                           </span>
                                         </div>
                                         <button
                                           type="button"
-                                          onClick={() => setModuleForceShowAllQuestions(prev => ({ ...prev, [mod.id]: true }))}
-                                          className="px-2 py-0.5 text-[10px] font-mono font-bold bg-white text-slate-800 border border-slate-300 hover:bg-slate-50 cursor-pointer shrink-0 shadow-2xs"
+                                          onClick={() => {
+                                            if (scenario.scopingInputMode === 'fast_track') {
+                                              setModuleForceShowAllQuestions(prev => ({ ...prev, [mod.id]: true }));
+                                            } else {
+                                              setModuleForceShowAllQuestions(prev => {
+                                                const next = { ...prev };
+                                                delete next[mod.id];
+                                                return next;
+                                              });
+                                            }
+                                          }}
+                                          className="px-2.5 py-1 text-xs font-mono font-bold bg-white text-slate-800 border border-slate-300 hover:bg-slate-50 cursor-pointer shrink-0 shadow-2xs flex items-center gap-1 self-start sm:self-auto"
                                         >
-                                          Expand All 20-Q
+                                          <ListChecks size={12} />
+                                          <span>Switch to All 20-Q</span>
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <div className="p-2.5 bg-indigo-50/70 border-b border-indigo-200 text-indigo-950 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-mono font-bold text-[10px] px-2 py-0.5 bg-indigo-900 text-white shadow-2xs uppercase">
+                                            📋 All 20 Questions Active
+                                          </span>
+                                          <span className="text-xs">
+                                            Displaying all <strong>20 granular architectural questions</strong> for {mod.name}.
+                                          </span>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (scenario.scopingInputMode === 'fast_track') {
+                                              setModuleForceShowAllQuestions(prev => {
+                                                const next = { ...prev };
+                                                delete next[mod.id];
+                                                return next;
+                                              });
+                                            } else {
+                                              setModuleForceShowAllQuestions(prev => ({ ...prev, [mod.id]: false }));
+                                            }
+                                          }}
+                                          className="px-2.5 py-1 text-xs font-mono font-bold bg-amber-500 text-white hover:bg-amber-600 cursor-pointer shrink-0 shadow-2xs flex items-center gap-1 self-start sm:self-auto"
+                                        >
+                                          <Zap size={12} className="fill-white" />
+                                          <span>Switch to 5 Core Q's Only</span>
                                         </button>
                                       </div>
                                     )}
@@ -1566,7 +1745,7 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
                                       <table className="w-full text-left text-xs border-collapse min-w-[1100px]">
                                         <thead>
                                           <tr className="bg-slate-100 text-slate-700 text-[10px] font-bold uppercase tracking-wider font-mono border-b border-slate-200">
-                                            <th className="p-2.5 w-12 text-center border-r border-slate-200">#</th>
+                                            <th className="p-2.5 w-14 text-center border-r border-slate-200">#</th>
                                             <th className="p-2.5 w-36 border-r border-slate-200">Category</th>
                                             <th className="p-2.5 min-w-[300px] border-r border-slate-200">Scoping Question & Architectural Rationale</th>
                                             <th className="p-2.5 min-w-[500px] text-center border-r border-slate-200">
@@ -1579,12 +1758,15 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
                                           {questions
                                             .map((q, idx) => ({ q, qIdx: idx }))
                                             .filter(({ q, qIdx }) => {
-                                              if (scenario.scopingInputMode === 'fast_track' && !moduleForceShowAllQuestions[mod.id]) {
+                                              const isReduced = (scenario.scopingInputMode === 'fast_track' && !moduleForceShowAllQuestions[mod.id]) ||
+                                                moduleForceShowAllQuestions[mod.id] === false;
+                                              if (isReduced) {
                                                 return isQuestionMandatory(q, qIdx);
                                               }
                                               return true;
                                             })
                                             .map(({ q, qIdx }) => {
+                                            const isMandatory = isQuestionMandatory(q, qIdx);
                                             const currentOpt = currentAnswers[qIdx] !== undefined ? currentAnswers[qIdx] : 1;
                                             const qMeta = scenario.questionConfidenceMeta?.[mod.id]?.[qIdx];
                                             const isClarificationNeeded = qMeta?.clientClarificationNeeded;
@@ -1592,7 +1774,14 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
                                             return (
                                               <tr key={qIdx} className={`hover:bg-slate-50/80 transition-colors ${qIdx % 2 === 1 ? 'bg-slate-50/30' : ''}`}>
                                                 <td className="p-2.5 text-center font-mono font-bold text-slate-500 border-r border-slate-100 align-top">
-                                                  Q{qIdx + 1}
+                                                  <div className="flex flex-col items-center gap-1">
+                                                    <span className="text-xs text-slate-800">Q{qIdx + 1}</span>
+                                                    {isMandatory && (
+                                                      <span className="px-1 py-0.5 bg-amber-500 text-white text-[8px] font-mono font-bold uppercase shadow-2xs" title="Core Architecture Driver">
+                                                        CORE
+                                                      </span>
+                                                    )}
+                                                  </div>
                                                 </td>
                                                 <td className="p-2.5 border-r border-slate-100 font-mono align-top">
                                                   <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200 block text-center">
@@ -1601,6 +1790,18 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
                                                 </td>
                                                 <td className="p-2.5 border-r border-slate-100 align-top">
                                                   <div className="space-y-1">
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                      {isMandatory ? (
+                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-mono font-bold uppercase">
+                                                          <Zap size={9} className="fill-amber-600 text-amber-600" />
+                                                          <span>Core Driver (2.5x Weight)</span>
+                                                        </span>
+                                                      ) : (
+                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 text-[9px] font-mono uppercase">
+                                                          <span>Secondary Q (1.0x Weight)</span>
+                                                        </span>
+                                                      )}
+                                                    </div>
                                                     <p className="font-bold text-slate-900 text-xs leading-snug">
                                                       {q.question}
                                                     </p>

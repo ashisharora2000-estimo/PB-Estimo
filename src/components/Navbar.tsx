@@ -23,7 +23,9 @@ import {
   Lock,
   ShieldCheck,
   Headphones,
-  Cloud
+  Cloud,
+  SlidersHorizontal,
+  Award
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData, OracleModule } from '../types';
 import { PRESET_SCENARIOS } from '../data/templates';
@@ -47,6 +49,8 @@ interface NavbarProps {
   onOpenTraceMath?: (target?: OracleModule | 'project_total') => void;
   onOpenAshishCopilot?: () => void;
   onOpenNewProposal?: () => void;
+  onOpenWhatIfSimulator?: () => void;
+  onOpenDealDefense?: () => void;
   onOpenSmartsheetExport?: () => void;
   onOpenSlideDeck?: () => void;
   onOpenNotebookLmPodcast?: () => void;
@@ -70,6 +74,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenTraceMath,
   onOpenAshishCopilot,
   onOpenNewProposal,
+  onOpenWhatIfSimulator,
+  onOpenDealDefense,
   onOpenSmartsheetExport,
   onOpenSlideDeck,
   onOpenNotebookLmPodcast,
@@ -425,6 +431,46 @@ export const Navbar: React.FC<NavbarProps> = ({
                   )}
 
                   {/* Framework Slider hidden */}
+
+                  {onOpenWhatIfSimulator && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenWhatIfSimulator();
+                        setToolsOpen(false);
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-900 flex items-center gap-2 transition"
+                    >
+                      <SlidersHorizontal size={13} className="text-amber-600" />
+                      <div>
+                        <div className="font-bold flex items-center gap-1.5">
+                          <span>What-If Trade-off Simulator</span>
+                          <span className="text-[9px] font-bold px-1 py-0.2 rounded-xs bg-amber-100 text-amber-800">Oral Defense</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-normal">Live margin, cutover & CEMLI sensitivity</div>
+                      </div>
+                    </button>
+                  )}
+
+                  {onOpenDealDefense && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenDealDefense();
+                        setToolsOpen(false);
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-2 transition"
+                    >
+                      <Award size={13} className="text-indigo-600" />
+                      <div>
+                        <div className="font-bold flex items-center gap-1.5">
+                          <span>Deal Defense & Orals Battlecard</span>
+                          <span className="text-[9px] font-bold px-1 py-0.2 rounded-xs bg-indigo-100 text-indigo-800">SteerCo</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-normal">Executive justification, duration defense & SOW shield</div>
+                      </div>
+                    </button>
+                  )}
 
                   {onOpenSlideDeck && (
                     <button

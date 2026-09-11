@@ -62,7 +62,9 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
 }) => {
   const [viewMode, setViewMode] = useState<'worksheet' | 'wizard'>(initialMode);
   const [activeQuestionIdx, setActiveQuestionIdx] = useState<number>(initialQuestionIndex);
-  const [scopeFilter, setScopeFilter] = useState<'all' | 'mandatory' | 'optional' | 'flagged'>('all');
+  const [scopeFilter, setScopeFilter] = useState<'all' | 'mandatory' | 'optional' | 'flagged'>(
+    scenario.scopingInputMode === 'fast_track' ? 'mandatory' : 'all'
+  );
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);

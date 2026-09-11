@@ -18,6 +18,7 @@ import {
   Calculator,
   Plus,
   Sliders,
+  SlidersHorizontal,
   Sparkles,
   BarChart3,
   Globe,
@@ -38,6 +39,8 @@ interface DashboardViewProps {
   onNavigateTab: (tab: any) => void;
   onOpenTraceMath?: (target?: OracleModule | 'project_total') => void;
   onOpenNewProposal?: () => void;
+  onOpenWhatIfSimulator?: () => void;
+  onOpenDealDefense?: () => void;
   onUpdateScenario?: (updater: (prev: ProjectScenario) => ProjectScenario) => void;
   onSaveScenario?: () => void;
   onResetDefaults?: () => void;
@@ -50,6 +53,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigateTab,
   onOpenTraceMath,
   onOpenNewProposal,
+  onOpenWhatIfSimulator,
+  onOpenDealDefense,
   onUpdateScenario,
   onSaveScenario,
   onResetDefaults,
@@ -127,6 +132,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               >
                 <Plus size={14} className="stroke-[2.5]" />
                 <span>New Proposal</span>
+              </button>
+            )}
+            {onOpenWhatIfSimulator && (
+              <button
+                onClick={onOpenWhatIfSimulator}
+                className="px-3.5 py-2 rounded-sm bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-xs border border-amber-400"
+                title="Open Live What-If Margin & Scope Trade-off Simulator"
+              >
+                <SlidersHorizontal size={14} className="stroke-[2.5]" />
+                <span>What-If Simulator</span>
+              </button>
+            )}
+            {onOpenDealDefense && (
+              <button
+                onClick={onOpenDealDefense}
+                className="px-3.5 py-2 rounded-sm bg-indigo-950 hover:bg-indigo-900 active:bg-slate-950 text-white text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-xs border border-indigo-700/50"
+                title="Open Deal Defense & SteerCo Justification Hub"
+              >
+                <Award size={14} className="text-amber-300 stroke-[2.5]" />
+                <span>Deal Defense</span>
               </button>
             )}
             <button

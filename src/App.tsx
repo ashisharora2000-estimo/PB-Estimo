@@ -23,6 +23,8 @@ import { AshishAroraChatbotModal } from './components/ai/AshishAroraChatbotModal
 import { NewProposalModal } from './components/modals/NewProposalModal';
 import { SmartsheetExportModal } from './components/governance/SmartsheetExportModal';
 import { ExecutiveSlideDeckModal } from './components/modals/ExecutiveSlideDeckModal';
+import { WhatIfTradeoffSimulatorModal } from './components/modals/WhatIfTradeoffSimulatorModal';
+import { DealDefenseModal } from './components/modals/DealDefenseModal';
 import { ExecutiveDealBanner } from './components/common/ExecutiveDealBanner';
 import { NotebookLMPodcastStudio } from './components/podcast/NotebookLMPodcastStudio';
 import { FloatingPodcastBar } from './components/podcast/FloatingPodcastBar';
@@ -109,6 +111,8 @@ export default function App() {
   const [traceMathTargetModule, setTraceMathTargetModule] = useState<OracleModule | 'project_total'>('project_total');
   const [ashishCopilotOpen, setAshishCopilotOpen] = useState(false);
   const [newProposalModalOpen, setNewProposalModalOpen] = useState(false);
+  const [whatIfSimulatorOpen, setWhatIfSimulatorOpen] = useState(false);
+  const [dealDefenseModalOpen, setDealDefenseModalOpen] = useState(false);
   const [smartsheetExportModalOpen, setSmartsheetExportModalOpen] = useState(false);
   const [slideDeckModalOpen, setSlideDeckModalOpen] = useState(false);
   const [notebookLmPodcastOpen, setNotebookLmPodcastOpen] = useState(false);
@@ -371,6 +375,8 @@ export default function App() {
             data={calculatedData}
             onUpdateScenario={setActiveScenario}
             onSaveScenario={handleSaveScenario}
+            onOpenWhatIfSimulator={() => setWhatIfSimulatorOpen(true)}
+            onOpenDealDefense={() => setDealDefenseModalOpen(true)}
           />
         );
       case 'governance':
@@ -410,6 +416,8 @@ export default function App() {
             onNavigateTab={(tab) => setActiveTab(tab)}
             onOpenTraceMath={handleOpenTraceMath}
             onOpenNewProposal={() => setNewProposalModalOpen(true)}
+            onOpenWhatIfSimulator={() => setWhatIfSimulatorOpen(true)}
+            onOpenDealDefense={() => setDealDefenseModalOpen(true)}
             onUpdateScenario={setActiveScenario}
             onSaveScenario={handleSaveScenario}
             onResetDefaults={handleResetDefaults}
@@ -439,6 +447,8 @@ export default function App() {
         onOpenTraceMath={handleOpenTraceMath}
         onOpenAshishCopilot={() => setAshishCopilotOpen(true)}
         onOpenNewProposal={() => setNewProposalModalOpen(true)}
+        onOpenWhatIfSimulator={() => setWhatIfSimulatorOpen(true)}
+        onOpenDealDefense={() => setDealDefenseModalOpen(true)}
         onOpenSlideDeck={() => setSlideDeckModalOpen(true)}
         customScenarios={customProposals}
         onDeleteCustomScenario={handleDeleteCustomProposal}
@@ -464,6 +474,8 @@ export default function App() {
           doaTier={calculatedData.doaTier}
           onOpenComplexityStudio={() => handleOpenComplexityStudio('complexity')}
           onOpenNewProposal={() => setNewProposalModalOpen(true)}
+          onOpenWhatIfSimulator={() => setWhatIfSimulatorOpen(true)}
+          onOpenDealDefense={() => setDealDefenseModalOpen(true)}
           onOpenSlideDeck={() => setSlideDeckModalOpen(true)}
         />
 
@@ -703,6 +715,37 @@ export default function App() {
         onClose={() => setSlideDeckModalOpen(false)}
         scenario={activeScenario}
         data={calculatedData}
+      />
+
+      {/* What-If Margin & Scope Trade-off Simulator Modal (Oral Defense Tool) */}
+      <WhatIfTradeoffSimulatorModal
+        isOpen={whatIfSimulatorOpen}
+        onClose={() => setWhatIfSimulatorOpen(false)}
+        scenario={activeScenario}
+        calculatedData={calculatedData}
+        onApplyScenario={(updated) => {
+          setActiveScenario(updated);
+          handleSaveScenario();
+        }}
+        onSaveAsVariantScenario={(variant) => {
+          handleCreateProposal(variant);
+        }}
+      />
+
+      {/* Deal Defense & SteerCo Justification Hub Modal */}
+      <DealDefenseModal
+        isOpen={dealDefenseModalOpen}
+        onClose={() => setDealDefenseModalOpen(false)}
+        scenario={activeScenario}
+        data={calculatedData}
+        onOpenWhatIfSimulator={() => {
+          setDealDefenseModalOpen(false);
+          setWhatIfSimulatorOpen(true);
+        }}
+        onOpenSlideDeck={() => {
+          setDealDefenseModalOpen(false);
+          setSlideDeckModalOpen(true);
+        }}
       />
 
       {/* Google NotebookLM 2-Host Audio Overview Studio Modal & Floating Bar - Hidden for future release */}

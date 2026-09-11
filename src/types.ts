@@ -370,6 +370,7 @@ export interface ProjectScenario {
   clientName?: string;
   industry?: string;
   description: string;
+  proposalCreatedAt?: string;
   selectedModules: OracleModule[];
   scaleDrivers: ScaleDrivers;
   complexityAnswers: Record<string, number[]>;

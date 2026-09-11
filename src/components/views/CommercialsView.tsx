@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Sliders,
+  SlidersHorizontal,
   Award,
   ChevronRight,
   Briefcase,
@@ -30,13 +31,17 @@ interface CommercialsViewProps {
   data: CalculatedProjectData;
   onUpdateScenario: (updater: (prev: ProjectScenario) => ProjectScenario) => void;
   onSaveScenario?: () => void;
+  onOpenWhatIfSimulator?: () => void;
+  onOpenDealDefense?: () => void;
 }
 
 export const CommercialsView: React.FC<CommercialsViewProps> = ({
   scenario,
   data,
   onUpdateScenario,
-  onSaveScenario
+  onSaveScenario,
+  onOpenWhatIfSimulator,
+  onOpenDealDefense
 }) => {
   const [activeCommercialTab, setActiveCommercialTab] = useState<'regional_mix' | 'grades_matrix' | 'assurance'>('grades_matrix');
 
@@ -223,6 +228,26 @@ export const CommercialsView: React.FC<CommercialsViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {onOpenWhatIfSimulator && (
+            <button
+              onClick={onOpenWhatIfSimulator}
+              className="px-4 py-2 rounded-sm bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 text-xs font-bold uppercase tracking-wider transition flex items-center gap-2 cursor-pointer shadow-xs border border-amber-400"
+              title="Open Live Oral Defense & Margin Trade-off Simulator"
+            >
+              <SlidersHorizontal size={14} className="stroke-[2.5]" />
+              <span>Live What-If Simulator</span>
+            </button>
+          )}
+          {onOpenDealDefense && (
+            <button
+              onClick={onOpenDealDefense}
+              className="px-4 py-2 rounded-sm bg-indigo-950 hover:bg-indigo-900 active:bg-slate-950 text-white text-xs font-bold uppercase tracking-wider transition flex items-center gap-2 cursor-pointer shadow-xs border border-indigo-700/50"
+              title="Open Deal Defense & SteerCo Justification Hub"
+            >
+              <Award size={14} className="text-amber-300 stroke-[2.5]" />
+              <span>Deal Defense Hub</span>
+            </button>
+          )}
           {onSaveScenario && (
             <button
               onClick={onSaveScenario}
