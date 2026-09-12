@@ -17,7 +17,9 @@ import {
   Database,
   Building,
   HelpCircle,
-  BarChart3
+  BarChart3,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import {
   ProjectScenario,
@@ -48,6 +50,7 @@ export const TraceTheMathModal: React.FC<TraceTheMathModalProps> = ({
   const [activeTarget, setActiveTarget] = useState<OracleModule | 'project_total'>(initialTarget);
   const [activeTab, setActiveTab] = useState<'equation' | 'waterfall' | 'rolemix'>('equation');
   const [copied, setCopied] = useState(false);
+  const [panelMode, setPanelMode] = useState<'drawer' | 'modal'>('drawer');
 
   // Sync initial target if it changes when modal opens
   React.useEffect(() => {
@@ -228,14 +231,27 @@ export const TraceTheMathModal: React.FC<TraceTheMathModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
+    <div
+      className={`fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex ${
+        panelMode === 'drawer'
+          ? 'justify-end animate-in fade-in duration-150'
+          : 'items-center justify-center p-4 animate-in fade-in duration-200'
+      }`}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
-        className="bg-white border border-slate-200 rounded-sm shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden text-slate-900 animate-in zoom-in-95 duration-150"
+        className={`bg-white shadow-2xl flex flex-col overflow-hidden text-slate-900 ${
+          panelMode === 'drawer'
+            ? 'w-full max-w-2xl sm:max-w-3xl h-full border-l border-slate-200 animate-in slide-in-from-right duration-200'
+            : 'border border-slate-200 rounded-sm w-full max-w-5xl max-h-[92vh]'
+        }`}
         role="dialog"
         aria-modal="true"
       >
         {/* Modal Header */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
             <span className="p-2 rounded-sm bg-white/10 text-amber-400 border border-white/15">
               <Calculator size={20} />
@@ -255,13 +271,34 @@ export const TraceTheMathModal: React.FC<TraceTheMathModalProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-sm bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition cursor-pointer"
-            title="Close Math Trace"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Drawer / Modal Toggle */}
+            <button
+              onClick={() => setPanelMode(panelMode === 'drawer' ? 'modal' : 'drawer')}
+              className="p-1.5 rounded-sm bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition cursor-pointer flex items-center gap-1 text-xs font-mono px-2"
+              title={panelMode === 'drawer' ? 'Switch to Full Screen Modal' : 'Dock as Side Drawer'}
+            >
+              {panelMode === 'drawer' ? (
+                <>
+                  <Maximize2 size={13} />
+                  <span className="hidden sm:inline">Expand</span>
+                </>
+              ) : (
+                <>
+                  <Minimize2 size={13} />
+                  <span className="hidden sm:inline">Side Drawer</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-sm bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition cursor-pointer"
+              title="Close Math Trace"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Target Switcher Ribbon */}

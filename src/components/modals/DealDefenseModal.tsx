@@ -24,7 +24,9 @@ import {
   Calendar,
   Lock,
   ArrowRight,
-  ExternalLink
+  ExternalLink,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData, OracleModule } from '../../types';
 import { ORACLE_MODULE_CATALOG } from '../../data/oraclePhases';
@@ -61,6 +63,7 @@ export const DealDefenseModal: React.FC<DealDefenseModalProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>('thesis');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [selectedObjectionId, setSelectedObjectionId] = useState<string>('obj-1');
+  const [panelMode, setPanelMode] = useState<'drawer' | 'modal'>('drawer');
   const [searchQuery, setSearchQuery] = useState('');
 
   if (!isOpen) return null;
@@ -301,8 +304,23 @@ Oracle Cloud ERP Pursuit & Delivery Assurance Council
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
-      <div className="bg-white rounded-md border border-slate-300 shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden">
+    <div
+      className={`fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex ${
+        panelMode === 'drawer'
+          ? 'justify-end animate-in fade-in duration-150'
+          : 'items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200'
+      }`}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className={`bg-white shadow-2xl flex flex-col overflow-hidden text-slate-900 ${
+          panelMode === 'drawer'
+            ? 'w-full max-w-2xl sm:max-w-3xl h-full border-l border-slate-300 animate-in slide-in-from-right duration-200'
+            : 'rounded-md border border-slate-300 w-full max-w-6xl max-h-[92vh]'
+        }`}
+      >
         
         {/* Modal Header */}
         <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800 shrink-0">
@@ -351,6 +369,25 @@ Oracle Cloud ERP Pursuit & Delivery Assurance Council
                 <span>Trade-off Simulator</span>
               </button>
             )}
+
+            {/* Contextual Drawer / Modal Mode Toggle */}
+            <button
+              onClick={() => setPanelMode(panelMode === 'drawer' ? 'modal' : 'drawer')}
+              className="px-2.5 py-1.5 rounded-sm bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-white/20"
+              title={panelMode === 'drawer' ? 'Switch to Full Screen Modal' : 'Dock as Side Drawer'}
+            >
+              {panelMode === 'drawer' ? (
+                <>
+                  <Maximize2 size={13} />
+                  <span className="hidden sm:inline">Expand Modal</span>
+                </>
+              ) : (
+                <>
+                  <Minimize2 size={13} />
+                  <span className="hidden sm:inline">Dock Drawer</span>
+                </>
+              )}
+            </button>
 
             <button
               onClick={onClose}

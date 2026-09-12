@@ -1829,7 +1829,9 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
                                                           title={`Confidence: ${qMeta.percentage}% | Source: ${qMeta.source}`}
                                                         >
                                                           {qMeta.percentage}% {qMeta.confidence.toUpperCase()} ({
-                                                            qMeta.source === 'ai_proposal'
+                                                            qMeta.source === 'scoping_sheet'
+                                                              ? 'Scoping Sheet (Priority)'
+                                                              : qMeta.source === 'ai_proposal'
                                                               ? 'AI Ingested'
                                                               : qMeta.source === 'bid_default'
                                                               ? 'Bid Default'

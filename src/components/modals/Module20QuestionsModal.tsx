@@ -576,6 +576,29 @@ export const Module20QuestionsModal: React.FC<Module20QuestionsModalProps> = ({
                                 Proposal Evidence: &ldquo;{qMeta.proposalCitation}&rdquo;
                               </div>
                             )}
+                            {qMeta && (
+                              <div className="flex items-center gap-1.5 mt-1.5">
+                                <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 border ${
+                                  qMeta.confidence === 'high'
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                    : qMeta.confidence === 'medium'
+                                    ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                                    : 'bg-rose-50 text-rose-800 border-rose-200'
+                                }`}>
+                                  {qMeta.percentage}% {qMeta.confidence.toUpperCase()} ({
+                                    qMeta.source === 'scoping_sheet'
+                                      ? 'Scoping Sheet (Priority)'
+                                      : qMeta.source === 'ai_proposal'
+                                      ? 'AI Ingested'
+                                      : qMeta.source === 'bid_default'
+                                      ? 'Bid Default'
+                                      : qMeta.source === 'manual_override'
+                                      ? 'User Set'
+                                      : 'Default Benchmark'
+                                  })
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
 

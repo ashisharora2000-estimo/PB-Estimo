@@ -677,7 +677,7 @@ export interface BidDefaultsConfig {
 export interface QuestionConfidenceMeta {
   confidence: 'high' | 'medium' | 'low' | 'unconfirmed';
   percentage: number; // 0 to 100
-  source: 'ai_proposal' | 'manual_override' | 'default_benchmark' | 'client_confirmed' | 'bid_default';
+  source: 'scoping_sheet' | 'ai_proposal' | 'manual_override' | 'default_benchmark' | 'client_confirmed' | 'bid_default';
   proposalCitation?: string;
   clientClarificationNeeded?: boolean;
   clientNotes?: string;
@@ -697,6 +697,8 @@ export interface UploadedProposal {
   extractedScaleDrivers?: Partial<ScaleDrivers>;
   summaryFindings?: string[];
   clientClarificationsNeeded?: string[];
+  scopingSheetQuestionsCount?: number;
+  moduleRatingsCount?: number;
 }
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low' | 'unconfirmed';

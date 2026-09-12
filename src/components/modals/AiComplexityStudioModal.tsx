@@ -15,7 +15,9 @@ import {
   Globe,
   X,
   FileQuestion,
-  TrendingUp
+  TrendingUp,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { ProjectScenario, CustomScopingQuestion, CustomScaleDriver } from '../../types';
 import { generateDynamicScopingQuestions, askOracleAiAdvisor } from '../../utils/aiService';
@@ -48,6 +50,7 @@ export const AiComplexityStudioModal: React.FC<AiComplexityStudioModalProps> = (
   initialAiPrompt
 }) => {
   const [activeTab, setActiveTab] = useState<'complexity' | 'questions' | 'drivers' | 'ai_advisor'>(initialTab);
+  const [panelMode, setPanelMode] = useState<'drawer' | 'modal'>('drawer');
   
   // Complexity Dial
   const currentMultiplier = scenario.globalComplexityMultiplier || 1.0;
@@ -227,10 +230,25 @@ export const AiComplexityStudioModal: React.FC<AiComplexityStudioModalProps> = (
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div
+      className={`fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex ${
+        panelMode === 'drawer'
+          ? 'justify-end animate-in fade-in duration-150'
+          : 'items-center justify-center p-4 animate-in fade-in duration-200'
+      }`}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className={`bg-white shadow-xl flex flex-col overflow-hidden text-slate-900 ${
+          panelMode === 'drawer'
+            ? 'w-full max-w-2xl sm:max-w-3xl h-full border-l border-slate-200 animate-in slide-in-from-right duration-200'
+            : 'rounded-lg border border-slate-200 w-full max-w-4xl max-h-[90vh]'
+        }`}
+      >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-md bg-indigo-600 text-white shadow-xs">
               <Sliders className="w-5 h-5" />
@@ -244,12 +262,31 @@ export const AiComplexityStudioModal: React.FC<AiComplexityStudioModalProps> = (
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPanelMode(panelMode === 'drawer' ? 'modal' : 'drawer')}
+              className="p-1.5 rounded-md text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors flex items-center gap-1 text-xs font-mono"
+              title={panelMode === 'drawer' ? 'Switch to Full Screen Modal' : 'Dock as Side Drawer'}
+            >
+              {panelMode === 'drawer' ? (
+                <>
+                  <Maximize2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Expand</span>
+                </>
+              ) : (
+                <>
+                  <Minimize2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Side Drawer</span>
+                </>
+              )}
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Tab Navigation */}

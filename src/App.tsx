@@ -26,6 +26,7 @@ import { ExecutiveSlideDeckModal } from './components/modals/ExecutiveSlideDeckM
 import { WhatIfTradeoffSimulatorModal } from './components/modals/WhatIfTradeoffSimulatorModal';
 import { DealDefenseModal } from './components/modals/DealDefenseModal';
 import { ExecutiveDealBanner } from './components/common/ExecutiveDealBanner';
+import { GuidedWorkflowFooter, UserRolePreset } from './components/common/GuidedWorkflowFooter';
 import { NotebookLMPodcastStudio } from './components/podcast/NotebookLMPodcastStudio';
 import { FloatingPodcastBar } from './components/podcast/FloatingPodcastBar';
 import { PodcastView } from './components/views/PodcastView';
@@ -143,6 +144,7 @@ export default function App() {
   );
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [rolePreset, setRolePreset] = useState<UserRolePreset>('all');
 
   // Real-time synchronization of custom proposals with Firestore Cloud Database
   useEffect(() => {
@@ -477,6 +479,8 @@ export default function App() {
           onOpenWhatIfSimulator={() => setWhatIfSimulatorOpen(true)}
           onOpenDealDefense={() => setDealDefenseModalOpen(true)}
           onOpenSlideDeck={() => setSlideDeckModalOpen(true)}
+          rolePreset={rolePreset}
+          onSelectRolePreset={setRolePreset}
         />
 
         {/* Mobile Navigation Drawer Trigger */}
@@ -511,6 +515,25 @@ export default function App() {
                   >
                     <X size={18} />
                   </button>
+                </div>
+
+                {/* Role Filter for Mobile */}
+                <div className="bg-slate-50 p-2 rounded-xs border border-slate-200 space-y-1">
+                  <div className="text-[10px] font-extrabold uppercase text-slate-500 font-mono">Role View</div>
+                  <div className="grid grid-cols-4 gap-1">
+                    {(['all', 'architect', 'commercial', 'executive'] as UserRolePreset[]).map((r) => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setRolePreset(r)}
+                        className={`py-1 text-[10px] font-bold capitalize rounded-xs text-center cursor-pointer ${
+                          rolePreset === r ? 'bg-slate-900 text-white shadow-xs' : 'bg-white text-slate-700 border border-slate-200'
+                        }`}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <nav className="space-y-1">
@@ -639,6 +662,12 @@ export default function App() {
             lastSavedTimestamp={lastSavedTimestamp}
           />
           {renderActiveTabContent()}
+          <GuidedWorkflowFooter
+            activeTab={activeTab}
+            onSelectTab={setActiveTab}
+            rolePreset={rolePreset}
+            onSelectRolePreset={setRolePreset}
+          />
         </main>
       </div>
 

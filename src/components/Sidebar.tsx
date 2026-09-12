@@ -2,28 +2,26 @@ import React from 'react';
 import {
   LayoutDashboard,
   Target,
-  Scale,
   CalendarDays,
   Award,
   Users,
   ShieldCheck,
   FileText,
   AlertTriangle,
-  Zap,
-  GitCompare,
-  Radio,
-  Sliders,
-  Sparkles,
-  Headphones,
-  GitMerge,
   ChevronDown,
   ChevronRight,
   SlidersHorizontal,
   Plus,
   Presentation,
   BarChart2,
-  ListChecks
+  ListChecks,
+  GitMerge,
+  Calculator,
+  Compass,
+  Briefcase,
+  Layers
 } from 'lucide-react';
+import { UserRolePreset } from './common/GuidedWorkflowFooter';
 
 export type NavTabId =
   | 'dashboard'
@@ -103,27 +101,177 @@ interface SidebarProps {
   onOpenDealDefense?: () => void;
   onOpenSlideDeck?: () => void;
   onOpenNotebookLmPodcast?: () => void;
+  rolePreset?: UserRolePreset;
+  onSelectRolePreset?: (role: UserRolePreset) => void;
 }
 
-// 4 Core Pursuit Steps for streamlined Bid Management
-const CORE_PURSUIT_STEPS: Array<{ id: NavTabId; stepNumber: string; label: string; sub: string; icon: React.ElementType; badge?: string; badgeColor?: string }> = [
-  { id: 'discovery', stepNumber: '1', label: 'Deal Setup & Scope', sub: 'Thor ID, Modules & RICEFW', icon: Target },
-  { id: 'schedule', stepNumber: '2', label: 'Effort & Schedule', sub: 'Wave Timelines & 30-Col WBS', icon: CalendarDays, badge: 'Sizing' },
-  { id: 'commercial', stepNumber: '3', label: 'Commercials & Staffing', sub: 'Pyramid, Sourcing & Margins', icon: Users },
-  { id: 'reports', stepNumber: '4', label: 'Proposal Dossier', sub: 'RFP Brief & Executive Exports', icon: FileText }
+export interface NavStageDefinition {
+  id: string;
+  stageNumber: number;
+  title: string;
+  tag: string;
+  colorClass: {
+    bg: string;
+    text: string;
+    border: string;
+    activeBg: string;
+  };
+  steps: Array<{
+    id: NavTabId;
+    stepNumber: string;
+    label: string;
+    sub: string;
+    icon: React.ElementType;
+    badge?: string;
+    roles: UserRolePreset[];
+  }>;
+}
+
+export const BID_LIFECYCLE_STAGES: NavStageDefinition[] = [
+  {
+    id: 'stage_1',
+    stageNumber: 1,
+    title: 'Scope & Demarcation',
+    tag: 'Step 1-2',
+    colorClass: {
+      bg: 'bg-indigo-50/80',
+      text: 'text-indigo-800',
+      border: 'border-indigo-200',
+      activeBg: 'bg-indigo-600'
+    },
+    steps: [
+      {
+        id: 'discovery',
+        stepNumber: '1',
+        label: 'Scope & Architecture',
+        sub: 'Modules, 20-Q & RICEFW',
+        icon: Target,
+        roles: ['all', 'architect']
+      },
+      {
+        id: 'multivendor',
+        stepNumber: '2',
+        label: 'Multi-Vendor Split',
+        sub: 'SI Demarcation Matrix',
+        icon: GitMerge,
+        badge: 'RACI',
+        roles: ['all', 'architect']
+      }
+    ]
+  },
+  {
+    id: 'stage_2',
+    stageNumber: 2,
+    title: 'Effort & Timeline',
+    tag: 'Step 3-5',
+    colorClass: {
+      bg: 'bg-amber-50/80',
+      text: 'text-amber-900',
+      border: 'border-amber-200',
+      activeBg: 'bg-amber-600'
+    },
+    steps: [
+      {
+        id: 'estimation',
+        stepNumber: '3',
+        label: 'Estimation Engine',
+        sub: 'Complexity & Workstream Hrs',
+        icon: Calculator,
+        badge: 'Effort',
+        roles: ['all', 'architect', 'commercial']
+      },
+      {
+        id: 'schedule',
+        stepNumber: '4',
+        label: 'Schedule & Gantt',
+        sub: 'Wave Timelines & 30-Col WBS',
+        icon: CalendarDays,
+        badge: 'Gantt',
+        roles: ['all', 'architect']
+      },
+      {
+        id: 'leadership',
+        stepNumber: '5',
+        label: 'Leadership Review',
+        sub: '5 Delivery Gaps Audit',
+        icon: Award,
+        badge: '5 Gaps',
+        roles: ['all', 'executive']
+      }
+    ]
+  },
+  {
+    id: 'stage_3',
+    stageNumber: 3,
+    title: 'Pricing & Governance',
+    tag: 'Step 6-8',
+    colorClass: {
+      bg: 'bg-emerald-50/80',
+      text: 'text-emerald-900',
+      border: 'border-emerald-200',
+      activeBg: 'bg-emerald-600'
+    },
+    steps: [
+      {
+        id: 'commercial',
+        stepNumber: '6',
+        label: 'Commercials & P&L',
+        sub: 'Pyramid, Sourcing & Margins',
+        icon: Users,
+        roles: ['all', 'commercial']
+      },
+      {
+        id: 'governance',
+        stepNumber: '7',
+        label: 'Governance & DoA',
+        sub: 'Tiered DoA Sign-off & Audit',
+        icon: ShieldCheck,
+        roles: ['all', 'commercial']
+      },
+      {
+        id: 'reports',
+        stepNumber: '8',
+        label: 'Proposal Dossier',
+        sub: 'RFP Brief & SOW Exports',
+        icon: FileText,
+        roles: ['all', 'commercial', 'executive']
+      }
+    ]
+  }
 ];
 
-// Advanced Insights, Governance & Quality Assurance
-const ADVANCED_INSIGHT_ITEMS: Array<{ id: NavTabId; label: string; sub: string; icon: React.ElementType; badge?: string; badgeColor?: string }> = [
-  { id: 'dashboard', label: 'Executive Command', sub: 'KPIs, Health & Footprint', icon: LayoutDashboard },
-  { id: 'testing', label: 'Business Testing & QA', sub: 'Testing 1 (SIT) & 2 (UAT)', icon: ListChecks, badge: 'SIT/UAT' },
-  { id: 'delivery_confidence', label: 'Delivery Confidence', sub: 'P80 Risk Buffer & Contingency', icon: BarChart2, badge: 'P80' },
-  // Estimation Engine (3-Point P10/P50/P80 Ranges) hidden for simplified proposal workflow
-  { id: 'leadership', label: 'Leadership Review', sub: '5 Scheduling/Sizing Gaps', icon: Award, badge: '5 Gaps' },
-  { id: 'governance', label: 'Governance & DoA', sub: 'Tiered DoA Sign-off & Audit', icon: ShieldCheck },
-  // Benchmark Master hidden for future enablement as standard loading is not preferred for proposals
-  { id: 'multivendor', label: 'Multi-Vendor Split', sub: 'SI Demarcation Matrix', icon: GitMerge, badge: 'Multi-SI' }
-  // Framework One-Slider hidden for simplified proposal workflow
+const ADVANCED_ASSURANCE_ITEMS: Array<{
+  id: NavTabId;
+  label: string;
+  sub: string;
+  icon: React.ElementType;
+  badge?: string;
+  roles: UserRolePreset[];
+}> = [
+  {
+    id: 'framework_slider',
+    label: 'Framework One-Slider',
+    sub: 'Architecture Presentation',
+    icon: Compass,
+    badge: 'Voice',
+    roles: ['all', 'executive']
+  },
+  {
+    id: 'testing',
+    label: 'Business Testing & QA',
+    sub: 'Testing 1 (SIT) & 2 (UAT)',
+    icon: ListChecks,
+    badge: 'SIT/UAT',
+    roles: ['all', 'architect']
+  },
+  {
+    id: 'delivery_confidence',
+    label: 'Delivery Confidence',
+    sub: 'P80 Risk Buffer & Contingency',
+    icon: BarChart2,
+    badge: 'P80',
+    roles: ['all', 'architect', 'commercial']
+  }
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -140,14 +288,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenWhatIfSimulator,
   onOpenDealDefense,
   onOpenSlideDeck,
-  onOpenNotebookLmPodcast
+  onOpenNotebookLmPodcast,
+  rolePreset = 'all',
+  onSelectRolePreset
 }) => {
   const [advancedExpanded, setAdvancedExpanded] = React.useState<boolean>(
-    ['testing', 'delivery_confidence', 'estimation', 'governance', 'multivendor', 'leadership', 'framework_slider'].includes(activeTab)
+    ['testing', 'delivery_confidence', 'framework_slider'].includes(activeTab)
   );
 
+  const rolePills: Array<{ id: UserRolePreset; label: string; icon: string }> = [
+    { id: 'all', label: 'All', icon: '🌐' },
+    { id: 'architect', label: 'Architect', icon: '🏗️' },
+    { id: 'commercial', label: 'Commercial', icon: '💼' },
+    { id: 'executive', label: 'Executive', icon: '👔' }
+  ];
+
   return (
-    <aside className="w-64 shrink-0 hidden md:block select-none">
+    <aside className="w-68 shrink-0 hidden md:block select-none">
       <div className="sticky top-20 max-h-[calc(100vh-5.5rem)] overflow-y-auto pr-1 pb-6 space-y-3 custom-scrollbar">
         
         {/* Quick Action: New Proposal Button & Slide Deck Button */}
@@ -173,213 +330,307 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           )}
 
-          {onOpenSlideDeck && (
-            <button
-              type="button"
-              onClick={onOpenSlideDeck}
-              className="w-full flex items-center justify-between p-2.5 rounded-sm bg-gradient-to-r from-indigo-900 via-indigo-800 to-indigo-900 hover:from-indigo-800 hover:to-indigo-700 active:from-indigo-950 text-white font-bold text-xs transition shadow-xs cursor-pointer border border-indigo-500/50 group"
-              title="Open Executive 5-Slide PowerPoint Deck Modal"
-            >
-              <div className="flex items-center gap-2">
-                <div className="p-1 rounded-xs bg-white/20 text-white group-hover:scale-110 transition-transform">
-                  <Presentation size={14} className="stroke-[2.5]" />
+          <div className="grid grid-cols-2 gap-1.5">
+            {onOpenSlideDeck && (
+              <button
+                type="button"
+                onClick={onOpenSlideDeck}
+                className="flex items-center justify-between p-2 rounded-sm bg-indigo-900 hover:bg-indigo-800 text-white font-bold text-xs transition shadow-xs cursor-pointer border border-indigo-700 group"
+                title="Open Executive 5-Slide PowerPoint Deck Modal"
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  <Presentation size={13} className="text-indigo-300 shrink-0" />
+                  <span className="text-[11px] font-bold truncate">Slide Deck</span>
                 </div>
-                <div className="text-left">
-                  <div className="text-xs font-bold leading-tight">Executive Slide Deck</div>
-                  <div className="text-[10px] text-indigo-200 font-normal leading-tight">5-Slide PPTX presentation</div>
-                </div>
-              </div>
-              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-indigo-950 text-indigo-200 border border-indigo-400/30 rounded-xs uppercase">
-                PPTX
-              </span>
-            </button>
-          )}
+                <span className="text-[8px] font-mono px-1 py-0.2 bg-indigo-950 text-indigo-300 rounded-xs">
+                  PPTX
+                </span>
+              </button>
+            )}
 
-          {onOpenWhatIfSimulator && (
-            <button
-              type="button"
-              onClick={onOpenWhatIfSimulator}
-              className="w-full flex items-center justify-between p-2.5 rounded-sm bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 active:from-amber-600 text-slate-950 font-bold text-xs transition shadow-xs cursor-pointer border border-amber-300 group"
-              title="Open What-If Margin & Scope Trade-off Simulator (Live Oral Defense Tool)"
-            >
-              <div className="flex items-center gap-2">
-                <div className="p-1 rounded-xs bg-slate-950/15 text-slate-950 group-hover:rotate-12 transition-transform">
-                  <SlidersHorizontal size={14} className="stroke-[2.5]" />
+            {onOpenWhatIfSimulator && (
+              <button
+                type="button"
+                onClick={onOpenWhatIfSimulator}
+                className="flex items-center justify-between p-2 rounded-sm bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition shadow-xs cursor-pointer border border-amber-400 group"
+                title="Open What-If Margin & Scope Trade-off Simulator"
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  <SlidersHorizontal size={13} className="text-slate-950 shrink-0" />
+                  <span className="text-[11px] font-bold truncate">What-If</span>
                 </div>
-                <div className="text-left">
-                  <div className="text-xs font-black leading-tight">What-If Simulator</div>
-                  <div className="text-[10px] text-amber-950/80 font-medium leading-tight">Live oral defense & trade-offs</div>
-                </div>
-              </div>
-              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-slate-950 text-amber-300 rounded-xs uppercase">
-                Oral
-              </span>
-            </button>
-          )}
+                <span className="text-[8px] font-mono px-1 py-0.2 bg-slate-950 text-amber-300 rounded-xs">
+                  Oral
+                </span>
+              </button>
+            )}
+          </div>
 
           {onOpenDealDefense && (
             <button
               type="button"
               onClick={onOpenDealDefense}
-              className="w-full flex items-center justify-between p-2.5 rounded-sm bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 hover:from-slate-800 hover:to-indigo-900 active:from-slate-950 text-white font-bold text-xs transition shadow-xs cursor-pointer border border-indigo-500/40 group"
+              className="w-full flex items-center justify-between p-2 rounded-sm bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition shadow-xs cursor-pointer border border-slate-700 group"
               title="Open Deal Defense & SteerCo Justification Hub"
             >
               <div className="flex items-center gap-2">
-                <div className="p-1 rounded-xs bg-indigo-500/30 text-indigo-300 group-hover:scale-110 transition-transform">
-                  <Award size={14} className="stroke-[2.5]" />
+                <div className="p-1 rounded-xs bg-indigo-500/30 text-indigo-300">
+                  <Award size={13} className="stroke-[2.5]" />
                 </div>
-                <div className="text-left">
-                  <div className="text-xs font-bold leading-tight">Deal Defense Hub</div>
-                  <div className="text-[10px] text-indigo-200 font-normal leading-tight">SteerCo justification & orals</div>
-                </div>
+                <span className="text-xs font-bold leading-tight">Deal Defense & SOW Shield</span>
               </div>
               <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-indigo-500 text-white rounded-xs uppercase">
                 SteerCo
               </span>
             </button>
           )}
-
-          {/* Listen Podcast - Hidden for future release */}
-
         </div>
 
-        {/* SECTION 1: 4-Step Bid Pursuit Lifecycle */}
-        <div className="space-y-1 bg-white p-2 rounded-sm border border-slate-200 shadow-xs">
-          <div className="px-2.5 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-indigo-700 bg-indigo-50/60 rounded-xs flex items-center justify-between">
-            <span>Bid Pursuit Lifecycle</span>
-            <span className="text-[9px] font-mono text-indigo-500">4 Steps</span>
+        {/* ROLE-BASED PRESET SELECTOR (Suggestion 4) */}
+        <div className="bg-white p-2 rounded-sm border border-slate-200 shadow-xs space-y-1.5">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 font-mono">
+              View Preset / Role
+            </span>
+            {rolePreset !== 'all' && onSelectRolePreset && (
+              <button
+                type="button"
+                onClick={() => onSelectRolePreset('all')}
+                className="text-[9px] text-indigo-600 hover:text-indigo-800 font-bold cursor-pointer underline"
+              >
+                Reset to All
+              </button>
+            )}
           </div>
-
-          <nav className="space-y-1 mt-1">
-            {CORE_PURSUIT_STEPS.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              const isDiscovery = item.id === 'discovery';
-              const isReports = item.id === 'reports';
-
+          <div className="grid grid-cols-4 gap-1">
+            {rolePills.map(role => {
+              const isSelected = rolePreset === role.id;
               return (
-                <div key={item.id} className="space-y-1">
-                  <button
-                    type="button"
-                    onClick={() => onSelectTab(item.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-sm text-left transition-colors duration-150 group cursor-pointer ${
-                      isActive
-                        ? 'bg-slate-900 text-white'
-                        : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div
-                        className={`w-5 h-5 rounded-full flex items-center justify-center font-mono font-bold text-[10px] shrink-0 ${
-                          isActive ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-700 group-hover:bg-slate-200'
-                        }`}
-                      >
-                        {item.stepNumber}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold truncate">{item.label}</div>
-                        <div className={`text-[10px] truncate ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
-                          {item.sub}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      {item.id === 'schedule' && hasPatchConflict && (
-                        <span className="p-1 rounded-sm bg-rose-100 text-rose-700" title="Patch Conflict Detected">
-                          <AlertTriangle size={12} className="stroke-[2.5]" />
-                        </span>
-                      )}
-                      {(isDiscovery || isReports) && (
-                        <div className={isActive ? 'text-slate-300' : 'text-slate-400'}>
-                          {isActive ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                        </div>
-                      )}
-                    </div>
-                  </button>
-
-                  {/* Submenu for Scope & Architecture */}
-                  {isDiscovery && isActive && (
-                    <div className="pl-3 pr-1 py-1 space-y-0.5 border-l-2 border-slate-300 ml-4.5 my-1 animate-in fade-in slide-in-from-top-1 duration-150">
-                      {DISCOVERY_SUB_ITEMS.map((sub) => {
-                        const isSubActive = discoverySubSection === sub.id;
-                        return (
-                          <button
-                            key={sub.id}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (onSelectDiscoverySubSection) {
-                                onSelectDiscoverySubSection(sub.id);
-                              }
-                              if (activeTab !== 'discovery') {
-                                onSelectTab('discovery');
-                              }
-                            }}
-                            className={`w-full flex items-center justify-between px-2.5 py-1 rounded-sm text-left text-xs transition-all cursor-pointer ${
-                              isSubActive
-                                ? 'bg-slate-100 font-bold text-slate-900 shadow-2xs border-l-2 border-slate-900'
-                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 font-medium'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-mono font-bold shrink-0 ${
-                                isSubActive ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-600'
-                              }`}>
-                                {sub.number}
-                              </span>
-                              <span className="truncate text-[11px]">{sub.label}</span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Submenu for Reports & Portfolios */}
-                  {isReports && isActive && (
-                    <div className="pl-3 pr-1 py-1 space-y-0.5 border-l-2 border-slate-300 ml-4.5 my-1 animate-in fade-in slide-in-from-top-1 duration-150">
-                      {REPORT_SUB_ITEMS.map((sub) => {
-                        const isSubActive = reportSubSection === sub.id;
-                        return (
-                          <button
-                            key={sub.id}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (onSelectReportSubSection) {
-                                onSelectReportSubSection(sub.id);
-                              }
-                              if (activeTab !== 'reports') {
-                                onSelectTab('reports');
-                              }
-                            }}
-                            className={`w-full flex items-center justify-between px-2.5 py-1 rounded-sm text-left text-xs transition-all cursor-pointer ${
-                              isSubActive
-                                ? 'bg-slate-100 font-bold text-slate-900 shadow-2xs border-l-2 border-slate-900'
-                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 font-medium'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-mono font-bold shrink-0 ${
-                                isSubActive ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-600'
-                              }`}>
-                                {sub.number}
-                              </span>
-                              <span className="truncate text-[11px]">{sub.label}</span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                <button
+                  key={role.id}
+                  type="button"
+                  onClick={() => onSelectRolePreset && onSelectRolePreset(role.id)}
+                  className={`py-1 px-1 rounded-xs text-[10px] font-bold text-center transition-all cursor-pointer truncate ${
+                    isSelected
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                  title={`Filter navigation for ${role.label}`}
+                >
+                  <span className="mr-0.5">{role.icon}</span>
+                  <span>{role.label}</span>
+                </button>
               );
             })}
-          </nav>
+          </div>
         </div>
 
-        {/* SECTION 2: Advanced Insights & Assurance (Collapsible) */}
+        {/* HOME HUB: Executive Command */}
+        <button
+          type="button"
+          onClick={() => onSelectTab('dashboard')}
+          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-sm text-left transition-colors duration-150 group cursor-pointer border ${
+            activeTab === 'dashboard'
+              ? 'bg-slate-900 text-white border-slate-800 shadow-xs'
+              : 'bg-white text-slate-800 hover:bg-slate-50 border-slate-200 shadow-xs'
+          }`}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              className={`p-1.5 rounded-sm ${
+                activeTab === 'dashboard' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              <LayoutDashboard size={15} />
+            </div>
+            <div>
+              <div className="text-xs font-bold leading-tight">Executive Command Hub</div>
+              <div className={`text-[10px] ${activeTab === 'dashboard' ? 'text-slate-300' : 'text-slate-500'}`}>
+                KPIs, Health & Footprint
+              </div>
+            </div>
+          </div>
+          <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-xs ${
+            activeTab === 'dashboard' ? 'bg-indigo-900 text-indigo-200' : 'bg-slate-100 text-slate-600'
+          }`}>
+            Hub
+          </span>
+        </button>
+
+        {/* 3-STAGE BID LIFECYCLE (Suggestion 1) */}
+        <div className="space-y-2">
+          {BID_LIFECYCLE_STAGES.map((stage) => {
+            // Filter steps for role preset
+            const stageSteps = stage.steps.filter(
+              step => rolePreset === 'all' || (step.roles as readonly string[]).includes(rolePreset)
+            );
+
+            if (stageSteps.length === 0) return null;
+
+            return (
+              <div
+                key={stage.id}
+                className="bg-white rounded-sm border border-slate-200 shadow-xs overflow-hidden"
+              >
+                {/* Stage Header */}
+                <div className={`px-3 py-1.5 border-b border-slate-200 flex items-center justify-between ${stage.colorClass.bg}`}>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-4 h-4 rounded-full flex items-center justify-center font-mono font-bold text-[9px] text-white ${stage.colorClass.activeBg}`}>
+                      {stage.stageNumber}
+                    </span>
+                    <span className={`text-[10px] font-extrabold uppercase tracking-wider ${stage.colorClass.text}`}>
+                      {stage.title}
+                    </span>
+                  </div>
+                  <span className="text-[9px] font-mono text-slate-500 font-semibold">
+                    {stage.tag}
+                  </span>
+                </div>
+
+                {/* Steps in this stage */}
+                <nav className="p-1 space-y-0.5">
+                  {stageSteps.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.id;
+                    const isDiscovery = item.id === 'discovery';
+                    const isReports = item.id === 'reports';
+
+                    return (
+                      <div key={item.id} className="space-y-0.5">
+                        <button
+                          type="button"
+                          onClick={() => onSelectTab(item.id)}
+                          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-sm text-left transition-colors duration-150 group cursor-pointer ${
+                            isActive
+                              ? 'bg-slate-900 text-white'
+                              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div
+                              className={`w-5 h-5 rounded-full flex items-center justify-center font-mono font-bold text-[10px] shrink-0 ${
+                                isActive ? `${stage.colorClass.activeBg} text-white` : 'bg-slate-100 text-slate-700 group-hover:bg-slate-200'
+                              }`}
+                            >
+                              {item.stepNumber}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold truncate leading-tight">{item.label}</div>
+                              <div className={`text-[10px] truncate ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
+                                {item.sub}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            {item.id === 'schedule' && hasPatchConflict && (
+                              <span className="p-1 rounded-sm bg-rose-100 text-rose-700" title="Patch Conflict Detected">
+                                <AlertTriangle size={12} className="stroke-[2.5]" />
+                              </span>
+                            )}
+                            {item.badge && !isActive && (
+                              <span className="text-[8px] font-bold font-mono px-1 py-0.2 rounded-2xs bg-slate-100 text-slate-600 border border-slate-200">
+                                {item.badge}
+                              </span>
+                            )}
+                            {item.id === 'governance' && doaTier === 3 && (
+                              <span className="px-1 py-0.2 rounded-2xs text-[8px] font-black uppercase bg-rose-100 text-rose-700">
+                                Tier 3
+                              </span>
+                            )}
+                            {(isDiscovery || isReports) && (
+                              <div className={isActive ? 'text-slate-300' : 'text-slate-400'}>
+                                {isActive ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+
+                        {/* Submenu for Scope & Architecture */}
+                        {isDiscovery && isActive && (
+                          <div className="pl-3 pr-1 py-1 space-y-0.5 border-l-2 border-slate-300 ml-4.5 my-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                            {DISCOVERY_SUB_ITEMS.map((sub) => {
+                              const isSubActive = discoverySubSection === sub.id;
+                              return (
+                                <button
+                                  key={sub.id}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onSelectDiscoverySubSection) {
+                                      onSelectDiscoverySubSection(sub.id);
+                                    }
+                                    if (activeTab !== 'discovery') {
+                                      onSelectTab('discovery');
+                                    }
+                                  }}
+                                  className={`w-full flex items-center justify-between px-2.5 py-1 rounded-sm text-left text-xs transition-all cursor-pointer ${
+                                    isSubActive
+                                      ? 'bg-slate-100 font-bold text-slate-900 shadow-2xs border-l-2 border-slate-900'
+                                      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 font-medium'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-mono font-bold shrink-0 ${
+                                      isSubActive ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-600'
+                                    }`}>
+                                      {sub.number}
+                                    </span>
+                                    <span className="truncate text-[11px]">{sub.label}</span>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Submenu for Reports & Portfolios */}
+                        {isReports && isActive && (
+                          <div className="pl-3 pr-1 py-1 space-y-0.5 border-l-2 border-slate-300 ml-4.5 my-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                            {REPORT_SUB_ITEMS.map((sub) => {
+                              const isSubActive = reportSubSection === sub.id;
+                              return (
+                                <button
+                                  key={sub.id}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onSelectReportSubSection) {
+                                      onSelectReportSubSection(sub.id);
+                                    }
+                                    if (activeTab !== 'reports') {
+                                      onSelectTab('reports');
+                                    }
+                                  }}
+                                  className={`w-full flex items-center justify-between px-2.5 py-1 rounded-sm text-left text-xs transition-all cursor-pointer ${
+                                    isSubActive
+                                      ? 'bg-slate-100 font-bold text-slate-900 shadow-2xs border-l-2 border-slate-900'
+                                      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 font-medium'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-mono font-bold shrink-0 ${
+                                      isSubActive ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-600'
+                                    }`}>
+                                      {sub.number}
+                                    </span>
+                                    <span className="truncate text-[11px]">{sub.label}</span>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </nav>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* SECTION 2: Advanced Assurance & Delivery Quality (Collapsible) */}
         <div className="space-y-1 bg-white p-2 rounded-sm border border-slate-200 shadow-xs">
           <button
             type="button"
@@ -391,14 +642,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span>Advanced & Assurance</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="text-[9px] font-mono text-slate-400">{ADVANCED_INSIGHT_ITEMS.length} Tools</span>
+              <span className="text-[9px] font-mono text-slate-400">{ADVANCED_ASSURANCE_ITEMS.length} Tools</span>
               {advancedExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
             </div>
           </button>
 
           {advancedExpanded && (
             <nav className="space-y-1 mt-1 animate-in fade-in duration-150">
-              {ADVANCED_INSIGHT_ITEMS.map((item) => {
+              {ADVANCED_ASSURANCE_ITEMS.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
 
@@ -435,11 +686,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           {item.badge}
                         </span>
                       )}
-                      {item.id === 'governance' && doaTier === 3 && (
-                        <span className="px-1 py-0.2 rounded-2xs text-[8px] font-black uppercase bg-rose-100 text-rose-700">
-                          Tier 3
-                        </span>
-                      )}
                     </div>
                   </button>
                 );
@@ -447,9 +693,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </nav>
           )}
         </div>
-
-        {/* Oracle Cloud Method Card - Hidden per user request */}
       </div>
     </aside>
   );
 };
+

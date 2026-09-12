@@ -42,7 +42,11 @@ import {
   IntelPackagePreset,
   ComprehensiveIntelParseResult
 } from '../../utils/intelIngestionParser';
-import { parseProposalDocument, SAMPLE_PROPOSAL_TEMPLATES } from '../../utils/proposalParser';
+import {
+  parseProposalDocument,
+  parseSpreadsheetWorkbookToText,
+  SAMPLE_PROPOSAL_TEMPLATES
+} from '../../utils/proposalParser';
 import {
   parseIntegrationInventory,
   parseExcelWorkbook,
@@ -145,20 +149,11 @@ export const AIScopingAgentModal: React.FC<AIScopingAgentModalProps> = ({
               console.warn('Direct parseExcelWorkbook note:', invErr);
             }
 
-            // 2. Read full workbook sheet rows into textual representation
-            const workbook = XLSX.read(buffer, { type: 'array' });
-            let combinedText = `### SPREADSHEET INVENTORY: ${file.name}\n\n`;
-
-            workbook.SheetNames.forEach((sheetName) => {
-              const worksheet = workbook.Sheets[sheetName];
-              const csv = XLSX.utils.sheet_to_csv(worksheet);
-              if (csv.trim()) {
-                combinedText += `\n--- SHEET: ${sheetName} ---\n${csv}\n`;
-              }
-            });
+            // 2. Read full workbook sheet rows into rich textual representation with cell coordinates
+            const { fullText } = parseSpreadsheetWorkbookToText(buffer, file.name);
 
             setParsedExcelInventory(invResult && invResult.items.length > 0 ? invResult : null);
-            setRfpText(combinedText.trim());
+            setRfpText(fullText.trim());
 
             if (invResult && invResult.items.length > 0) {
               setAppliedNotification(
@@ -262,9 +257,49 @@ export const AIScopingAgentModal: React.FC<AIScopingAgentModalProps> = ({
     captureSnapshot('RFP Ingestion');
 
     onUpdateScenario(prev => {
-      const currentScale = { ...prev.scaleDrivers, ...(rfpResult.extractedScaleDrivers || {}) };
-      const currentAnswers = { ...(prev.moduleQuestionAnswers || {}), ...(rfpResult.questionAnswers || {}) };
-      const currentMeta = { ...(prev.questionConfidenceMeta || {}), ...(rfpResult.questionConfidenceMeta || {}) };
+      // Evidence-bounded scale driver update (only update drivers that have extracted evidence)
+      const currentScale = { ...prev.scaleDrivers };
+      if (rfpResult.extractedScaleDrivers) {
+        Object.entries(rfpResult.extractedScaleDrivers).forEach(([key, val]) => {
+          if (val !== undefined && val !== null) {
+            (currentScale as any)[key] = val;
+          }
+        });
+      }
+
+      // Evidence-bounded question answers (only update questions where high or medium evidence was found, or scoping sheet input)
+      const currentAnswers = { ...(prev.moduleQuestionAnswers || {}) };
+      const currentMeta = { ...(prev.questionConfidenceMeta || {}) };
+
+      if (rfpResult.questionAnswers && rfpResult.questionConfidenceMeta) {
+        Object.keys(rfpResult.questionAnswers).forEach(modId => {
+          const modAnswers = rfpResult.questionAnswers[modId] || [];
+          const modMeta = rfpResult.questionConfidenceMeta[modId] || {};
+
+          if (!currentAnswers[modId]) {
+            currentAnswers[modId] = [...modAnswers];
+          } else {
+            // Update indices where confidence is high or medium, or directly sourced from scoping_sheet
+            currentAnswers[modId] = currentAnswers[modId].map((oldAns, idx) => {
+              const metaItem = modMeta[idx];
+              if (
+                metaItem &&
+                (metaItem.source === 'scoping_sheet' ||
+                 metaItem.confidence === 'high' ||
+                 metaItem.confidence === 'medium')
+              ) {
+                return modAnswers[idx] ?? oldAns;
+              }
+              return oldAns;
+            });
+          }
+
+          currentMeta[modId] = {
+            ...(currentMeta[modId] || {}),
+            ...modMeta
+          };
+        });
+      }
 
       const proposalRecord: UploadedProposal = {
         id: `prop_${Date.now()}`,
@@ -277,6 +312,8 @@ export const AIScopingAgentModal: React.FC<AIScopingAgentModalProps> = ({
         highConfidenceCount: rfpResult.stats.highConfidenceCount,
         mediumConfidenceCount: rfpResult.stats.mediumConfidenceCount,
         lowConfidenceCount: rfpResult.stats.lowConfidenceCount,
+        scopingSheetQuestionsCount: rfpResult.stats.scopingSheetQuestionsCount || 0,
+        moduleRatingsCount: rfpResult.stats.moduleRatingsCount || 0,
         extractedScaleDrivers: rfpResult.extractedScaleDrivers,
         summaryFindings: rfpResult.summaryFindings,
         clientClarificationsNeeded: rfpResult.clientClarificationsNeeded
@@ -321,17 +358,31 @@ export const AIScopingAgentModal: React.FC<AIScopingAgentModalProps> = ({
         };
       }
 
+      // Filter out explicitly excluded modules
+      const excludedNamesLower = (rfpResult.excludedModules || []).map(m => m.toLowerCase());
+      const selectedMods = (mergeMode === 'overwrite' 
+        ? rfpResult.inferredModules 
+        : Array.from(new Set([...prev.selectedModules, ...rfpResult.inferredModules]))
+      ).filter(modId => {
+        const modDef = ORACLE_MODULE_CATALOG.find(m => m.id === modId);
+        const nameMatch = modDef && excludedNamesLower.some(ex => ex.includes(modDef.name.toLowerCase()));
+        const idMatch = excludedNamesLower.some(ex => ex.includes(modId.toLowerCase()));
+        return !nameMatch && !idMatch;
+      });
+
       return {
         ...prev,
-        selectedModules: mergeMode === 'overwrite' 
-          ? rfpResult.inferredModules 
-          : Array.from(new Set([...prev.selectedModules, ...rfpResult.inferredModules])),
+        selectedModules: selectedMods,
         scaleDrivers: updatedScale,
         technicalIntegrations: updatedIntegrations,
         technicalSmcOverrides: updatedSmc,
         integrationScopingOptions: updatedIntegrationOpts,
         moduleQuestionAnswers: currentAnswers,
         questionConfidenceMeta: currentMeta,
+        moduleTShirtOverrides: {
+          ...(prev.moduleTShirtOverrides || {}),
+          ...(rfpResult.moduleTShirtOverrides || {})
+        },
         uploadedProposals: [proposalRecord, ...(prev.uploadedProposals || []).slice(0, 4)]
       };
     });
