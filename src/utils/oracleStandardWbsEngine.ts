@@ -73,6 +73,8 @@ export interface SmartsheetRow30 {
 }
 
 export interface WbsPlanSummary {
+  status?: string;
+  Status?: string;
   programStartDate: string;
   programEndDate: string;
   requestedTenureMonths: number;
@@ -91,6 +93,8 @@ export interface WbsPlanSummary {
 }
 
 export interface StandardProjectPlanOutput {
+  status?: string;
+  Status?: string;
   planSummary: WbsPlanSummary;
   smartsheetRows: SmartsheetRow30[];
   waves: {
@@ -606,15 +610,16 @@ export function generateStandardProjectPlan(
   }) => {
     const workingDays = getWorkingDaysBetween(row.startDate, row.endDate);
     const duration = row.duration || `${workingDays}d`;
+    const finalStatus = row.status || (scenario.isScheduleFrozen ? 'BASELINE LOCKED' : 'NOT STARTED');
     
     rows.push({
+      ...row,
       taskNumber: taskCounter++,
       complete: row.complete ?? (scenario.isScheduleFrozen ? 100 : 0),
-      status: row.status ?? (scenario.isScheduleFrozen ? 'BASELINE LOCKED' : 'NOT STARTED'),
+      status: finalStatus,
       taskProgress: row.taskProgress ?? 'GREEN',
       anomalyFlag: row.anomalyFlag ?? 'NONE',
       anomalyReason: row.anomalyReason ?? '',
-      ...row,
       duration
     });
   };
@@ -1457,8 +1462,14 @@ export function generateStandardProjectPlan(
     }))
   ];
 
+  const planStatus = scenario.status || (scenario.isScheduleFrozen ? 'BASELINE LOCKED' : 'ACTIVE');
+
   return {
+    status: planStatus,
+    Status: planStatus,
     planSummary: {
+      status: planStatus,
+      Status: planStatus,
       programStartDate,
       programEndDate: finalProgramEnd,
       requestedTenureMonths,

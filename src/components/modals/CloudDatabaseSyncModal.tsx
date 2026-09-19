@@ -29,7 +29,10 @@ import {
   setMakeWebhookUrl,
   isMakeAutoSyncEnabled,
   setMakeAutoSyncEnabled,
-  sendScenarioToMakeDatabase
+  getMakeDefaultStatus,
+  setMakeDefaultStatus,
+  sendScenarioToMakeDatabase,
+  validateMakeWebhookConnection
 } from '../../services/makeIntegrationService';
 import { testFirestoreConnection } from '../../lib/firebase';
 import firebaseConfig from '../../lib/firebaseConfig';
@@ -57,24 +60,77 @@ export const CloudDatabaseSyncModal: React.FC<CloudDatabaseSyncModalProps> = ({
   // Agent integration state
   const [makeWebhookUrl, setLocalMakeWebhookUrl] = useState('');
   const [makeAutoSync, setLocalMakeAutoSync] = useState(false);
+  const [makeDefaultStatus, setLocalMakeDefaultStatus] = useState('ACTIVE');
   const [isSendingToMake, setIsSendingToMake] = useState(false);
+  const [isValidatingWebhook, setIsValidatingWebhook] = useState(false);
+  const [validationReport, setValidationReport] = useState<{
+    valid: boolean;
+    message: string;
+    statusCode?: number;
+    responseBody?: string;
+    recommendation?: string;
+  } | null>(null);
 
   // Load Agent integration settings on modal open
   useEffect(() => {
     if (isOpen) {
       setLocalMakeWebhookUrl(getMakeWebhookUrl());
       setLocalMakeAutoSync(isMakeAutoSyncEnabled());
+      setLocalMakeDefaultStatus(getMakeDefaultStatus());
+      setValidationReport(null);
     }
   }, [isOpen]);
 
   const handleSaveMakeSettings = () => {
     setMakeWebhookUrl(makeWebhookUrl);
     setMakeAutoSyncEnabled(makeAutoSync);
+    setMakeDefaultStatus(makeDefaultStatus);
     setFeedback({
       type: 'success',
-      message: 'Agent connection settings saved.'
+      message: 'Agent connection settings and default status saved.'
     });
     setTimeout(() => setFeedback(null), 3000);
+  };
+
+  const handleValidateWebhook = async () => {
+    if (!makeWebhookUrl.trim()) {
+      setFeedback({
+        type: 'error',
+        message: 'Please enter your Webhook URL before validating.'
+      });
+      return;
+    }
+    setIsValidatingWebhook(true);
+    setValidationReport(null);
+    setFeedback(null);
+    try {
+      setMakeWebhookUrl(makeWebhookUrl.trim());
+      setMakeDefaultStatus(makeDefaultStatus);
+      const res = await validateMakeWebhookConnection(makeWebhookUrl.trim(), makeDefaultStatus);
+      setValidationReport(res);
+      if (res.valid) {
+        if (res.calibratedStatus) {
+          setLocalMakeDefaultStatus(String(res.calibratedStatus));
+          setMakeDefaultStatus(String(res.calibratedStatus));
+        }
+        setFeedback({
+          type: 'success',
+          message: res.message || 'Webhook validated! Parameter "status" and payload accepted.'
+        });
+      } else {
+        setFeedback({
+          type: 'error',
+          message: res.message
+        });
+      }
+    } catch (err: any) {
+      setValidationReport({
+        valid: false,
+        message: `Validation request failed: ${err.message || String(err)}`
+      });
+    } finally {
+      setIsValidatingWebhook(false);
+    }
   };
 
   const handleTestMakeSync = async (scenarioToSync?: ProjectScenario) => {
@@ -487,10 +543,20 @@ export const CloudDatabaseSyncModal: React.FC<CloudDatabaseSyncModalProps> = ({
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
+                  onClick={handleValidateWebhook}
+                  disabled={isValidatingWebhook || !makeWebhookUrl}
+                  className="px-2.5 py-1.5 rounded-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  title="Validate Webhook connection and parameters"
+                >
+                  <ShieldCheck size={12} className={isValidatingWebhook ? 'animate-pulse' : ''} />
+                  <span>{isValidatingWebhook ? 'Validating...' : 'Validate'}</span>
+                </button>
+                <button
+                  type="button"
                   onClick={handleSaveMakeSettings}
                   className="px-2.5 py-1.5 rounded-xs bg-purple-600 hover:bg-purple-700 text-white font-semibold text-[11px] transition cursor-pointer"
                 >
-                  Save URL
+                  Save Settings
                 </button>
                 <button
                   type="button"
@@ -502,6 +568,89 @@ export const CloudDatabaseSyncModal: React.FC<CloudDatabaseSyncModalProps> = ({
                   <Zap size={11} className={isSendingToMake ? 'animate-spin' : ''} />
                   <span>{isSendingToMake ? 'Sending...' : 'Sync to Agent'}</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Validation Diagnostic Report Banner */}
+            {validationReport && (
+              <div className={`p-2.5 rounded-xs border text-[11px] space-y-1.5 ${
+                validationReport.valid 
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900' 
+                  : 'bg-amber-50 border-amber-300 text-amber-900'
+              }`}>
+                <div className="flex items-center justify-between font-bold">
+                  <div className="flex items-center gap-1.5">
+                    {validationReport.valid ? (
+                      <CheckCircle2 size={13} className="text-emerald-600" />
+                    ) : (
+                      <AlertCircle size={13} className="text-amber-600" />
+                    )}
+                    <span>{validationReport.valid ? 'Webhook Validation Successful' : 'Webhook Validation Check'}</span>
+                  </div>
+                  {validationReport.statusCode && (
+                    <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-2xs bg-white border font-bold">
+                      HTTP {validationReport.statusCode}
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-[11px] font-mono leading-relaxed break-all">
+                  {validationReport.message}
+                </p>
+
+                {validationReport.recommendation && (
+                  <div className="p-1.5 rounded-2xs bg-white/80 border border-amber-200 text-amber-950 font-sans text-[11px]">
+                    <strong>Recommendation:</strong> {validationReport.recommendation}
+                    {validationReport.recommendation.includes("'200'") && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLocalMakeDefaultStatus('200');
+                          setMakeDefaultStatus('200');
+                          setFeedback({
+                            type: 'success',
+                            message: "Status updated to '200' (numeric). Click 'Validate' to verify."
+                          });
+                        }}
+                        className="ml-2 underline font-bold text-indigo-700 hover:text-indigo-900 cursor-pointer"
+                      >
+                        Set Status to 200 Now
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Default Status Configuration for Strict Webhooks */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-purple-100 text-[11px]">
+              <div className="flex items-center gap-1.5 text-purple-950">
+                <span className="font-semibold text-purple-900">Default Webhook Parameter &lsquo;status&rsquo;:</span>
+                <span className="text-[10px] text-purple-700/80">(Guaranteed in all dispatches)</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={makeDefaultStatus}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setLocalMakeDefaultStatus(next);
+                    setMakeDefaultStatus(next);
+                  }}
+                  className="px-2 py-1 rounded-xs border border-purple-200 bg-white font-mono text-[11px] font-bold text-purple-900 focus:ring-1 focus:ring-purple-500 cursor-pointer"
+                >
+                  <option value="200">200 (HTTP OK — Recommended for Make Webhook Response)</option>
+                  <option value="ACTIVE">ACTIVE (Default Text)</option>
+                  <option value="IN PROGRESS">IN PROGRESS</option>
+                  <option value="BASELINE LOCKED">BASELINE LOCKED</option>
+                  <option value="SUCCESS">SUCCESS</option>
+                  <option value="OK">OK</option>
+                  <option value="DRAFT">DRAFT</option>
+                  <option value="APPROVED">APPROVED</option>
+                  <option value="READY FOR REVIEW">READY FOR REVIEW</option>
+                </select>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-xs bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold">
+                  Status Auto-Filled
+                </span>
               </div>
             </div>
 

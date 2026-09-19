@@ -25,7 +25,8 @@ import {
   Headphones,
   Cloud,
   SlidersHorizontal,
-  Award
+  Award,
+  Compass
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData, OracleModule } from '../types';
 import { PRESET_SCENARIOS } from '../data/templates';
@@ -57,6 +58,7 @@ interface NavbarProps {
   isPodcastPlaying?: boolean;
   customScenarios?: ProjectScenario[];
   onDeleteCustomScenario?: (id: string) => void;
+  onOpenGuidedTour?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -81,7 +83,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNotebookLmPodcast,
   isPodcastPlaying,
   customScenarios = [],
-  onDeleteCustomScenario
+  onDeleteCustomScenario,
+  onOpenGuidedTour
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -572,6 +575,20 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Listen Podcast Button in Top Bar - Hidden for future release */}
 
+
+          {/* Guided Tour Interactive Walkthrough Trigger */}
+          {onOpenGuidedTour && (
+            <button
+              type="button"
+              id="navbar-guided-tour-btn"
+              onClick={onOpenGuidedTour}
+              className="px-2.5 py-1.5 rounded-sm text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs border shrink-0 bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-950 border-slate-200 hover:border-indigo-300 group"
+              title="Open step-by-step Guided Tour of Estimo features and Save functionality"
+            >
+              <Compass size={13} className="text-indigo-600 group-hover:rotate-45 transition-transform" />
+              <span className="font-bold tracking-tight">Guided Tour</span>
+            </button>
+          )}
 
           {/* Cloud Database Sync & Multi-System Retrieval Trigger */}
           <button

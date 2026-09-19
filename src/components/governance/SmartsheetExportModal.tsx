@@ -33,7 +33,8 @@ import {
   Terminal,
   RefreshCw,
   AlertCircle,
-  Table
+  Table,
+  Link2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { ProjectScenario, CalculatedProjectData } from '../../types';
@@ -175,6 +176,88 @@ export const SmartsheetExportModal: React.FC<SmartsheetExportModalProps> = ({
     }
   };
 
+  const [isTestingWebhook, setIsTestingWebhook] = useState(false);
+  const [webhookStatusOption, setWebhookStatusOption] = useState<string>('200');
+  const [webhookValidationReport, setWebhookValidationReport] = useState<{
+    valid: boolean;
+    message: string;
+    statusCode?: number;
+    calibratedStatus?: any;
+    autoCalibrated?: boolean;
+    recommendation?: string;
+  } | null>(null);
+
+  const verifyWebhookUrl = async () => {
+    if (!webhookUrl.trim()) {
+      setErrorMessage('Please enter a Webhook URL to validate.');
+      return;
+    }
+    setIsTestingWebhook(true);
+    setWebhookValidationReport(null);
+    setErrorMessage(null);
+    try {
+      localStorage.setItem('smartsheet_webhook_url', webhookUrl.trim());
+      const res = await fetch('/api/webhook/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          webhookUrl: webhookUrl.trim(),
+          status: webhookStatusOption || '200',
+          payload: {
+            testOnly: true,
+            status: webhookStatusOption || '200',
+            Status: webhookStatusOption || '200',
+            statusCode: !isNaN(Number(webhookStatusOption)) ? Number(webhookStatusOption) : 200,
+            event: 'SMARTSHEET_WEBHOOK_VALIDATION_PING',
+            sheetName: sheetName || 'Oracle Cloud Project Baseline (Validation Ping)',
+            workspaceId: 'home',
+            timestamp: new Date().toISOString(),
+            project: smartsheetDeploymentPayload,
+            data: smartsheetDeploymentPayload,
+            columns: smartsheetDeploymentPayload?.smartsheetSheetSpecification?.columns || [],
+            rows: smartsheetDeploymentPayload?.smartsheetRows?.slice(0, 5) || [],
+            fields: {
+              sheetName: sheetName || 'Oracle Cloud Project Baseline',
+              status: webhookStatusOption || '200'
+            }
+          }
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.calibratedStatus) {
+          setWebhookStatusOption(String(data.calibratedStatus));
+        }
+        setWebhookValidationReport({
+          valid: true,
+          message: data.message || 'Webhook validated! Status parameter accepted (HTTP 200).',
+          statusCode: data.statusCode || 200,
+          calibratedStatus: data.calibratedStatus,
+          autoCalibrated: data.autoCalibrated
+        });
+      } else {
+        const msg = data.message || data.error || 'Validation failed for webhook.';
+        let rec = '';
+        if (data.statusCode === 500 || msg.includes('Scenario failed to complete')) {
+          rec = "Your Make.com scenario received the webhook, but a downstream module inside Make threw an error while executing. In Make.com, go to Scenarios > History, click the most recent run with the red warning icon, and inspect which module failed (e.g. Smartsheet API token expired, sheet ID not found, or missing mapped field).";
+        }
+        setWebhookValidationReport({
+          valid: false,
+          message: msg,
+          statusCode: data.statusCode,
+          recommendation: rec
+        });
+      }
+    } catch (err: any) {
+      setWebhookValidationReport({
+        valid: false,
+        message: `Validation error: ${err.message}`
+      });
+    } finally {
+      setIsTestingWebhook(false);
+    }
+  };
+
   // Safe baseline toggle handler
   const handleToggleFreeze = () => {
     if (propsToggleFreeze) {
@@ -221,15 +304,22 @@ export const SmartsheetExportModal: React.FC<SmartsheetExportModalProps> = ({
   }, [scenario, data]);
 
   // Master structured payload formatted for Smartsheet API v2 & PMO Bridges (30-Column Standard)
+  const defaultPayloadStatus = isFrozen ? 'BASELINE LOCKED' : 'IN PROGRESS';
+
   const smartsheetDeploymentPayload = {
+    status: defaultPayloadStatus,
+    Status: defaultPayloadStatus,
     metadata: {
       generatedAt: new Date().toISOString(),
       standard: 'Oracle Cloud Project Plan Generation Standard v1.0',
       generator: 'Oracle Cloud PMO Estimation & Governance Engine v4.2',
       targetPlatform: 'Smartsheet REST API v2 & Smartsheet Bridge',
-      baselineStatus: isFrozen ? 'LOCKED_BASELINE_1.0' : 'UNLOCKED_DRAFT'
+      baselineStatus: isFrozen ? 'LOCKED_BASELINE_1.0' : 'UNLOCKED_DRAFT',
+      status: defaultPayloadStatus
     },
     projectSummary: {
+      status: defaultPayloadStatus,
+      Status: defaultPayloadStatus,
       name: scenario.name || 'Oracle Cloud ERP Implementation',
       customer: scenario.clientName || 'Enterprise Client',
       totalPlannedEffortHours: totalEffortHours,
@@ -401,11 +491,18 @@ SMARTSHEET AUTOMATION & CONDITIONAL FORMATTING RULES
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          status: connectionMode === 'webhook' ? (webhookStatusOption || '200') : defaultPayloadStatus,
+          Status: connectionMode === 'webhook' ? (webhookStatusOption || '200') : defaultPayloadStatus,
+          connectionMode: connectionMode,
           accessToken: accessToken,
           webhookUrl: webhookUrl,
           workspaceId: selectedWorkspaceId,
           sheetName: sheetName,
-          projectData: smartsheetDeploymentPayload
+          projectData: {
+            ...smartsheetDeploymentPayload,
+            status: connectionMode === 'webhook' ? (webhookStatusOption || '200') : defaultPayloadStatus,
+            Status: connectionMode === 'webhook' ? (webhookStatusOption || '200') : defaultPayloadStatus
+          }
         })
       });
 
@@ -680,7 +777,141 @@ SMARTSHEET AUTOMATION & CONDITIONAL FORMATTING RULES
                   )}
                 </div>
 
-                {authStatus !== 'valid' ? (
+                {/* Connection Mode Selector */}
+                <div className="mt-4 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setConnectionMode('api_token')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+                      connectionMode === 'api_token'
+                        ? 'bg-[#0073EA] text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <Key size={13} />
+                    <span>Direct REST API Token</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConnectionMode('webhook')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+                      connectionMode === 'webhook'
+                        ? 'bg-purple-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <Zap size={13} />
+                    <span>Smartsheet Bridge / Make Webhook</span>
+                  </button>
+                </div>
+
+                {connectionMode === 'webhook' ? (
+                  <div className="mt-4 space-y-3 p-3.5 bg-purple-50/60 rounded-lg border border-purple-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-purple-950 font-bold text-xs">
+                        <Zap size={14} className="text-purple-600" />
+                        <span>Webhook / Bridge Synchronization</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 font-bold">
+                          Parameter &apos;status&apos;: {webhookStatusOption}
+                        </span>
+                        {webhookValidationReport?.autoCalibrated && (
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold flex items-center gap-1">
+                            <Sparkles size={10} /> Auto-Calibrated
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-purple-900/80 leading-relaxed">
+                      Deploy the frozen Oracle baseline and 30 Smartsheet standard columns directly to your Make.com scenario or Smartsheet Bridge webhook. Includes automatic healing for scenarios requiring HTTP status codes or text state.
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="url"
+                          value={webhookUrl}
+                          onChange={e => setWebhookUrl(e.target.value)}
+                          placeholder="https://hook.make.com/... or Smartsheet Bridge URL"
+                          className="w-full pl-9 pr-3 py-2 text-xs border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono bg-white"
+                        />
+                        <Link2 size={14} className="absolute left-3 top-2.5 text-purple-400" />
+                      </div>
+
+                      {/* Status Format Selector */}
+                      <div className="w-full sm:w-44">
+                        <select
+                          value={webhookStatusOption}
+                          onChange={e => setWebhookStatusOption(e.target.value)}
+                          className="w-full px-2.5 py-2 text-xs border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white font-mono font-medium text-slate-800"
+                          title="Select format for the required 'status' parameter"
+                        >
+                          <option value="200">status: 200 (HTTP OK)</option>
+                          <option value="ACTIVE">status: ACTIVE</option>
+                          <option value="IN PROGRESS">status: IN PROGRESS</option>
+                          <option value="BASELINE LOCKED">status: BASELINE LOCKED</option>
+                        </select>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={isTestingWebhook || !webhookUrl.trim()}
+                        onClick={verifyWebhookUrl}
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                      >
+                        {isTestingWebhook ? (
+                          <>
+                            <RefreshCw size={13} className="animate-spin" />
+                            <span>Validating...</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck size={13} />
+                            <span>Validate Webhook</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {webhookValidationReport && (
+                      <div className="space-y-2">
+                        <div className={`p-2.5 rounded-lg border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+                          webhookValidationReport.valid
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                            : 'bg-amber-50 border-amber-300 text-amber-900'
+                        }`}>
+                          <div className="flex items-center gap-2">
+                            {webhookValidationReport.valid ? (
+                              <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                            ) : (
+                              <AlertCircle size={14} className="text-amber-600 shrink-0" />
+                            )}
+                            <span className="font-mono text-[11px] leading-relaxed">{webhookValidationReport.message}</span>
+                          </div>
+                          {webhookValidationReport.statusCode && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white border font-bold shrink-0 self-start sm:self-auto">
+                              HTTP {webhookValidationReport.statusCode}
+                            </span>
+                          )}
+                        </div>
+
+                        {webhookValidationReport.recommendation && (
+                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900 space-y-1">
+                            <div className="font-bold flex items-center gap-1.5 text-blue-800">
+                              <Sparkles size={13} className="text-blue-600 shrink-0" />
+                              <span>Diagnosis & Resolution:</span>
+                            </div>
+                            <p className="text-[11px] leading-relaxed text-blue-800/90">
+                              {webhookValidationReport.recommendation}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : authStatus !== 'valid' ? (
                   <div className="mt-4 space-y-3">
                     <div className="flex flex-col sm:flex-row gap-2">
                       <div className="relative flex-1">

@@ -756,6 +756,7 @@ export function generateBlankSlateScenario(
     intelSynthesis: undefined,
     isBlackoutLocked: false,
     isScheduleFrozen: false,
+    status: 'ACTIVE',
     auditLog: []
   };
 }
@@ -907,6 +908,7 @@ export function generateIntegrationsOnlyScenario(opts?: {
     intelSynthesis: undefined,
     isBlackoutLocked: false,
     isScheduleFrozen: false,
+    status: 'ACTIVE',
     auditLog: []
   };
 }

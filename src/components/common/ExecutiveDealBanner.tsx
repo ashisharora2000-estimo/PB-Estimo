@@ -123,6 +123,7 @@ export const ExecutiveDealBanner: React.FC<ExecutiveDealBannerProps> = ({
           {onSaveScenario && (
             <button
               type="button"
+              id="executive-banner-save-btn"
               onClick={handleTriggerSave}
               className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-xs text-[11px] font-bold transition-all cursor-pointer border shrink-0 ${
                 justSaved

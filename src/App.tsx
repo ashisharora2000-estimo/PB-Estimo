@@ -27,6 +27,7 @@ import { WhatIfTradeoffSimulatorModal } from './components/modals/WhatIfTradeoff
 import { DealDefenseModal } from './components/modals/DealDefenseModal';
 import { ExecutiveDealBanner } from './components/common/ExecutiveDealBanner';
 import { GuidedWorkflowFooter, UserRolePreset } from './components/common/GuidedWorkflowFooter';
+import { GuidedTourOverlay } from './components/common/GuidedTourOverlay';
 import { NotebookLMPodcastStudio } from './components/podcast/NotebookLMPodcastStudio';
 import { FloatingPodcastBar } from './components/podcast/FloatingPodcastBar';
 import { PodcastView } from './components/views/PodcastView';
@@ -117,6 +118,22 @@ export default function App() {
   const [smartsheetExportModalOpen, setSmartsheetExportModalOpen] = useState(false);
   const [slideDeckModalOpen, setSlideDeckModalOpen] = useState(false);
   const [notebookLmPodcastOpen, setNotebookLmPodcastOpen] = useState(false);
+  const [guidedTourOpen, setGuidedTourOpen] = useState(false);
+
+  // Check if first-time user to automatically prompt Guided Tour
+  useEffect(() => {
+    try {
+      const tourCompleted = localStorage.getItem('pb_estimo_guided_tour_completed');
+      if (!tourCompleted) {
+        const timer = setTimeout(() => {
+          setGuidedTourOpen(true);
+        }, 800);
+        return () => clearTimeout(timer);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
   const [podcastPlaybackState, setPodcastPlaybackState] = useState<{
     isPlaying: boolean;
     episode: PodcastEpisode | null;
@@ -452,6 +469,7 @@ export default function App() {
         onOpenWhatIfSimulator={() => setWhatIfSimulatorOpen(true)}
         onOpenDealDefense={() => setDealDefenseModalOpen(true)}
         onOpenSlideDeck={() => setSlideDeckModalOpen(true)}
+        onOpenGuidedTour={() => setGuidedTourOpen(true)}
         customScenarios={customProposals}
         onDeleteCustomScenario={handleDeleteCustomProposal}
       />
@@ -667,6 +685,7 @@ export default function App() {
             onSelectTab={setActiveTab}
             rolePreset={rolePreset}
             onSelectRolePreset={setRolePreset}
+            onOpenGuidedTour={() => setGuidedTourOpen(true)}
           />
         </main>
       </div>
@@ -775,6 +794,15 @@ export default function App() {
           setDealDefenseModalOpen(false);
           setSlideDeckModalOpen(true);
         }}
+      />
+
+      {/* Interactive Step-by-Step Guided Tour Overlay */}
+      <GuidedTourOverlay
+        isOpen={guidedTourOpen}
+        onClose={() => setGuidedTourOpen(false)}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        onSaveScenario={handleSaveScenario}
       />
 
       {/* Google NotebookLM 2-Host Audio Overview Studio Modal & Floating Bar - Hidden for future release */}

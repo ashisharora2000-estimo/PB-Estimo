@@ -366,6 +366,7 @@ export interface ScheduleFeasibility {
 export interface ProjectScenario {
   id: string;
   name: string;
+  status?: string; // Scenario status: 'ACTIVE' | 'BASELINE LOCKED' | 'DRAFT' | 'IN PROGRESS' | string
   thorId?: string;
   clientName?: string;
   industry?: string;

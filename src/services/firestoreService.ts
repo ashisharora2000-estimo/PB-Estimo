@@ -86,16 +86,18 @@ export interface CloudScenarioMeta {
 export async function saveScenarioToCloud(scenario: ProjectScenario): Promise<void> {
   const path = `project_scenarios/${scenario.id}`;
   try {
+    const scenarioStatus = scenario.status || (scenario.isScheduleFrozen ? 'BASELINE LOCKED' : 'ACTIVE');
     const docRef = doc(db, 'project_scenarios', scenario.id);
     const payload = {
       id: scenario.id,
       name: scenario.name.slice(0, 256),
+      status: scenarioStatus,
       clientName: (scenario.clientName || '').slice(0, 256),
       industry: (scenario.industry || '').slice(0, 128),
       description: (scenario.description || '').slice(0, 2048),
       projectWeeks: scenario.projectWeeks || 32,
       targetStartDate: scenario.targetStartDate || '',
-      scenarioDataJson: JSON.stringify(scenario),
+      scenarioDataJson: JSON.stringify({ ...scenario, status: scenarioStatus }),
       updatedAt: new Date().toISOString(),
       authorId: auth.currentUser?.uid || 'anonymous',
       authorEmail: auth.currentUser?.email || 'user@company.com'

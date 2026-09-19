@@ -36,6 +36,7 @@ import { SteerCoDefenseModal } from '../schedule/SteerCoDefenseModal';
 import { EnvironmentLandscapeSwimlane } from '../schedule/EnvironmentLandscapeSwimlane';
 import { SmartsheetExportModal } from '../governance/SmartsheetExportModal';
 import { ScheduleStaffingCapacityCard } from '../schedule/ScheduleStaffingCapacityCard';
+import { PhaseResourceLoadingScreen } from '../schedule/PhaseResourceLoadingScreen';
 
 interface ScheduleGanttViewProps {
   scenario: ProjectScenario;
@@ -54,7 +55,7 @@ export const ScheduleGanttView: React.FC<ScheduleGanttViewProps> = ({
 }) => {
   const [zoomScale, setZoomScale] = useState<'weeks' | 'months'>('weeks');
   const [selectedTrackFilter, setSelectedTrackFilter] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'roadmap' | 'capacity' | 'environments' | 'methodology' | 'sequencing' | 'modifiers'>('roadmap');
+  const [activeTab, setActiveTab] = useState<'roadmap' | 'resource_loading' | 'capacity' | 'environments' | 'methodology' | 'sequencing' | 'modifiers'>('roadmap');
   const [showSteerCoModal, setShowSteerCoModal] = useState<boolean>(false);
   const [showSmartsheetModal, setShowSmartsheetModal] = useState<boolean>(false);
 
@@ -135,6 +136,7 @@ export const ScheduleGanttView: React.FC<ScheduleGanttViewProps> = ({
         <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-sm border border-slate-200 overflow-x-auto">
           {/* Tab 1: Gantt Roadmap */}
           <button
+            id="tab-gantt-roadmap"
             onClick={() => setActiveTab('roadmap')}
             className={`px-4 py-2 rounded-xs text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition cursor-pointer shrink-0 ${
               activeTab === 'roadmap'
@@ -144,6 +146,25 @@ export const ScheduleGanttView: React.FC<ScheduleGanttViewProps> = ({
           >
             <CalendarDays size={14} />
             <span>Interactive Gantt Roadmap</span>
+          </button>
+
+          {/* Tab 2: Phase-Wise Resource Loading Plan */}
+          <button
+            id="tab-resource-loading"
+            onClick={() => setActiveTab('resource_loading')}
+            className={`px-4 py-2 rounded-xs text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition cursor-pointer shrink-0 ${
+              activeTab === 'resource_loading'
+                ? 'bg-slate-900 text-white shadow-xs border border-slate-900'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200'
+            }`}
+          >
+            <Users size={14} className={activeTab === 'resource_loading' ? 'text-amber-400' : 'text-slate-700'} />
+            <span>Resource Loading Plan</span>
+            <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded-full font-bold ${
+              activeTab === 'resource_loading' ? 'bg-amber-400 text-slate-950' : 'bg-amber-100 text-amber-900'
+            }`}>
+              Ramp-Down & Modules
+            </span>
           </button>
 
           {/* Tab 2: Staffing vs Schedule Math */}
@@ -267,6 +288,15 @@ export const ScheduleGanttView: React.FC<ScheduleGanttViewProps> = ({
         </div>
       </div>
 
+      {/* Sub-Tab: Phase-Wise Resource Loading Plan */}
+      {activeTab === 'resource_loading' && (
+        <PhaseResourceLoadingScreen
+          scenario={scenario}
+          data={data}
+          onUpdateScenario={onUpdateScenario}
+        />
+      )}
+
       {/* Sub-Tab 0: Staffing vs Schedule Mathematical Engine */}
       {activeTab === 'capacity' && (
         <ScheduleStaffingCapacityCard
@@ -345,6 +375,15 @@ export const ScheduleGanttView: React.FC<ScheduleGanttViewProps> = ({
                     <span>Auto-Align: {data.recommendedDurationWeeks} Wks</span>
                   </button>
                 )}
+                <button
+                  id="btn-quick-resource-loading"
+                  onClick={() => setActiveTab('resource_loading')}
+                  className="px-3 py-1.5 rounded-sm bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-2xs transition"
+                  title="View Phase-Wise Resource Loading Plan"
+                >
+                  <Users size={14} className="text-amber-700" />
+                  <span>Resource Loading Plan</span>
+                </button>
                 <button
                   onClick={() => setActiveTab('sequencing')}
                   className="px-3 py-1.5 rounded-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-2xs transition"

@@ -113,13 +113,15 @@ interface GuidedWorkflowFooterProps {
   onSelectTab: (tab: NavTabId) => void;
   rolePreset?: UserRolePreset;
   onSelectRolePreset?: (role: UserRolePreset) => void;
+  onOpenGuidedTour?: () => void;
 }
 
 export const GuidedWorkflowFooter: React.FC<GuidedWorkflowFooterProps> = ({
   activeTab,
   onSelectTab,
   rolePreset = 'all',
-  onSelectRolePreset
+  onSelectRolePreset,
+  onOpenGuidedTour
 }) => {
   // Filter steps by role preset if not 'all'
   const filteredSteps = React.useMemo(() => {
@@ -205,12 +207,27 @@ export const GuidedWorkflowFooter: React.FC<GuidedWorkflowFooterProps> = ({
           />
         </div>
 
-        {/* Active Tab Label */}
-        <div className="text-slate-900 font-bold text-xs flex items-center gap-1.5">
-          <span>Active:</span>
-          <span className="text-indigo-700 underline underline-offset-2 decoration-indigo-300">
-            {currentStep.label}
-          </span>
+        {/* Active Tab Label & Guided Tour Trigger */}
+        <div className="flex items-center gap-2.5 flex-wrap justify-center">
+          <div className="text-slate-900 font-bold text-xs flex items-center gap-1.5">
+            <span>Active:</span>
+            <span className="text-indigo-700 underline underline-offset-2 decoration-indigo-300">
+              {currentStep.label}
+            </span>
+          </div>
+
+          {onOpenGuidedTour && (
+            <button
+              type="button"
+              id="workflow-footer-guided-tour-btn"
+              onClick={onOpenGuidedTour}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-2xs text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 cursor-pointer transition shadow-2xs"
+              title="Launch Guided Tour Overlay"
+            >
+              <Compass size={11} className="text-indigo-600" />
+              <span>Guided Tour</span>
+            </button>
+          )}
         </div>
       </div>
 

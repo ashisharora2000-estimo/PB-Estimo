@@ -2,6 +2,17 @@ import { ProjectScenario } from '../types';
 
 const STORAGE_KEY_MAKE_WEBHOOK = 'oracle_impl_make_webhook_url';
 const STORAGE_KEY_MAKE_AUTO_SYNC = 'oracle_impl_make_auto_sync';
+const STORAGE_KEY_MAKE_DEFAULT_STATUS = 'oracle_impl_make_default_status';
+
+export function getMakeDefaultStatus(): string {
+  if (typeof window === 'undefined') return '200';
+  return localStorage.getItem(STORAGE_KEY_MAKE_DEFAULT_STATUS) || '200';
+}
+
+export function setMakeDefaultStatus(status: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_KEY_MAKE_DEFAULT_STATUS, status.trim() || '200');
+}
 
 export function getMakeWebhookUrl(): string {
   if (typeof window === 'undefined') return '';
@@ -28,14 +39,56 @@ export function setMakeAutoSyncEnabled(enabled: boolean): void {
 }
 
 /**
+ * Helper to enrich webhook URL with query parameters.
+ * Make.com Custom Webhooks parse query parameters into top-level bundle variables
+ * regardless of whether JSON pass-through is active or how data structures were inferred.
+ */
+export function buildWebhookUrlWithParams(
+  rawUrl: string, 
+  scenarioStatus: string, 
+  scenarioId?: string, 
+  scenarioName?: string
+): string {
+  if (!rawUrl) return '';
+  const isNumericStatus = !isNaN(Number(scenarioStatus));
+  const numericCode = isNumericStatus ? Number(scenarioStatus) : 200;
+
+  try {
+    const parsed = new URL(rawUrl);
+    if (!parsed.searchParams.has('status')) {
+      parsed.searchParams.set('status', scenarioStatus);
+    }
+    if (!parsed.searchParams.has('Status')) {
+      parsed.searchParams.set('Status', scenarioStatus);
+    }
+    if (!parsed.searchParams.has('statusCode')) {
+      parsed.searchParams.set('statusCode', String(numericCode));
+    }
+    if (!parsed.searchParams.has('code')) {
+      parsed.searchParams.set('code', String(numericCode));
+    }
+    if (scenarioId && !parsed.searchParams.has('id')) {
+      parsed.searchParams.set('id', scenarioId);
+    }
+    if (scenarioName && !parsed.searchParams.has('name')) {
+      parsed.searchParams.set('name', scenarioName);
+    }
+    return parsed.toString();
+  } catch {
+    const sep = rawUrl.includes('?') ? '&' : '?';
+    return `${rawUrl}${sep}status=${encodeURIComponent(scenarioStatus)}&Status=${encodeURIComponent(scenarioStatus)}&statusCode=${numericCode}`;
+  }
+}
+
+/**
  * Sends a scenario payload to Make (Integromat) Webhook to store in Make Data Store
  */
 export async function sendScenarioToMakeDatabase(
   scenario: ProjectScenario,
   overrideWebhookUrl?: string
-): Promise<{ success: boolean; message: string; statusCode?: number }> {
-  const webhookUrl = overrideWebhookUrl || getMakeWebhookUrl();
-  if (!webhookUrl) {
+): Promise<{ success: boolean; message: string; statusCode?: number; details?: any }> {
+  const rawWebhookUrl = overrideWebhookUrl || getMakeWebhookUrl();
+  if (!rawWebhookUrl) {
     return { success: false, message: 'No Make Webhook URL configured.' };
   }
 
@@ -52,8 +105,35 @@ export async function sendScenarioToMakeDatabase(
       ? scenario.selectedModules.map((m: any) => (typeof m === 'string' ? m : m.name || m.code || m.id)).filter(Boolean).join(', ')
       : '';
 
+    const defaultStatusSetting = getMakeDefaultStatus() || 'ACTIVE';
+    const scenarioStatus = scenario.status || 
+      (scenario.isScheduleFrozen ? 'BASELINE LOCKED' : 
+       scenario.isBlackoutLocked ? 'BLACKOUT LOCKED' : 
+       defaultStatusSetting);
+
+    const isNumericStatus = !isNaN(Number(scenarioStatus));
+    const numericStatusCode = isNumericStatus ? Number(scenarioStatus) : 200;
+
+    // Guaranteed status value: either primitive string or primitive number based on configuration
+    const resolvedStatusValue: string | number = isNumericStatus ? numericStatusCode : scenarioStatus;
+
+    // Enriched URL with query params
+    const enrichedWebhookUrl = buildWebhookUrlWithParams(rawWebhookUrl, scenarioStatus, scenario.id, scenario.name);
+
     const payload = {
-      // 1. Core Top-Level Scenario Attributes
+      // 1. Core Top-Level Scenario Attributes (Guaranteed status parameter for webhook data structure validation)
+      status: resolvedStatusValue,
+      Status: resolvedStatusValue,
+      statusCode: numericStatusCode,
+      status_code: numericStatusCode,
+      httpStatus: numericStatusCode,
+      code: numericStatusCode,
+      state: scenarioStatus,
+      statusValue: scenarioStatus,
+      statusText: 'OK',
+      result: 'success',
+      success: true,
+
       id: scenario.id,
       name: scenario.name,
       clientName: scenario.clientName || '',
@@ -136,12 +216,49 @@ export async function sendScenarioToMakeDatabase(
       clientModifier_changeResistance: Number(clientModifiers.changeResistance ?? 1.0),
 
       // 10. Metadata & Timestamps
+      metadata_status: scenarioStatus,
       updatedAt: new Date().toISOString(),
       timestamp: new Date().toISOString(),
       event: 'scenario_saved',
       source: 'Oracle Fusion Implementation Planner',
 
-      // 11. Preserved Raw Objects & Full Complete Replica JSON
+      // 11. Nested Objects for Make / Integromat Modules
+      project: {
+        id: scenario.id,
+        name: scenario.name,
+        status: resolvedStatusValue,
+        Status: resolvedStatusValue,
+        statusCode: numericStatusCode,
+        clientName: scenario.clientName || ''
+      },
+      scenario: {
+        id: scenario.id,
+        name: scenario.name,
+        status: resolvedStatusValue,
+        Status: resolvedStatusValue,
+        statusCode: numericStatusCode
+      },
+      data: {
+        id: scenario.id,
+        name: scenario.name,
+        status: resolvedStatusValue,
+        Status: resolvedStatusValue,
+        statusCode: numericStatusCode
+      },
+      fields: {
+        status: resolvedStatusValue,
+        Status: resolvedStatusValue,
+        name: scenario.name,
+        id: scenario.id
+      },
+      record: {
+        status: resolvedStatusValue,
+        Status: resolvedStatusValue,
+        name: scenario.name,
+        id: scenario.id
+      },
+
+      // 12. Preserved Raw Objects & Full Complete Replica JSON
       deliveryMix,
       scaleDrivers,
       clientModifiers,
@@ -158,29 +275,75 @@ export async function sendScenarioToMakeDatabase(
       technicalSmcOverrides: scenario.technicalSmcOverrides || {},
       phaseOverrides: scenario.phaseOverrides || {},
       scheduleModifiers: scenario.scheduleModifiers || {},
-      scenarioDataJson: JSON.stringify(scenario)
+      scenarioDataJson: JSON.stringify({ ...scenario, status: scenarioStatus })
     };
 
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
+    // 1. Prefer Server Proxy with Automatic Status Parameter Healing
+    try {
+      const proxyRes = await fetch('/api/webhook/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          webhookUrl: rawWebhookUrl,
+          payload,
+          status: scenarioStatus
+        })
+      });
 
-    if (response.ok) {
-      return {
-        success: true,
-        message: 'Successfully sent scenario to Make Database.',
-        statusCode: response.status
-      };
-    } else {
-      const text = await response.text().catch(() => '');
+      if (proxyRes.ok) {
+        const proxyData = await proxyRes.json();
+        if (proxyData.success) {
+          if (proxyData.calibratedStatus) {
+            setMakeDefaultStatus(String(proxyData.calibratedStatus));
+          }
+          return {
+            success: true,
+            message: proxyData.message || 'Successfully transmitted to Make Database.',
+            statusCode: proxyData.statusCode || 200,
+            details: proxyData.responseBody
+          };
+        } else {
+          return {
+            success: false,
+            message: proxyData.message || 'Make Webhook rejected payload.',
+            statusCode: proxyData.statusCode || 400,
+            details: proxyData.responseBody
+          };
+        }
+      }
+    } catch (proxyErr) {
+      console.warn('[Make Sync] Server proxy unreachable, attempting direct dispatch...', proxyErr);
+    }
+
+    // 2. Direct browser fetch fallback (clean headers without non-standard CORS triggers)
+    try {
+      const response = await fetch(enrichedWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        return {
+          success: true,
+          message: 'Successfully sent scenario to Make Database.',
+          statusCode: response.status
+        };
+      } else {
+        const text = await response.text().catch(() => '');
+        return {
+          success: false,
+          message: `Make Webhook responded with HTTP ${response.status}: ${text.slice(0, 200)}`,
+          statusCode: response.status,
+          details: text
+        };
+      }
+    } catch (directErr: any) {
       return {
         success: false,
-        message: `Make Webhook responded with HTTP ${response.status}: ${text.slice(0, 150)}`,
-        statusCode: response.status
+        message: `Failed to connect to Make Webhook: ${directErr.message || String(directErr)}`
       };
     }
   } catch (error: any) {
@@ -189,4 +352,134 @@ export async function sendScenarioToMakeDatabase(
       message: `Failed to connect to Make Webhook: ${error.message || String(error)}`
     };
   }
+}
+
+/**
+ * Validates a webhook connection with a comprehensive multi-parameter validation test.
+ */
+export async function validateMakeWebhookConnection(
+  webhookUrl: string,
+  statusOption?: string
+): Promise<{
+  valid: boolean;
+  message: string;
+  statusCode?: number;
+  responseBody?: string;
+  recommendation?: string;
+  calibratedStatus?: any;
+  autoCalibrated?: boolean;
+}> {
+  if (!webhookUrl || !webhookUrl.trim()) {
+    return { valid: false, message: 'Webhook URL is required.' };
+  }
+
+  const trimmedUrl = webhookUrl.trim();
+  const candidateStatus = statusOption || getMakeDefaultStatus() || '200';
+
+  const testPayload = {
+    testOnly: true,
+    event: 'ORACLE_CLOUD_WEBHOOK_VALIDATION_PING',
+    status: candidateStatus,
+    Status: candidateStatus,
+    statusCode: !isNaN(Number(candidateStatus)) ? Number(candidateStatus) : 200,
+    timestamp: new Date().toISOString(),
+    sheetName: 'Oracle Cloud Project Baseline (Validation Ping)',
+    workspaceId: 'home',
+    name: 'Validation Test Ping',
+    clientName: 'Validation Check',
+    project: {
+      status: candidateStatus,
+      name: 'Validation Test Ping',
+      clientName: 'Validation Check',
+      totalWeeks: 32,
+      modules: ['FIN-GL', 'FIN-AP', 'FIN-AR'],
+      phases: ['Wave 0', 'Wave 1']
+    },
+    data: {
+      status: candidateStatus,
+      name: 'Validation Test Ping'
+    },
+    fields: {
+      status: candidateStatus,
+      sheetName: 'Oracle Cloud Project Baseline (Validation Ping)'
+    }
+  };
+
+  try {
+    const proxyRes = await fetch('/api/webhook/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        webhookUrl: trimmedUrl,
+        status: candidateStatus,
+        payload: testPayload
+      })
+    });
+
+    if (proxyRes.ok) {
+      const data = await proxyRes.json();
+      if (data.success) {
+        if (data.calibratedStatus) {
+          setMakeDefaultStatus(String(data.calibratedStatus));
+        }
+        return {
+          valid: true,
+          message: data.message || `Webhook validated successfully! Received HTTP ${data.statusCode || 200} OK.`,
+          statusCode: data.statusCode || 200,
+          responseBody: data.responseBody,
+          calibratedStatus: data.calibratedStatus,
+          autoCalibrated: data.autoCalibrated
+        };
+      }
+
+      const msg = data.message || '';
+      let recommendation = '';
+      if (msg.includes("required parameter 'status'") || msg.includes('parameter(s)')) {
+        recommendation = "Make.com scenario requires status parameter. Our engine attempted auto-calibration with both numeric HTTP 200 and text 'ACTIVE'. Ensure your Make scenario's Webhook Response or Data Store module maps 'status' correctly or click 'Redetermine data structure' in Make.";
+      } else if (msg.includes('500') || msg.includes('Scenario failed to complete')) {
+        recommendation = "Make.com successfully received the webhook, but a downstream module inside your Make scenario threw an error before completing. Open Make.com > Scenarios > History, click the red execution log, and inspect which module failed (e.g. missing sheet, invalid token, or unhandled field).";
+      } else if (msg.includes('404')) {
+        recommendation = "Webhook endpoint not found (HTTP 404). Check if the Make.com scenario is turned ON (active).";
+      } else if (msg.includes('401') || msg.includes('403')) {
+        recommendation = "Webhook returned Unauthorized / Forbidden. Check IP whitelist or Make API key permissions.";
+      }
+
+      return {
+        valid: false,
+        message: data.message || 'Validation failed for webhook.',
+        statusCode: data.statusCode,
+        responseBody: data.responseBody,
+        recommendation
+      };
+    }
+  } catch (netErr: any) {
+    console.warn('Proxy validation error, fallback to direct test:', netErr);
+  }
+
+  // Fallback test via scenario transmission
+  const fallbackScenario = {
+    id: 'validation-test-ping',
+    name: 'Validation Test Ping',
+    description: 'Validation check ping',
+    clientName: 'Validation Check',
+    industry: 'General Services',
+    projectWeeks: 32,
+    targetStartDate: '2026-10-05',
+    schedulingMode: 'forward' as const,
+    rolloutApproach: 'phased_geo' as const,
+    rolloutWaves: 1,
+    selectedModules: [],
+    scaleDrivers: {},
+    complexityAnswers: {},
+    status: candidateStatus
+  } as unknown as ProjectScenario;
+
+  const result = await sendScenarioToMakeDatabase(fallbackScenario, trimmedUrl);
+
+  return {
+    valid: result.success,
+    message: result.message,
+    statusCode: result.statusCode || (result.success ? 200 : 400),
+    responseBody: result.details
+  };
 }
