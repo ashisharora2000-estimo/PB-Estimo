@@ -26,7 +26,8 @@ import {
   Cloud,
   SlidersHorizontal,
   Award,
-  Compass
+  Compass,
+  LayoutDashboard
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData, OracleModule } from '../types';
 import { PRESET_SCENARIOS } from '../data/templates';
@@ -55,6 +56,7 @@ interface NavbarProps {
   onOpenDealDefense?: () => void;
   onOpenSmartsheetExport?: () => void;
   onOpenSlideDeck?: () => void;
+  onOpenCommandHub?: () => void;
   onOpenNotebookLmPodcast?: () => void;
   isPodcastPlaying?: boolean;
   customScenarios?: ProjectScenario[];
@@ -81,6 +83,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenDealDefense,
   onOpenSmartsheetExport,
   onOpenSlideDeck,
+  onOpenCommandHub,
   onOpenNotebookLmPodcast,
   isPodcastPlaying,
   customScenarios = [],
@@ -218,21 +221,26 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs">
-      <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 py-2 flex items-center justify-between gap-2">
+      <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-2">
         {/* Left: Brand Logo, Title & Proposal Selectors */}
         <div className="flex items-center gap-2 shrink-0">
           {/* Brand Logo & Title */}
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="p-1.5 rounded-sm bg-slate-900 text-white flex items-center justify-center">
+          <button
+            type="button"
+            onClick={onOpenCommandHub}
+            className="flex items-center gap-2 shrink-0 cursor-pointer group text-left transition hover:opacity-90"
+            title="Go to Executive Command Hub"
+          >
+            <div className="p-1.5 rounded-sm bg-slate-900 text-white flex items-center justify-center group-hover:bg-indigo-600 transition-colors">
               <Database size={16} className="stroke-[2.2]" />
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-base font-bold tracking-tight text-slate-900">PB-Estimo</span>
+              <span className="text-base font-bold tracking-tight text-slate-900 group-hover:text-indigo-600 transition-colors">PB-Estimo</span>
               <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-xs bg-slate-100 text-slate-700 border border-slate-200 hidden sm:inline">
                 Oracle Cloud
               </span>
             </div>
-          </div>
+          </button>
 
           <div className="h-4 w-px bg-slate-200 hidden sm:block shrink-0 mx-0.5" />
 
@@ -392,13 +400,96 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               {toolsOpen && (
-                <div className="absolute left-0 mt-1.5 w-68 bg-white border border-slate-200 rounded-sm shadow-xl z-50 p-1.5 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="absolute left-0 mt-1.5 w-72 bg-white border border-slate-200 rounded-sm shadow-xl z-50 p-1.5 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150">
                   <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Advanced Deal Tools
+                    Executive Strategy & Deal Hubs
                   </div>
 
-                  {/* Listen Podcast - Hidden for future release */}
+                  {onOpenCommandHub && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenCommandHub();
+                        setToolsOpen(false);
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-slate-900 hover:bg-slate-100 flex items-center gap-2 transition cursor-pointer"
+                    >
+                      <LayoutDashboard size={14} className="text-indigo-600 shrink-0" />
+                      <div>
+                        <div className="font-bold flex items-center gap-1.5">
+                          <span>Executive Command Hub</span>
+                          <span className="text-[9px] font-bold px-1 py-0.2 rounded-xs bg-slate-900 text-white font-mono">Hub</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-normal">Executive KPIs, health & footprint</div>
+                      </div>
+                    </button>
+                  )}
 
+                  {onOpenSlideDeck && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenSlideDeck();
+                        setToolsOpen(false);
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-slate-900 hover:bg-indigo-50 hover:text-indigo-950 flex items-center gap-2 transition cursor-pointer"
+                    >
+                      <Presentation size={14} className="text-indigo-600 shrink-0" />
+                      <div>
+                        <div className="font-bold flex items-center gap-1.5">
+                          <span>Executive Slide Deck (PPTX)</span>
+                          <span className="text-[9px] font-bold px-1 py-0.2 rounded-xs bg-indigo-100 text-indigo-800 font-mono">PPTX</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-normal">5-Slide client presentation deck</div>
+                      </div>
+                    </button>
+                  )}
+
+                  {onOpenWhatIfSimulator && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenWhatIfSimulator();
+                        setToolsOpen(false);
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-slate-900 hover:bg-amber-50 hover:text-amber-950 flex items-center gap-2 transition cursor-pointer"
+                    >
+                      <SlidersHorizontal size={14} className="text-amber-600 shrink-0" />
+                      <div>
+                        <div className="font-bold flex items-center gap-1.5">
+                          <span>What-If Trade-off Simulator</span>
+                          <span className="text-[9px] font-bold px-1 py-0.2 rounded-xs bg-amber-100 text-amber-800 font-mono">Oral Defense</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-normal">Live margin, cutover & CEMLI sensitivity</div>
+                      </div>
+                    </button>
+                  )}
+
+                  {onOpenDealDefense && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenDealDefense();
+                        setToolsOpen(false);
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-slate-900 hover:bg-indigo-50 hover:text-indigo-950 flex items-center gap-2 transition cursor-pointer"
+                    >
+                      <Award size={14} className="text-indigo-600 shrink-0" />
+                      <div>
+                        <div className="font-bold flex items-center gap-1.5">
+                          <span>Deal Defense & SOW Shield</span>
+                          <span className="text-[9px] font-bold px-1 py-0.2 rounded-xs bg-indigo-100 text-indigo-800 font-mono">SteerCo</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-normal">Duration defense, steerco justification & SOW shield</div>
+                      </div>
+                    </button>
+                  )}
+
+                  <div className="h-px bg-slate-100 my-1" />
+
+                  <div className="px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Scoping Studios & AI Agents
+                  </div>
 
                   {onOpenComplexityStudio && (
                     <button
@@ -407,9 +498,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                         onOpenComplexityStudio();
                         setToolsOpen(false);
                       }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-900 flex items-center gap-2 transition"
+                      className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-900 flex items-center gap-2 transition cursor-pointer"
                     >
-                      <Sparkles size={13} className="text-purple-600" />
+                      <Sparkles size={13} className="text-purple-600 shrink-0" />
                       <div>
                         <div className="font-bold">Complexity & AI Studio</div>
                         <div className="text-[10px] text-slate-500 font-normal">Custom drivers & risk sliders</div>
@@ -424,9 +515,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                         onOpenIntelHub();
                         setToolsOpen(false);
                       }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-2 transition"
+                      className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-2 transition cursor-pointer"
                     >
-                      <Sparkles size={13} className="text-indigo-600" />
+                      <Sparkles size={13} className="text-indigo-600 shrink-0" />
                       <div>
                         <div className="font-bold">AI Scoping & Ingestion Agent</div>
                         <div className="text-[10px] text-slate-500 font-normal">RFP upload, RFP memo & intel synthesis</div>
@@ -434,81 +525,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </button>
                   )}
 
-                  {/* Framework Slider hidden */}
-
-                  {onOpenWhatIfSimulator && (
+                  {onOpenAudit && (
                     <button
                       type="button"
                       onClick={() => {
-                        onOpenWhatIfSimulator();
+                        onOpenAudit();
                         setToolsOpen(false);
                       }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-900 flex items-center gap-2 transition"
+                      className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-900 flex items-center gap-2 transition cursor-pointer"
                     >
-                      <SlidersHorizontal size={13} className="text-amber-600" />
+                      <Sparkles size={13} className="text-amber-600 shrink-0" />
                       <div>
-                        <div className="font-bold flex items-center gap-1.5">
-                          <span>What-If Trade-off Simulator</span>
-                          <span className="text-[9px] font-bold px-1 py-0.2 rounded-xs bg-amber-100 text-amber-800">Oral Defense</span>
-                        </div>
-                        <div className="text-[10px] text-slate-500 font-normal">Live margin, cutover & CEMLI sensitivity</div>
+                        <div className="font-bold">Leadership Audit Hub</div>
+                        <div className="text-[10px] text-slate-500 font-normal">Full formula transparency & trace math</div>
                       </div>
                     </button>
                   )}
-
-                  {onOpenDealDefense && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onOpenDealDefense();
-                        setToolsOpen(false);
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-2 transition"
-                    >
-                      <Award size={13} className="text-indigo-600" />
-                      <div>
-                        <div className="font-bold flex items-center gap-1.5">
-                          <span>Deal Defense & Orals Battlecard</span>
-                          <span className="text-[9px] font-bold px-1 py-0.2 rounded-xs bg-indigo-100 text-indigo-800">SteerCo</span>
-                        </div>
-                        <div className="text-[10px] text-slate-500 font-normal">Executive justification, duration defense & SOW shield</div>
-                      </div>
-                    </button>
-                  )}
-
-                  {onOpenSlideDeck && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onOpenSlideDeck();
-                        setToolsOpen(false);
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-2 transition"
-                    >
-                      <Presentation size={13} className="text-indigo-600" />
-                      <div>
-                        <div className="font-bold">Executive Slide Deck (PPTX)</div>
-                        <div className="text-[10px] text-slate-500 font-normal">5-Slide client presentation</div>
-                      </div>
-                    </button>
-                  )}
-
-                  {/* Compare Blueprints hidden */}
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onOpenAudit();
-                      setToolsOpen(false);
-                    }}
-                    className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-900 flex items-center gap-2 transition"
-                  >
-                    <Sparkles size={13} className="text-amber-600" />
-                    <div>
-                      <div className="font-bold">Leadership Audit Hub</div>
-                      <div className="text-[10px] text-slate-500 font-normal">Full formula transparency & trace math</div>
-                    </div>
-                  </button>
 
                   <div className="h-px bg-slate-100 my-1" />
 
@@ -518,7 +550,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       downloadAllKnowledgeFiles();
                       setToolsOpen(false);
                     }}
-                    className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-purple-700 hover:bg-purple-50 hover:text-purple-900 flex items-center gap-2 transition"
+                    className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-purple-700 hover:bg-purple-50 hover:text-purple-900 flex items-center gap-2 transition cursor-pointer"
                     title="Download 5 .MD Knowledge Base files for Claude Project Knowledge"
                   >
                     <Download size={13} className="text-purple-600 shrink-0" />
@@ -919,8 +951,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Point 5: SteerCo Baseline Blackout & Scope Freeze Prominence Banner */}
       {(scenario.isScheduleFrozen || scenario.isBlackoutLocked) && (
-        <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-rose-950 text-rose-100 border-t border-rose-800/60 px-3 sm:px-4 py-1.5 text-xs font-mono flex items-center shadow-inner">
-          <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-3">
+        <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-rose-950 text-rose-100 border-t border-rose-800/60 px-4 sm:px-6 lg:px-8 py-1.5 text-xs font-mono flex items-center shadow-inner">
+          <div className="w-full max-w-[1720px] mx-auto flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
               <span className="flex items-center justify-center w-5 h-5 rounded-xs bg-rose-600 text-white font-bold shrink-0 shadow-xs">
                 <Lock size={12} className="stroke-[2.5]" />

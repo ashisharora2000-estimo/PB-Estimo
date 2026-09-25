@@ -243,7 +243,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       {/* SUB-SECTION 1: EXECUTIVE RFP BRIEF (Printable Dossier)                    */}
       {/* ========================================================================= */}
       {activeSubSection === 'sow_brief' && (
-        <div className="bg-white text-slate-900 rounded-sm p-6 sm:p-10 shadow-xs max-w-4xl mx-auto space-y-8 font-sans border border-slate-200">
+        <div className="bg-white text-slate-900 rounded-sm p-6 sm:p-10 shadow-xs w-full max-w-6xl mx-auto space-y-8 font-sans border border-slate-200">
           {/* Cover Header */}
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-6 border-b border-slate-200">
             <div>

@@ -309,84 +309,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <aside className="w-68 shrink-0 hidden md:block select-none">
       <div className="sticky top-20 max-h-[calc(100vh-5.5rem)] overflow-y-auto pr-1 pb-6 space-y-3 custom-scrollbar">
         
-        {/* Quick Action: New Proposal Button & Slide Deck Button */}
-        <div className="space-y-1.5">
-          {onOpenNewProposal && (
-            <button
-              type="button"
-              onClick={onOpenNewProposal}
-              className="w-full flex items-center justify-between p-2.5 rounded-sm bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs transition shadow-xs cursor-pointer border border-emerald-500 group"
-            >
-              <div className="flex items-center gap-2">
-                <div className="p-1 rounded-xs bg-white/20 text-white group-hover:rotate-90 transition-transform">
-                  <Plus size={14} className="stroke-[3]" />
-                </div>
-                <div className="text-left">
-                  <div className="text-xs font-bold leading-tight">+ New Proposal</div>
-                  <div className="text-[10px] text-emerald-100 font-normal leading-tight">Clean-slate or template</div>
-                </div>
+        {/* Quick Action: New Proposal Button */}
+        {onOpenNewProposal && (
+          <button
+            type="button"
+            onClick={onOpenNewProposal}
+            className="w-full flex items-center justify-between p-2.5 rounded-sm bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs transition shadow-xs cursor-pointer border border-emerald-500 group"
+          >
+            <div className="flex items-center gap-2">
+              <div className="p-1 rounded-xs bg-white/20 text-white group-hover:rotate-90 transition-transform">
+                <Plus size={14} className="stroke-[3]" />
               </div>
-              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-emerald-800 text-emerald-100 rounded-xs uppercase">
-                Deal
-              </span>
-            </button>
-          )}
-
-          <div className="grid grid-cols-2 gap-1.5">
-            {onOpenSlideDeck && (
-              <button
-                type="button"
-                onClick={onOpenSlideDeck}
-                className="flex items-center justify-between p-2 rounded-sm bg-indigo-900 hover:bg-indigo-800 text-white font-bold text-xs transition shadow-xs cursor-pointer border border-indigo-700 group"
-                title="Open Executive 5-Slide PowerPoint Deck Modal"
-              >
-                <div className="flex items-center gap-1.5 truncate">
-                  <Presentation size={13} className="text-indigo-300 shrink-0" />
-                  <span className="text-[11px] font-bold truncate">Slide Deck</span>
-                </div>
-                <span className="text-[8px] font-mono px-1 py-0.2 bg-indigo-950 text-indigo-300 rounded-xs">
-                  PPTX
-                </span>
-              </button>
-            )}
-
-            {onOpenWhatIfSimulator && (
-              <button
-                type="button"
-                onClick={onOpenWhatIfSimulator}
-                className="flex items-center justify-between p-2 rounded-sm bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition shadow-xs cursor-pointer border border-amber-400 group"
-                title="Open What-If Margin & Scope Trade-off Simulator"
-              >
-                <div className="flex items-center gap-1.5 truncate">
-                  <SlidersHorizontal size={13} className="text-slate-950 shrink-0" />
-                  <span className="text-[11px] font-bold truncate">What-If</span>
-                </div>
-                <span className="text-[8px] font-mono px-1 py-0.2 bg-slate-950 text-amber-300 rounded-xs">
-                  Oral
-                </span>
-              </button>
-            )}
-          </div>
-
-          {onOpenDealDefense && (
-            <button
-              type="button"
-              onClick={onOpenDealDefense}
-              className="w-full flex items-center justify-between p-2 rounded-sm bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition shadow-xs cursor-pointer border border-slate-700 group"
-              title="Open Deal Defense & SteerCo Justification Hub"
-            >
-              <div className="flex items-center gap-2">
-                <div className="p-1 rounded-xs bg-indigo-500/30 text-indigo-300">
-                  <Award size={13} className="stroke-[2.5]" />
-                </div>
-                <span className="text-xs font-bold leading-tight">Deal Defense & SOW Shield</span>
+              <div className="text-left">
+                <div className="text-xs font-bold leading-tight">+ New Proposal</div>
+                <div className="text-[10px] text-emerald-100 font-normal leading-tight">Clean-slate or template</div>
               </div>
-              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-indigo-500 text-white rounded-xs uppercase">
-                SteerCo
-              </span>
-            </button>
-          )}
-        </div>
+            </div>
+            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-emerald-800 text-emerald-100 rounded-xs uppercase">
+              Deal
+            </span>
+          </button>
+        )}
 
         {/* ROLE-BASED PRESET SELECTOR (Suggestion 4) */}
         <div className="bg-white p-2 rounded-sm border border-slate-200 shadow-xs space-y-1.5">
@@ -426,38 +369,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             })}
           </div>
         </div>
-
-        {/* HOME HUB: Executive Command */}
-        <button
-          type="button"
-          onClick={() => onSelectTab('dashboard')}
-          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-sm text-left transition-colors duration-150 group cursor-pointer border ${
-            activeTab === 'dashboard'
-              ? 'bg-slate-900 text-white border-slate-800 shadow-xs'
-              : 'bg-white text-slate-800 hover:bg-slate-50 border-slate-200 shadow-xs'
-          }`}
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div
-              className={`p-1.5 rounded-sm ${
-                activeTab === 'dashboard' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'
-              }`}
-            >
-              <LayoutDashboard size={15} />
-            </div>
-            <div>
-              <div className="text-xs font-bold leading-tight">Executive Command Hub</div>
-              <div className={`text-[10px] ${activeTab === 'dashboard' ? 'text-slate-300' : 'text-slate-500'}`}>
-                KPIs, Health & Footprint
-              </div>
-            </div>
-          </div>
-          <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-xs ${
-            activeTab === 'dashboard' ? 'bg-indigo-900 text-indigo-200' : 'bg-slate-100 text-slate-600'
-          }`}>
-            Hub
-          </span>
-        </button>
 
         {/* 3-STAGE BID LIFECYCLE (Suggestion 1) */}
         <div className="space-y-2">

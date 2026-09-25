@@ -469,13 +469,14 @@ export default function App() {
         onOpenWhatIfSimulator={() => setWhatIfSimulatorOpen(true)}
         onOpenDealDefense={() => setDealDefenseModalOpen(true)}
         onOpenSlideDeck={() => setSlideDeckModalOpen(true)}
+        onOpenCommandHub={() => setActiveTab('dashboard')}
         onOpenGuidedTour={() => setGuidedTourOpen(true)}
         customScenarios={customProposals}
         onDeleteCustomScenario={handleDeleteCustomProposal}
       />
 
       {/* Main Container */}
-      <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 flex gap-6">
+      <div className="flex-1 max-w-[1720px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-5 flex gap-6">
         {/* Desktop Sidebar */}
         <Sidebar
           activeTab={activeTab}
@@ -810,7 +811,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white text-slate-500 py-6 text-center text-xs print:hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="text-[11px] font-medium text-slate-600">
             <strong className="text-slate-900 font-bold">PB-Estimo</strong> &mdash; Oracle Fusion Cloud ERP/SCM/HCM Implementation Schedule & Efforts Estimation Platform
           </div>
