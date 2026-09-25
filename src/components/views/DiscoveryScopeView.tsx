@@ -949,22 +949,36 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
       {/* SCOPE MODE TOGGLE: Hidden for future enablement as requested */}
       {/* Integrations-Only option is kept in code but hidden from active proposal workflow */}
 
-      {/* In-Page Sub-Section Navigation Bar */}
-      <div className="bg-white border border-slate-200 p-1.5 shadow-2xs overflow-x-auto">
-        <div className="flex items-center gap-1 min-w-max">
+      {/* In-Page Sub-Section Navigation Bar - High-Visibility 3-Row Button Grid */}
+      <div className="bg-slate-100/90 border border-slate-300 p-2.5 shadow-xs rounded-xs">
+        <div className="flex items-center justify-between gap-2 px-1 pb-2 border-b border-slate-200 mb-2">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+            <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-700">
+              Stage 1 Architectural Scope Workstreams
+            </span>
+          </div>
+          <span className="text-[10px] font-mono text-slate-500 hidden sm:inline">
+            Click any section below to configure scope
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {[
             {
               id: 'modules' as const,
               num: '1',
-              label: isReducedMode ? 'Modules & Reduced Q\'s (5 Core)' : 'Modules & 20-Q Scope',
+              label: isReducedMode ? "Modules & Reduced Q's (5 Core)" : 'Modules & 20-Q Scope',
               icon: isReducedMode ? Zap : Target,
-              badge: `${scenario.selectedModules.length} Mods • ${isReducedMode ? '⚡ 5 Core Qs' : '20-Q'}`
+              color: 'text-blue-600',
+              badge: `${scenario.selectedModules.length} Mods • ${isReducedMode ? '⚡ 5 Qs' : '20-Q'}`
             },
             {
               id: 'technical' as const,
               num: '2',
               label: 'Technical Estimation & RICEFW',
               icon: Cpu,
+              color: 'text-indigo-600',
               badge: `${scenario.scaleDrivers.tech_oic ?? (scenario.technicalIntegrations || DEFAULT_TECHNICAL_INTEGRATIONS).length} Integrations`
             },
             {
@@ -972,6 +986,7 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
               num: '3',
               label: 'Business Testing (SIT & UAT)',
               icon: ListChecks,
+              color: 'text-violet-600',
               badge: `${scenario.scaleDrivers.test_sit_cycles || 2} SIT / ${scenario.scaleDrivers.test_uat_cycles || 1} UAT`
             },
             {
@@ -979,13 +994,15 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
               num: '4',
               label: 'Program Modifiers (7 Risks)',
               icon: Sliders,
-              badge: `${netMod.toFixed(2)}x`
+              color: 'text-amber-600',
+              badge: `${netMod.toFixed(2)}x Multiplier`
             },
             {
               id: 'rollout' as const,
               num: '5',
               label: 'Rollout & Waves',
               icon: Workflow,
+              color: 'text-emerald-600',
               badge: `${scenario.rolloutWaves || 3} Waves`
             },
             {
@@ -993,6 +1010,7 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
               num: '6',
               label: 'Freeze Windows',
               icon: Calendar,
+              color: 'text-cyan-600',
               badge: `${(scenario.blackoutPeriods || []).length} Windows`
             },
             {
@@ -1000,6 +1018,7 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
               num: '7',
               label: 'Scale Drivers & Topology',
               icon: Building2,
+              color: 'text-rose-600',
               badge: `${scenario.scaleDrivers.fin_ent} Ent / ${scenario.scaleDrivers.tech_oic} OIC`
             },
             {
@@ -1007,7 +1026,8 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
               num: '8',
               label: 'Traceability & Math',
               icon: Compass,
-              badge: 'Audit'
+              color: 'text-teal-600',
+              badge: 'Audit & Rules'
             }
           ].map((item) => {
             const isSelected = activeSection === item.id;
@@ -1018,24 +1038,43 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
                 key={item.id}
                 type="button"
                 onClick={() => setActiveSection(item.id)}
-                className={`px-3 py-2 text-xs font-bold transition flex items-center gap-2 border cursor-pointer ${
+                className={`group px-3 py-2 text-xs font-bold transition-all duration-150 flex items-center justify-between gap-2.5 border-2 cursor-pointer rounded-xs text-left relative overflow-hidden ${
                   isSelected
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                    : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-blue-500/70 border-l-4 border-l-amber-400'
+                    : 'bg-white hover:bg-slate-50 text-slate-800 border-slate-200 hover:border-blue-400 shadow-xs hover:shadow-sm'
                 }`}
               >
-                <div className="flex items-center gap-1.5">
-                  <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-mono font-bold ${
-                    isSelected ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={`w-5 h-5 rounded-xs flex items-center justify-center text-[11px] font-mono font-black shrink-0 transition-colors ${
+                      isSelected
+                        ? 'bg-amber-400 text-slate-950 shadow-xs'
+                        : 'bg-slate-100 group-hover:bg-blue-50 text-slate-700 group-hover:text-blue-700 border border-slate-300 group-hover:border-blue-300'
+                    }`}
+                  >
                     {item.num}
                   </span>
-                  <Icon size={14} className={isSelected ? 'text-blue-300' : 'text-slate-500'} />
-                  <span>{item.label}</span>
+                  <Icon
+                    size={15}
+                    className={`shrink-0 transition-transform group-hover:scale-110 ${
+                      isSelected ? 'text-amber-300' : item.color
+                    }`}
+                  />
+                  <span
+                    className={`truncate text-xs font-bold ${
+                      isSelected ? 'text-white' : 'text-slate-900 group-hover:text-blue-900'
+                    }`}
+                  >
+                    {item.label}
+                  </span>
                 </div>
-                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-none font-bold ${
-                  isSelected ? 'bg-slate-800 text-amber-300 border border-slate-700' : 'bg-white text-slate-600 border border-slate-200'
-                }`}>
+                <span
+                  className={`text-[10px] font-mono px-2 py-0.5 rounded-xs font-bold shrink-0 border transition-colors ${
+                    isSelected
+                      ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 shadow-xs'
+                      : 'bg-slate-100 group-hover:bg-slate-200/70 text-slate-700 border-slate-300'
+                  }`}
+                >
                   {item.badge}
                 </span>
               </button>
