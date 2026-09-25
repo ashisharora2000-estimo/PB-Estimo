@@ -233,6 +233,11 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
   const complexCount = integrations.filter(i => i.complexity === 'C' || i.complexity === 'XL').length;
   const avgHours = integrations.length > 0 ? Math.round(totalIntegrationHours / integrations.length) : 0;
 
+  // Accurately resolve total program hours from calculateProjectMetrics (p80_DefensibleHours / targetHours / totalBaseHours)
+  const totalProgramHours = data?.p80_DefensibleHours || data?.targetHours || data?.p50_BaselineHours || data?.totalBaseHours || 0;
+  const totalTechHours = data?.technicalWorkstreamEstimate?.totalHours || totalIntegrationHours;
+  const techPercentOfProgram = totalProgramHours > 0 ? Math.round((totalTechHours / totalProgramHours) * 100) : 0;
+
   return (
     <div className="space-y-4">
       {/* 1. EXECUTIVE TECHNICAL KPI STRIP */}
@@ -243,10 +248,12 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
               1. Technical Effort
             </span>
             <span className="text-xl font-bold font-mono text-slate-900 block truncate">
-              {(data?.technicalHours || totalIntegrationHours).toLocaleString()} <span className="text-xs text-slate-500 font-normal">hrs</span>
+              {totalTechHours.toLocaleString()} <span className="text-xs text-slate-500 font-normal">hrs</span>
             </span>
             <span className="text-[10px] font-mono text-indigo-700 font-bold block">
-              {data?.totalHours > 0 ? Math.round(((data.technicalHours || totalIntegrationHours) / data.totalHours) * 100) : 0}% of Total Program
+              {totalProgramHours > 0
+                ? `${techPercentOfProgram}% of Total Program (${totalProgramHours.toLocaleString()}h)`
+                : 'Stand-Alone Technical Track'}
             </span>
           </div>
           <div className="w-9 h-9 rounded-xs bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-200">
@@ -277,10 +284,11 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
               3. Data Conversions
             </span>
             <span className="text-xl font-bold font-mono text-slate-900 block truncate">
-              {scenario.scaleDrivers?.conv_objects || 12} <span className="text-xs text-slate-500 font-normal">Objects</span>
+              {data?.conversionMetrics?.dataObjects || scenario.scaleDrivers?.conv_objects || 12} <span className="text-xs text-slate-500 font-normal">Objects</span>
             </span>
             <span className="text-[10px] font-mono text-emerald-700 font-bold block">
-              {scenario.scaleDrivers?.conv_runs || 3} Mock Conversion Runs
+              {(data?.conversionMetrics?.totalConversionP80Hours || 0) > 0 ? `${(data?.conversionMetrics?.totalConversionP80Hours || 0).toLocaleString()} hrs • ` : ''}
+              {data?.conversionMetrics?.conversionCycles || scenario.scaleDrivers?.conv_runs || 3} Mock Conversion Runs
             </span>
           </div>
           <div className="w-9 h-9 rounded-xs bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-200">
