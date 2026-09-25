@@ -758,6 +758,230 @@ export const MODULE_TOP_20_QUESTIONS: Record<string, ModuleScopingQuestion[]> = 
         { label: 'Mass Multi-Country Disparate HR System Migration (5+ Years History)', score: 4, desc: 'Consolidating 5+ international HR databases, complex job code normalization, compliance audit.', hoursImpact: 165 }
       ]
     }
+  ],
+
+  // SELF-SERVICE PROCUREMENT & PURCHASING (INDIRECT P2P)
+  erp_proc: [
+    {
+      id: 'proc_1',
+      category: 'Process Scope',
+      question: 'PunchOut Catalog Integrations & B2B eCommerce Marketplaces',
+      rationale: 'Configures cXML/OAGIS level-1 and level-2 PunchOuts (e.g. Amazon Business, Grainger, CDW) and internal hosted catalogs.',
+      options: [
+        { label: 'Internal Hosted Catalogs Only (<5 Catalogs)', score: 1, desc: 'Standard category browsing and internal supplier item masters.', hoursImpact: 15 },
+        { label: '1-3 Standard cXML PunchOut Catalogs', score: 2, desc: 'Standard PunchOut connections with automated cart return.', hoursImpact: 40 },
+        { label: '4-8 Global PunchOuts + Level-2 Item Search Integration', score: 3, desc: 'Item-level search within Oracle across multiple vendor PunchOut sites.', hoursImpact: 85 },
+        { label: 'Enterprise Multi-Country PunchOut Marketplace (9+ Vendors & Marketplaces)', score: 4, desc: 'Multi-currency PunchOuts, custom cXML attribute mapping, automated PO transmission.', hoursImpact: 140 }
+      ]
+    },
+    {
+      id: 'proc_2',
+      category: 'Approvals & Workflows',
+      question: 'Requisition Approval Workflow (BPM) & Cost Center Matrix',
+      rationale: 'Drives employee self-service requisition approvals, cost center owner checks, and project/grant sign-offs.',
+      options: [
+        { label: 'Standard Supervisory Approval Hierarchy', score: 1, desc: 'Single-chain management hierarchy by dollar threshold.', hoursImpact: 20 },
+        { label: 'Cost Center & Commodity Category Approvals', score: 2, desc: 'Dual routing: Manager + Commodity Category Lead.', hoursImpact: 45 },
+        { label: 'Multi-Dimension Matrix (Department + Project + Capex/Opex + Amount)', score: 3, desc: 'Dynamic parallel routing to Finance, IT Security, and Executive sponsors.', hoursImpact: 90 },
+        { label: 'Global Matrix with Budgetary Control & Parallel DOA Escalation', score: 4, desc: 'Real-time encumbrance funds check, multi-tier legal entity DOA matrix, SLA escalations.', hoursImpact: 145 }
+      ]
+    },
+    {
+      id: 'proc_3',
+      category: 'Process Scope',
+      question: 'Smart Forms, Information Templates & Non-Catalog Spend Controls',
+      rationale: 'Controls tail-spend, custom non-standard service requests, contractor requisitioning, and IT asset requests.',
+      options: [
+        { label: 'Standard Non-Catalog Free-Text Request', score: 1, desc: 'Basic description, category, and estimated price.', hoursImpact: 10 },
+        { label: 'Structured Smart Forms (3-6 Templates)', score: 2, desc: 'Tailored request forms for Marketing, Facilities, and Software Licenses.', hoursImpact: 30 },
+        { label: 'Enterprise Smart Forms Suite (7-15 Templates) with Information Templates', score: 3, desc: 'Extensible flexfield captures for hazardous materials, software seats, SOW deliverables.', hoursImpact: 65 },
+        { label: 'Dynamic VBCS Guided Procurement Portal with Complex Business Rules', score: 4, desc: 'Bespoke intake portal routing requests across legal, risk, and procurement councils.', hoursImpact: 110 }
+      ]
+    },
+    {
+      id: 'proc_4',
+      category: 'Process Scope',
+      question: 'Blanket Purchase Agreements (BPAs) & Automated PO Conversion',
+      rationale: 'Enforces negotiated catalog pricing, touchless PO generation from approved requisitions, and cumulative releases.',
+      options: [
+        { label: 'Manual PO Generation from Approved Requisitions', score: 1, desc: 'Buyers manually review and convert requisition lines.', hoursImpact: 15 },
+        { label: 'Standard Touchless PO Auto-Creation via BPAs', score: 2, desc: 'Requisitions automatically convert to POs against active BPAs.', hoursImpact: 35 },
+        { label: 'Complex Multi-Agreement Matrix with Tiered Pricing & Order Minimums', score: 3, desc: 'Automated agreement selection based on ship-to location, volume pricing tiers.', hoursImpact: 75 },
+        { label: 'Global Touchless Sourcing-to-PO Factory with Automatic Revision Controls', score: 4, desc: 'Automated retro-pricing adjustments, consignment blanket releases, dynamic supplier split.', hoursImpact: 120 }
+      ]
+    }
+  ],
+
+  // STRATEGIC SOURCING CLOUD & E-AUCTIONS
+  erp_sourcing: [
+    {
+      id: 'src_1',
+      category: 'Process Scope',
+      question: 'Strategic Sourcing Negotiation Complexity & Event Types',
+      rationale: 'Establishes RFI, RFP, RFQ, and reverse auction templates, multi-round negotiation rules, and supplier bidding portals.',
+      options: [
+        { label: 'Basic RFPs and RFIs Only (<5 Templates)', score: 1, desc: 'Single-round sealed quotes with manual evaluation.', hoursImpact: 20 },
+        { label: 'Standard Multi-Round RFQs with Online Bidding', score: 2, desc: 'Online supplier response submission, question & answer forums, supplier counter-offers.', hoursImpact: 45 },
+        { label: 'Two-Stage Technical & Commercial Blind Bidding Events', score: 3, desc: 'Segregated technical scoring team, sealed commercial prices revealed only post-qualification.', hoursImpact: 85 },
+        { label: 'High-Frequency Real-Time Reverse e-Auctions & Complex Lot Bidding', score: 4, desc: 'Dynamic ticker auctions, multi-currency bid transformations, Dutch/English auction rules.', hoursImpact: 135 }
+      ]
+    },
+    {
+      id: 'src_2',
+      category: 'Process Scope',
+      question: 'Scoring Models, Cost Breakdown Rules & Award Orchestration',
+      rationale: 'Configures multi-attribute evaluation rubrics, weighted scoring criteria, and automated BPA creation upon award.',
+      options: [
+        { label: 'Lowest Price Award Rule Only', score: 1, desc: 'Direct award based on total cost.', hoursImpact: 15 },
+        { label: 'Weighted Multi-Attribute Scoring (Price + Quality + Delivery)', score: 2, desc: 'Configurable team scoring templates with automated weighted average calculation.', hoursImpact: 35 },
+        { label: 'Complex Cost Breakdown Templates with Team Scoring Consensus', score: 3, desc: 'Raw material indexation, labor rates, logistics cost breakdowns, multi-evaluator consensus.', hoursImpact: 70 },
+        { label: 'Total Cost of Ownership (TCO) Optimization & Scenario Analysis Engine', score: 4, desc: 'Automated award optimization running linear solver models across capacity and supplier constraints.', hoursImpact: 115 }
+      ]
+    }
+  ],
+
+  // PROCUREMENT CONTRACTS CLOUD
+  erp_contracts: [
+    {
+      id: 'con_1',
+      category: 'Process Scope',
+      question: 'Contract Terms Library, Clause Governance & Redline Engine',
+      rationale: 'Sets up clause library, expert rules, contract authoring wizard, Word add-in redlining, and deviation analysis.',
+      options: [
+        { label: 'Standard Contract Terms Repository (Static PDF Storage)', score: 1, desc: 'Attachment of legal files without dynamic clause assembly.', hoursImpact: 15 },
+        { label: 'Standard Clause Library with Microsoft Word Add-In (<25 Clauses)', score: 2, desc: 'Clause insert/replace with automated redline comparison.', hoursImpact: 40 },
+        { label: 'Enterprise Clause Matrix with Contract Expert Rules (25-75 Clauses)', score: 3, desc: 'Dynamic clause insertion triggered by spend value, liability limits, and jurisdiction.', hoursImpact: 80 },
+        { label: 'Global Legal Clause Hierarchy with Cryptographic Signing Integration', score: 4, desc: 'Multi-lingual clause libraries, strict deviation approvals, automated DocuSign/Adobe Sign REST sync.', hoursImpact: 130 }
+      ]
+    }
+  ],
+
+  // SUPPLIER QUALIFICATION MANAGEMENT (SQM)
+  erp_sqm: [
+    {
+      id: 'sqm_1',
+      category: 'Process Scope',
+      question: 'Supplier Risk Assessment, Qualification Initiatives & Audits',
+      rationale: 'Governs automated questionnaires, internal/external evaluations, ESG compliance, and supplier qualification statuses.',
+      options: [
+        { label: 'Ad-Hoc Manual Questionnaires / External Audits', score: 1, desc: 'Basic survey capture during initial supplier registration.', hoursImpact: 15 },
+        { label: 'Standard Annual Qualification Initiatives (<3 Areas)', score: 2, desc: 'Financial health, insurance verification, and business continuity surveys.', hoursImpact: 35 },
+        { label: 'Multi-Tier Risk & Compliance Framework (Cyber, ISO, ESG, Sanctions)', score: 3, desc: 'Automated qualification assessment by commodity category with expiry alerts.', hoursImpact: 75 },
+        { label: 'Continuous AI Risk Monitoring with D&B / EcoVadis Automated Feeds', score: 4, desc: 'Real-time supplier scorecards, automated purchasing freeze upon compliance breach.', hoursImpact: 125 }
+      ]
+    }
+  ],
+
+  // RISK MANAGEMENT CLOUD (AAC & AFC)
+  erp_grc: [
+    {
+      id: 'grc_1',
+      category: 'Compliance & Security',
+      question: 'Advanced Access Controls (AAC) - Automated SOX SOD Rules',
+      rationale: 'Configures Segregation of Duties (SOD) conflict models, intra-role and cross-role violations, and access certifications.',
+      options: [
+        { label: 'Standard Pre-Delivered SOD Rule Pack (<20 Rules)', score: 1, desc: 'Baseline conflict checking on standard job roles.', hoursImpact: 20 },
+        { label: 'Custom Enterprise SOD Matrix (20-50 Conflict Models)', score: 2, desc: 'Conflict modeling tailored to custom job roles and privileges.', hoursImpact: 50 },
+        { label: 'Comprehensive SOX & Statutory Global Rule Library (50-100 Models)', score: 3, desc: 'Cross-pillar conflict models (ERP + HCM), mitigating control documentation, exception approvals.', hoursImpact: 95 },
+        { label: 'Continuous Enterprise Access Governance & Predictive Risk Simulation', score: 4, desc: 'Real-time what-if SOD simulations before granting roles, automated periodic manager recertification.', hoursImpact: 150 }
+      ]
+    },
+    {
+      id: 'grc_2',
+      category: 'Compliance & Security',
+      question: 'Advanced Financial Controls (AFC) - Continuous Transaction Monitoring',
+      rationale: 'Automates fraud and anomaly detection across AP invoices, journal entries, supplier bank changes, and purchase orders.',
+      options: [
+        { label: 'Periodic Manual Audit Sampling Only', score: 1, desc: 'Zero automated transaction models.', hoursImpact: 0 },
+        { label: 'Standard Transaction Models (<10 Models)', score: 2, desc: 'Checks for duplicate supplier payments and off-hour journal entries.', hoursImpact: 35 },
+        { label: 'Enterprise Continuous Audit Models (10-25 Models)', score: 3, desc: 'Splitting PO thresholds, supplier bank modification alerts, unusual credit balances.', hoursImpact: 75 },
+        { label: 'AI/ML Anomaly Detection Hub with Integrated Incident Remediation', score: 4, desc: 'Machine-learning transaction scoring, automated hold placements, executive audit dashboards.', hoursImpact: 130 }
+      ]
+    }
+  ],
+
+  // PRODUCT HUB / PIM
+  scm_pim: [
+    {
+      id: 'pim_1',
+      category: 'Process Scope',
+      question: 'Item Master Classifications, Catalogs & Extensible Flexfields (EFF)',
+      rationale: 'Establishes enterprise item catalog hierarchies, multi-level item classes, extensible attributes, and item validation rules.',
+      options: [
+        { label: 'Standard Item Classes (<5 Classes, Minimal Attributes)', score: 1, desc: 'Basic item attributes and standard purchasing categories.', hoursImpact: 25 },
+        { label: 'Multi-Level Item Class Hierarchy (6-15 Classes) with Custom EFFs', score: 2, desc: 'Technical specifications, packaging attributes, hazardous flags.', hoursImpact: 60 },
+        { label: 'Complex Multi-Industry Item Taxonomy (16-30 Classes) with Rule Sets', score: 3, desc: 'Conditional attribute requirements, automated SKU number generation, cross-references.', hoursImpact: 110 },
+        { label: 'Enterprise Global PIM Hub (>30 Classes, >200 EFFs) with Digital Asset Management', score: 4, desc: 'Multi-lingual product sheets, CAD drawing attachments, regulatory compliance attributes.', hoursImpact: 175 }
+      ]
+    },
+    {
+      id: 'pim_2',
+      category: 'Approvals & Workflows',
+      question: 'Item Change Management & Engineering Change Orders (ECOs)',
+      rationale: 'Governs new item introduction (NII) approval routing, revision controls, redline bill-of-material changes.',
+      options: [
+        { label: 'Direct Item Creation / No Approval Routing', score: 1, desc: 'Authorized item specialists create SKUs directly.', hoursImpact: 15 },
+        { label: 'Standard Change Order Workflow for New Items', score: 2, desc: 'Single-tier approval for item activation.', hoursImpact: 40 },
+        { label: 'Multi-Department Change Management (Engineering + Quality + Sourcing)', score: 3, desc: 'Multi-stage ECO review, mandatory attribute completion gates, revision numbering.', hoursImpact: 85 },
+        { label: 'Complex PLM-Integrated Change Orders with Automated Obsolescence', score: 4, desc: 'Bidirectional sync with Teamcenter/PTC, effectivity date controls, phase-in/phase-out workflows.', hoursImpact: 140 }
+      ]
+    }
+  ],
+
+  // WORKFORCE COMPENSATION CLOUD
+  hcm_comp: [
+    {
+      id: 'comp_1',
+      category: 'Process Scope',
+      question: 'Compensation Cycles, Budget Pools & Plan Components',
+      rationale: 'Sets up annual merit review, discretionary bonus pools, long-term equity allocations, and promotion worksheets.',
+      options: [
+        { label: 'Single Merit Increase Plan with Fixed Budget Pool', score: 1, desc: 'Standard percentage merit increase worksheet.', hoursImpact: 30 },
+        { label: 'Multi-Component Compensation Plan (Merit + Lump Sum + Bonus)', score: 2, desc: 'Performance-rating linked increases, manager guidance ranges.', hoursImpact: 65 },
+        { label: 'Global Complex Compensation Suite (Salary + Bonus + LTI + Equity)', score: 3, desc: 'Multi-currency budget cascade, cross-entity manager worksheets, stock option grants.', hoursImpact: 115 },
+        { label: 'Enterprise Executive & Sales Incentive Hybrid with Dynamic Modeling', score: 4, desc: 'Bespoke compensation formulas, clawback rules, board review approvals, total rewards statements.', hoursImpact: 175 }
+      ]
+    },
+    {
+      id: 'comp_2',
+      category: 'Compliance & Security',
+      question: 'Compensation Fast Formulas & Eligibility Profiling',
+      rationale: 'Defines dynamic eligibility profiles, prorated calculations based on tenure, and custom budget allocation formulas.',
+      options: [
+        { label: 'Standard User-Interface Eligibility Criteria Only', score: 1, desc: 'Grade, country, and department filters without Fast Formulas.', hoursImpact: 20 },
+        { label: '1-3 Standard Fast Formulas for Proration & Currency', score: 2, desc: 'Tenure-based proration formulas and FX conversion rules.', hoursImpact: 45 },
+        { label: 'Advanced Fast Formulas Suite (4-8 Complex Rules)', score: 3, desc: 'Multi-condition rating matrices, country-specific statutory minimum adjustments.', hoursImpact: 90 },
+        { label: 'Extensive Fast Formula Ecosystem (>8 Highly Customized Formulas)', score: 4, desc: 'Complex matrix formulas evaluating performance, compa-ratio, retention risk, and budget limits.', hoursImpact: 145 }
+      ]
+    }
+  ],
+
+  // ACCOUNT RECONCILIATION CLOUD (ARCS)
+  epm_arcs: [
+    {
+      id: 'arcs_1',
+      category: 'Process Scope',
+      question: 'Balance Sheet Reconciliation Formats & Account Profile Scope',
+      rationale: 'Configures reconciliation templates (Balance Comparison, Account Analysis), frequency, and risk ratings across ledgers.',
+      options: [
+        { label: 'Standard Account Analysis (<50 Key Balance Sheet Accounts)', score: 1, desc: 'Standard monthly reconciliation for cash and receivables accounts.', hoursImpact: 25 },
+        { label: 'Enterprise Balance Sheet Scope (50-200 Accounts)', score: 2, desc: 'Multi-currency accounts, automated zero-balance auto-certifications.', hoursImpact: 55 },
+        { label: 'Global Complex Multi-Ledger Scope (200-500 Accounts)', score: 3, desc: 'Multi-GAAP comparative reconciliations, intercompany tie-outs, prepaid amortization schedules.', hoursImpact: 95 },
+        { label: 'Mass Enterprise Architecture (>500 Accounts Across 10+ Ledgers)', score: 4, desc: 'Automated monthly preparation, continuous compliance monitoring, external auditor portal access.', hoursImpact: 155 }
+      ]
+    },
+    {
+      id: 'arcs_2',
+      category: 'Process Scope',
+      question: 'Transaction Matching Engine (High-Volume Automated Clearances)',
+      rationale: 'Automates rule-based matching (1:1, 1:Many, Many:Many) for Bank-to-GL, Intercompany, and Credit Card clearing.',
+      options: [
+        { label: 'No High-Volume Transaction Matching (Reconciliation Compliance Only)', score: 1, desc: 'Reconciliation performed at month-end balance level.', hoursImpact: 0 },
+        { label: 'Standard Bank Transaction Matching (1-3 Match Rules)', score: 2, desc: 'Automated clearing based on check number and amount.', hoursImpact: 35 },
+        { label: 'Multi-Source High-Volume Matching (4-8 Complex Rules)', score: 3, desc: 'Intercompany settlement matching, credit card processing fees, fuzzy date matching.', hoursImpact: 75 },
+        { label: 'Enterprise Automated Clearing Engine (>8 Match Types, Millions of Rows)', score: 4, desc: 'Continuous automated intraday matching, automated suggested matches, automated adjustment postings.', hoursImpact: 130 }
+      ]
+    }
   ]
 };
 

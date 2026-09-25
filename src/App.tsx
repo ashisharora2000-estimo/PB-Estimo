@@ -623,7 +623,8 @@ export default function App() {
                             { id: 'catalog_scale', label: '4. Catalog & Scale Footprint' },
                             { id: 'tshirt_portfolio', label: '5. T-Shirt Size Portfolio' },
                             { id: 'interview_view', label: '6. Guided Interview Dossier' },
-                            { id: 'wbs_breakdown', label: '7. WBS & Workstream Spec' }
+                            { id: 'wbs_breakdown', label: '7. WBS & Workstream Spec' },
+                            { id: 'baseline_variance', label: '8. Baseline Variance Report' }
                           ].map((sub) => (
                             <button
                               key={sub.id}

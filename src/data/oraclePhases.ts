@@ -11,7 +11,7 @@ import {
 } from '../types';
 
 export const ORACLE_MODULE_CATALOG: ModuleDefinition[] = [
-  // Financials
+  // Financials & Core Accounting
   { id: 'erp_gl', name: 'General Ledger & Financial Reporting', pillar: 'ERP', description: 'Multi-ledger COA, intercompany, allocations, FRS & smart view reporting', baseEffortHours: 420, complexityFactor: 1.2 },
   { id: 'erp_ap', name: 'Accounts Payable & Payments', pillar: 'ERP', description: 'Invoice imaging, OCR, 2/3-way matching, payment process requests, 1099', baseEffortHours: 360, complexityFactor: 1.1 },
   { id: 'erp_ar', name: 'Accounts Receivable & Collections', pillar: 'ERP', description: 'Auto-invoice, revenue management, receipt processing, customer statements', baseEffortHours: 380, complexityFactor: 1.15 },
@@ -19,18 +19,30 @@ export const ORACLE_MODULE_CATALOG: ModuleDefinition[] = [
   { id: 'erp_cm', name: 'Cash Management & Bank Connectivity', pillar: 'ERP', description: 'Bank statement auto-reconciliation, cash positioning, treasury feeds', baseEffortHours: 220, complexityFactor: 1.1 },
   { id: 'erp_tax', name: 'Oracle Fusion Tax (ZX)', pillar: 'ERP', description: 'Tax regimes, determination rules, Vertex/Avalara third-party tax engine adapters', baseEffortHours: 280, complexityFactor: 1.25 },
   { id: 'erp_ppm', name: 'Project Portfolio Management (PPM)', pillar: 'ERP', description: 'Project costing, billing, revenue recognition, resource management', baseEffortHours: 460, complexityFactor: 1.3 },
-  { id: 'erp_proc', name: 'Procurement Cloud & Self-Service', pillar: 'ERP', description: 'Requisitions, PO approvals, PunchOut catalogs, Supplier Portal, Sourcing', baseEffortHours: 440, complexityFactor: 1.2 },
+  { id: 'erp_subscription', name: 'Subscription Management (OSS) & Revenue (RMCS)', pillar: 'ERP', description: 'Recurring usage billing, multi-year contracts, IFRS 15 / ASC 606 revenue allocation', baseEffortHours: 440, complexityFactor: 1.35 },
+  { id: 'erp_crm', name: 'Channel Revenue Management (Rebates & Deductions)', pillar: 'ERP', description: 'Supplier/customer rebates, trade promotions, bill-backs, automated deduction claims', baseEffortHours: 340, complexityFactor: 1.25 },
+  { id: 'erp_grc', name: 'Risk Management Cloud (AAC & AFC)', pillar: 'ERP', description: 'Automated SOX Segregation of Duties (SOD), transaction fraud monitoring, role audit', baseEffortHours: 300, complexityFactor: 1.15 },
 
-  // Supply Chain & Operations
+  // Procurement & Indirect Procurement Suite
+  { id: 'erp_proc', name: 'Self-Service Procurement (SSP) & Purchasing', pillar: 'ERP', description: 'PunchOut catalogs, non-catalog requests, smart forms, purchase orders, 2/3-way matching', baseEffortHours: 440, complexityFactor: 1.25 },
+  { id: 'erp_sourcing', name: 'Strategic Sourcing Cloud & e-Auctions', pillar: 'ERP', description: 'RFI/RFP/RFQ events, reverse auctions, multi-tier bid evaluation, automated award to PO/BPA', baseEffortHours: 320, complexityFactor: 1.2 },
+  { id: 'erp_contracts', name: 'Procurement Contracts Cloud', pillar: 'ERP', description: 'Enterprise contract authoring, legal clause library, Word add-in redlining, deliverable tracking', baseEffortHours: 260, complexityFactor: 1.15 },
+  { id: 'erp_sqm', name: 'Supplier Qualification Management (SQM)', pillar: 'ERP', description: 'Supplier risk assessment, qualification initiatives, onboarding surveys, compliance audit, ESG', baseEffortHours: 240, complexityFactor: 1.1 },
+  { id: 'erp_supplier_portal', name: 'Supplier Portal Cloud', pillar: 'ERP', description: 'External vendor self-service, invoice submission, PO acknowledgement, ASN notifications', baseEffortHours: 220, complexityFactor: 1.1 },
+
+  // Supply Chain, Manufacturing & Logistics
   { id: 'scm_inv', name: 'Inventory & Cost Management', pillar: 'SCM', description: 'Item master, lot/serial control, sub-inventories, landed cost, cost accounting', baseEffortHours: 480, complexityFactor: 1.25 },
+  { id: 'scm_pim', name: 'Product Hub / PIM (Product Master Data)', pillar: 'SCM', description: 'Centralized item governance, catalog hierarchies, multi-channel syndication, change orders', baseEffortHours: 460, complexityFactor: 1.3 },
   { id: 'scm_om', name: 'Order Management & Orchestration (DOO)', pillar: 'SCM', description: 'Order promising, pricing rules, shipping execution, fulfillment lines, drop-ship', baseEffortHours: 520, complexityFactor: 1.35 },
   { id: 'scm_mfg', name: 'Manufacturing (Discrete / Process)', pillar: 'SCM', description: 'Work definitions, standard operations, dispatch lists, WIP costing, IoT apps', baseEffortHours: 580, complexityFactor: 1.4 },
   { id: 'scm_maint', name: 'Maintenance Cloud', pillar: 'SCM', description: 'Asset maintenance work orders, preventive schedules, meters, spare parts', baseEffortHours: 320, complexityFactor: 1.15 },
   { id: 'scm_plan', name: 'Supply Chain Planning & Demand Mgmt', pillar: 'SCM', description: 'Demand sensing, supply planning, constrained forecasting, S&OP', baseEffortHours: 460, complexityFactor: 1.3 },
   { id: 'scm_wms', name: 'Warehouse Management (WMS Cloud / LogFire)', pillar: 'SCM', description: 'RF gun scanning, wave management, cross-docking, yard management', baseEffortHours: 540, complexityFactor: 1.35 },
   { id: 'scm_gop', name: 'Global Order Promising (GOP)', pillar: 'SCM', description: 'Lead time ATP, supply allocation rules, real-time order scheduling', baseEffortHours: 260, complexityFactor: 1.2 },
+  { id: 'scm_otm', name: 'Transportation Management (OTM Cloud)', pillar: 'SCM', description: 'Carrier rate engine, freight execution, dispatch, 3PL tracking, automated freight audit & settlement', baseEffortHours: 560, complexityFactor: 1.4 },
+  { id: 'scm_gtm', name: 'Global Trade Management (GTM Cloud)', pillar: 'SCM', description: 'Denied-party screening, customs classifications, export license management, tariff compliance', baseEffortHours: 380, complexityFactor: 1.25 },
 
-  // HCM & Payroll
+  // HCM, Payroll & Workforce
   { id: 'hcm_core', name: 'Core HR & Global Human Resources', pillar: 'HCM', description: 'Work structures, positions, employment models, journeys, person records', baseEffortHours: 400, complexityFactor: 1.15 },
   { id: 'hcm_payroll', name: 'Oracle Fusion Global Payroll', pillar: 'HCM', description: 'Gross-to-net calculation, element entries, retroactive pay, tax filing extracts', baseEffortHours: 650, complexityFactor: 1.5 },
   { id: 'hcm_absence', name: 'Absence Management', pillar: 'HCM', description: 'Accrual plans, compensatory time, qualification plans, fast formulas', baseEffortHours: 320, complexityFactor: 1.2 },
@@ -38,11 +50,19 @@ export const ORACLE_MODULE_CATALOG: ModuleDefinition[] = [
   { id: 'hcm_benefits', name: 'Benefits Cloud', pillar: 'HCM', description: 'Open enrollment, life events, flex credits, eligibility profiles, carrier EDI 834', baseEffortHours: 420, complexityFactor: 1.3 },
   { id: 'hcm_talent', name: 'Talent Management & Performance', pillar: 'HCM', description: 'Goal setting, 360 performance reviews, talent reviews, succession planning', baseEffortHours: 260, complexityFactor: 1.1 },
   { id: 'hcm_orc', name: 'Oracle Recruiting Cloud (ORC)', pillar: 'HCM', description: 'Career sites, candidate pipelines, job requisitions, offer letter workflows', baseEffortHours: 340, complexityFactor: 1.2 },
+  { id: 'hcm_comp', name: 'Workforce Compensation Cloud', pillar: 'HCM', description: 'Annual merit cycles, bonus pool modeling, executive equity grants, manager compensation worksheets', baseEffortHours: 380, complexityFactor: 1.25 },
+  { id: 'hcm_learning', name: 'Oracle Learning Cloud (OLC)', pillar: 'HCM', description: 'Corporate learning paths, video courses, compliance training, automated role-based assignment', baseEffortHours: 300, complexityFactor: 1.15 },
+  { id: 'hcm_ogl', name: 'Oracle Guided Learning (OGL) & In-App Adoption', pillar: 'HCM', description: 'In-app step-by-step guidance, process walkthroughs, task validation, change enablement', baseEffortHours: 200, complexityFactor: 1.05 },
+  { id: 'hcm_safety', name: 'Workforce Health & Safety Incidents (WHS)', pillar: 'HCM', description: 'Workplace incident reporting, OSHA hazard logging, corrective action investigations', baseEffortHours: 220, complexityFactor: 1.1 },
 
-  // EPM & CX
+  // EPM & Corporate Performance
   { id: 'epm_fccs', name: 'Financial Consolidation & Close (FCCS)', pillar: 'EPM', description: 'Multi-GAAP consolidation, elimination rules, close calendar orchestrator', baseEffortHours: 450, complexityFactor: 1.3 },
   { id: 'epm_epbcs', name: 'Enterprise Planning & Budgeting (EPBCS)', pillar: 'EPM', description: 'Workforce planning, CAPEX, financial statement models, driver formulas', baseEffortHours: 480, complexityFactor: 1.35 },
   { id: 'epm_edm', name: 'Enterprise Data Management (EDMCS)', pillar: 'EPM', description: 'Master chart of accounts governance, cross-system hierarchy syncing', baseEffortHours: 280, complexityFactor: 1.2 },
+  { id: 'epm_arcs', name: 'Account Reconciliation Cloud (ARCS)', pillar: 'EPM', description: 'Balance sheet auto-reconciliation, high-volume transaction matching, bank reconciliation', baseEffortHours: 340, complexityFactor: 1.2 },
+  { id: 'epm_narrative', name: 'Narrative Reporting Cloud (EPRCS)', pillar: 'EPM', description: 'Multi-author statutory disclosure management, regulatory filing packs, Word/PPTX board books', baseEffortHours: 280, complexityFactor: 1.15 },
+
+  // CX & Customer Experience
   { id: 'cx_service', name: 'B2B Service & Helpdesk Cloud', pillar: 'CX', description: 'Service request routing, SLA management, knowledge base, omnichannel', baseEffortHours: 320, complexityFactor: 1.15 },
   { id: 'cx_cpq', name: 'Oracle CPQ Cloud (Configure, Price, Quote)', pillar: 'CX', description: 'Product rules engine, price books, quote generation, document designer', baseEffortHours: 500, complexityFactor: 1.4 },
 ];

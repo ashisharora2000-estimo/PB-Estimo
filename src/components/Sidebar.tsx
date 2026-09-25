@@ -70,7 +70,8 @@ export type ReportSubSectionId =
   | 'catalog_scale'
   | 'tshirt_portfolio'
   | 'interview_view'
-  | 'wbs_breakdown';
+  | 'wbs_breakdown'
+  | 'baseline_variance';
 
 export const REPORT_SUB_ITEMS: Array<{
   id: ReportSubSectionId;
@@ -83,7 +84,8 @@ export const REPORT_SUB_ITEMS: Array<{
   { id: 'catalog_scale', number: '4', label: 'Catalog & Scale Footprint' },
   { id: 'tshirt_portfolio', number: '5', label: 'T-Shirt Size Portfolio' },
   { id: 'interview_view', number: '6', label: 'Guided Interview Dossier' },
-  { id: 'wbs_breakdown', number: '7', label: 'WBS & Workstream Spec' }
+  { id: 'wbs_breakdown', number: '7', label: 'WBS & Workstream Spec' },
+  { id: 'baseline_variance', number: '8', label: 'Baseline Variance Report' }
 ];
 
 interface SidebarProps {

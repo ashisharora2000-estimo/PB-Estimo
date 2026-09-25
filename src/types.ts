@@ -458,6 +458,50 @@ export interface ProjectScenario {
   scopingInputMode?: ScopingInputMode;
   bidDefaultsConfig?: BidDefaultsConfig;
   fieldConfidenceMeta?: Record<string, FieldConfidenceMeta>;
+  // User-Uploaded Baseline & AI Savings Comparison
+  uploadedBaseline?: UploadedBaselineData;
+}
+
+export interface BaselinePhaseItem {
+  phaseId: string;
+  phaseName: string;
+  phaseCode: string;
+  baselineHours: number;
+  baselineDays: number;
+  aiSavingPct: number; // percentage (e.g. 25 = 25%)
+  netBaselineHours: number;
+  netBaselineDays: number;
+  baselineCost?: number;
+  baselineFte?: number;
+  durationWeeks?: number;
+  notes?: string;
+}
+
+export interface BaselineModuleItem {
+  moduleId: string;
+  moduleName: string;
+  pillar?: string;
+  baselineHours: number;
+  baselineDays: number;
+  baselineTShirt?: TShirtSize;
+}
+
+export interface UploadedBaselineData {
+  sourceFileName: string;
+  uploadedAt: string;
+  leadershipTitle?: string;
+  version?: string;
+  totalBaselineHours: number;
+  totalBaselineDays: number;
+  totalBaselineCost?: number;
+  overallAiSavingPct: number;
+  netBaselineHours: number;
+  netBaselineDays: number;
+  blendedHourlyRate?: number;
+  phases: BaselinePhaseItem[];
+  modules?: BaselineModuleItem[];
+  isCustomUploaded?: boolean;
+  notes?: string;
 }
 
 export interface ClientIntelData {

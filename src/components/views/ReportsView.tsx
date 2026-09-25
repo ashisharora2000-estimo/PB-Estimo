@@ -38,6 +38,7 @@ import { ModuleTShirtMatrix } from '../common/ModuleTShirtMatrix';
 import { getQuestionsForModule, ModuleScopingQuestion } from '../../data/moduleScopingQuestions';
 import { ReportSubSectionId, REPORT_SUB_ITEMS } from '../Sidebar';
 import { NotebookLMPodcastCard } from '../podcast/NotebookLMPodcastCard';
+import { BaselineVarianceReportView } from './BaselineVarianceReportView';
 
 interface ReportsViewProps {
   scenario: ProjectScenario;
@@ -121,6 +122,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             {activeSubSection === 'tshirt_portfolio' && '5. Enterprise T-Shirt Sizing Portfolio'}
             {activeSubSection === 'interview_view' && '6. Guided 20-Q Scoping Interview Dossier'}
             {activeSubSection === 'wbs_breakdown' && '7. Work Breakdown Structure (WBS) Spec'}
+            {activeSubSection === 'baseline_variance' && '8. Baseline Variance Report (AI Estimations vs Excel Baseline)'}
           </h2>
         </div>
 
@@ -868,6 +870,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             </table>
           </div>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SUB-SECTION 8: BASELINE VARIANCE REPORT (AI Estimations vs Excel Baseline)*/}
+      {/* ========================================================================= */}
+      {activeSubSection === 'baseline_variance' && (
+        <BaselineVarianceReportView
+          scenario={scenario}
+          data={data}
+          onUpdateScenario={onUpdateScenario}
+          onSaveScenario={onSaveScenario}
+        />
       )}
     </div>
   );
