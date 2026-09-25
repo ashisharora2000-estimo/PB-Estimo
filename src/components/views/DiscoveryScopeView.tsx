@@ -2844,10 +2844,16 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
               </div>
 
               <NumericCounter
-                label="OIC Integrations"
-                sub="REST/SOAP API endpoints"
+                label="OIC Integrations (Flows)"
+                sub="Total transactional & batch data pipes"
                 value={scenario.scaleDrivers.tech_oic}
                 onChange={(v) => updateScaleDriver('tech_oic', v)}
+              />
+              <NumericCounter
+                label="Connected Boundary Endpoints"
+                sub="External 3rd-party platforms & SaaS"
+                value={scenario.scaleDrivers.tech_endpoints ?? 6}
+                onChange={(v) => updateScaleDriver('tech_endpoints', v)}
               />
               <NumericCounter
                 label="PaaS / VBCS Apps"

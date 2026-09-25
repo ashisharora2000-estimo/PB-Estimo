@@ -46,6 +46,7 @@ import { UnifiedRicefwSummaryGrid } from './UnifiedRicefwSummaryGrid';
 import { IntelUploadHubModal } from '../modals/IntelUploadHubModal';
 import { IntegrationInventoryIngestModal } from './IntegrationInventoryIngestModal';
 import { IntegrationInventoryParseResult } from '../../utils/integrationInventoryParser';
+import { AddIntegrationsScopeModal } from './AddIntegrationsScopeModal';
 import {
   syncIntegrationsFromInventory,
   sanitizeIntegrationItem,
@@ -137,6 +138,7 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
   const [tierFilter, setTierFilter] = useState<string>('all');
   const [interfaceViewMode, setInterfaceViewMode] = useState<'itemized' | 'by_endpoint'>('itemized');
   const [showSizerHelper, setShowSizerHelper] = useState<boolean>(false);
+  const [isAddIntegrationsModalOpen, setIsAddIntegrationsModalOpen] = useState<boolean>(false);
   const [sizingEndpoints, setSizingEndpoints] = useState<number>(6);
   const [sizingRatio, setSizingRatio] = useState<number>(2.5);
 
@@ -529,6 +531,20 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
     });
   };
 
+  const handleApplyAddedIntegrations = (newItems: TechnicalIntegrationItem[], targetTotalCount?: number) => {
+    onUpdateScenario(prev => {
+      const updated = syncIntegrationsFromInventory(newItems, prev);
+      const finalCount = targetTotalCount ?? newItems.length;
+      return {
+        ...updated,
+        scaleDrivers: {
+          ...updated.scaleDrivers,
+          tech_oic: finalCount
+        }
+      };
+    });
+  };
+
   const handleClearAllIntegrations = () => {
     if (window.confirm('Clear all integrations and reset to a clean zero integration baseline?')) {
       onUpdateScenario(prev => syncIntegrationsFromInventory([], prev));
@@ -635,7 +651,7 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* TOWER 1: INTERFACES & INTEGRATIONS (OIC) */}
         <div className="bg-white border-2 border-slate-200 hover:border-blue-400 transition shadow-xs rounded-xs p-3.5 space-y-2.5 flex flex-col justify-between">
-          <div>
+          <div className="space-y-2">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div className="flex items-center gap-1.5">
                 <Workflow size={16} className="text-blue-600" />
@@ -643,78 +659,157 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
                   1. Interfaces & Flows (OIC)
                 </span>
               </div>
-              <span className="text-xs font-mono font-bold text-blue-700">
+              <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 border border-blue-200">
                 {totalIntegrationHours.toLocaleString()}h
               </span>
             </div>
 
-            {/* Stepper with Flows & Endpoints Context */}
-            <div className="mt-2.5 flex items-center justify-between bg-slate-50 border border-slate-200 p-1.5 rounded-xs">
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-slate-900 font-mono pl-1">
-                  Total Flows:
-                </span>
-                <span className="text-[10px] text-slate-500 font-mono pl-1">
-                  OIC Interfaces
-                </span>
+            {/* DUAL CONFIGURATION: ENDPOINTS vs INTEGRATIONS */}
+            <div className="bg-slate-50 border border-slate-200 p-2 rounded-xs space-y-2">
+              {/* Row 1: Connected Endpoints (Systems) */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-800 font-mono block">
+                    1. Boundary Endpoints:
+                  </span>
+                  <span className="text-[9px] text-slate-500 font-mono">
+                    External SaaS & systems
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newEp = Math.max(1, uniqueEndpointsCount - 1);
+                      applyEndpointFlowsMultiplier(newEp, parseFloat(avgFlowsPerEndpoint) || 2.5);
+                    }}
+                    disabled={uniqueEndpointsCount <= 1}
+                    className="w-6 h-6 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold flex items-center justify-center cursor-pointer transition disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Decrease Connected Endpoints"
+                  >
+                    <Minus size={11} />
+                  </button>
+                  <span className="w-11 text-center font-mono font-bold text-xs text-slate-900">
+                    {uniqueEndpointsCount} <span className="text-[9px] text-slate-500 font-normal">sys</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newEp = uniqueEndpointsCount + 1;
+                      applyEndpointFlowsMultiplier(newEp, parseFloat(avgFlowsPerEndpoint) || 2.5);
+                    }}
+                    className="w-6 h-6 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold flex items-center justify-center cursor-pointer transition"
+                    title="Increase Connected Endpoints"
+                  >
+                    <Plus size={11} />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => updateInterfaceCount(-1)}
-                  disabled={integrations.length === 0}
-                  className="w-7 h-7 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold flex items-center justify-center cursor-pointer transition disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Remove 1 Integration Flow"
-                >
-                  <Minus size={13} />
-                </button>
-                <span className="w-12 text-center font-mono font-extrabold text-sm text-slate-900">
-                  {integrations.length} <span className="text-[10px] text-slate-500 font-normal">flows</span>
+
+              {/* Row 2: Integrations per System Multiplier */}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
+                <span className="text-[10px] text-slate-600 font-mono">
+                  Integrations / System:
                 </span>
-                <button
-                  type="button"
-                  onClick={() => updateInterfaceCount(1)}
-                  className="w-7 h-7 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold flex items-center justify-center cursor-pointer transition"
-                  title="Add 1 Integration Flow"
-                >
-                  <Plus size={13} />
-                </button>
+                <div className="flex items-center gap-1">
+                  {[
+                    { label: '1x', val: 1.0 },
+                    { label: '2x', val: 2.0 },
+                    { label: '2.5x', val: 2.5 },
+                    { label: '3x', val: 3.0 },
+                    { label: '4x', val: 4.0 }
+                  ].map(opt => (
+                    <button
+                      key={opt.val}
+                      type="button"
+                      onClick={() => applyEndpointFlowsMultiplier(uniqueEndpointsCount, opt.val)}
+                      className={`px-1.5 py-0.5 text-[9px] font-mono font-bold border rounded-xs cursor-pointer transition ${
+                        Math.abs((parseFloat(avgFlowsPerEndpoint) || 0) - opt.val) < 0.2
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                          : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Row 3: PRIMARY RESULT - Total Number of Integrations */}
+              <div className="bg-white border-2 border-blue-300 p-1.5 rounded-xs flex items-center justify-between shadow-2xs">
+                <div className="flex flex-col">
+                  <span className="text-xs font-black text-blue-950 font-mono pl-0.5 uppercase tracking-tight">
+                    Total Integrations:
+                  </span>
+                  <span className="text-[9px] text-blue-700 font-mono pl-0.5">
+                    {uniqueEndpointsCount} Endpoints × ~{avgFlowsPerEndpoint} Flows
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => updateInterfaceCount(-1)}
+                    disabled={integrations.length === 0}
+                    className="w-7 h-7 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold flex items-center justify-center cursor-pointer transition disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Remove 1 Integration"
+                  >
+                    <Minus size={13} />
+                  </button>
+                  <span className="w-12 text-center font-mono font-black text-sm text-blue-900">
+                    {integrations.length} <span className="text-[9px] text-blue-600 font-normal">flows</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => updateInterfaceCount(1)}
+                    className="w-7 h-7 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold flex items-center justify-center cursor-pointer transition"
+                    title="Add 1 Integration"
+                  >
+                    <Plus size={13} />
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Endpoints & Architecture Ratio badge */}
-            <div className="mt-1.5 bg-blue-50/70 border border-blue-200/80 px-2 py-1 rounded-xs flex items-center justify-between text-[10px] font-mono text-blue-900">
-              <span className="flex items-center gap-1 font-semibold">
-                <Network size={11} className="text-blue-600" />
-                <span>{uniqueEndpointsCount} Boundary Endpoints</span>
-              </span>
-              <span className="font-bold bg-white px-1.5 py-0.5 border border-blue-200 text-blue-800 shadow-2xs">
-                ~{avgFlowsPerEndpoint} flows/system
+            {/* Effort Impact Summary */}
+            <div className="bg-amber-50 border border-amber-200 px-2 py-1 rounded-xs flex items-center justify-between text-[10px] font-mono text-amber-900">
+              <span className="font-semibold">Effort Impact:</span>
+              <span className="font-bold text-amber-950">
+                {totalIntegrationHours.toLocaleString()}h ({totalProgramHours > 0 ? `${Math.round((totalIntegrationHours / totalProgramHours) * 100)}% of Program` : 'Direct Scope'})
               </span>
             </div>
 
             {/* Complexity mix */}
-            <div className="mt-2 text-[11px] font-mono text-slate-600 flex items-center justify-between">
+            <div className="text-[11px] font-mono text-slate-600 flex items-center justify-between px-0.5">
               <span>Payload Mix:</span>
               <span className="font-bold text-slate-800">{simpleCount}S • {mediumCount}M • {complexCount}C</span>
             </div>
-            <p className="text-[10px] text-slate-500 mt-1 leading-snug">
-              Point-to-point, batch lookups, and multi-system pub/sub flows.
-            </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setExpandedSection(expandedSection === 'interfaces' ? 'none' : 'interfaces')}
-            className={`w-full py-1.5 text-xs font-bold font-mono transition flex items-center justify-center gap-1.5 border cursor-pointer rounded-xs ${
-              expandedSection === 'interfaces'
-                ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                : 'bg-slate-50 hover:bg-slate-100 text-blue-700 border-slate-200'
-            }`}
-          >
-            <span>{expandedSection === 'interfaces' ? 'Hide Drawer' : `View ${integrations.length} Flows (${uniqueEndpointsCount} Endpoints)`}</span>
-            {expandedSection === 'interfaces' ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-          </button>
+          {/* Action Buttons: Add Integrations & View Table */}
+          <div className="space-y-1.5 pt-1">
+            <button
+              type="button"
+              onClick={() => setIsAddIntegrationsModalOpen(true)}
+              className="w-full py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-mono font-bold text-xs rounded-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
+              title="Add integrations by batch, multiplier, or system template"
+            >
+              <Plus size={13} />
+              <span>+ Add Integrations to Scope</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setExpandedSection(expandedSection === 'interfaces' ? 'none' : 'interfaces')}
+              className={`w-full py-1.5 text-xs font-bold font-mono transition flex items-center justify-center gap-1.5 border cursor-pointer rounded-xs ${
+                expandedSection === 'interfaces'
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+              }`}
+            >
+              <span>{expandedSection === 'interfaces' ? 'Hide Table' : `View ${integrations.length} Integrations Catalog`}</span>
+              {expandedSection === 'interfaces' ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            </button>
+          </div>
         </div>
 
         {/* TOWER 2: CONVERSIONS (FBDI / HDL) */}
@@ -950,6 +1045,15 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
             <div className="flex items-center gap-2">
               {expandedSection === 'interfaces' && (
                 <>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddIntegrationsModalOpen(true)}
+                    className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold font-mono uppercase rounded-xs flex items-center gap-1 shadow-2xs transition cursor-pointer"
+                    title="Add integrations by count, multiplier, or template"
+                  >
+                    <Plus size={12} />
+                    <span>+ Add Integrations</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setShowSizerHelper(!showSizerHelper)}
@@ -1473,6 +1577,15 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
         onClose={() => setIsIntelModalOpen(false)}
         scenario={scenario}
         onUpdateScenario={onUpdateScenario}
+      />
+
+      {/* MODAL 4: Dedicated Add Integrations Scope Engine */}
+      <AddIntegrationsScopeModal
+        isOpen={isAddIntegrationsModalOpen}
+        onClose={() => setIsAddIntegrationsModalOpen(false)}
+        currentIntegrations={integrations}
+        onAddIntegrations={handleApplyAddedIntegrations}
+        totalProgramHours={totalProgramHours}
       />
     </div>
   );

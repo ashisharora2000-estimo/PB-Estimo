@@ -77,6 +77,8 @@ export interface ScaleDrivers {
   hcm_union_groups: number;
   // Technical, Integrations & Data (CEMLI / RICEFW)
   tech_oic: number;
+  tech_endpoints?: number;          // External connected boundary endpoints/systems (e.g. 6)
+  tech_integrations_per_endpoint?: number; // Average integration flows per endpoint (e.g. 2.5 or 3.0)
   tech_paas: number;
   tech_data_objects: number;
   tech_conversion_cycles?: number; // Number of Mock Data Conversion Load iterations (1 to 6, default 3)
