@@ -65,7 +65,6 @@ import { AddCustomModuleModal } from '../modals/AddCustomModuleModal';
 import { AddCustomQuestionModal } from '../modals/AddCustomQuestionModal';
 import { Module20QuestionsModal } from '../modals/Module20QuestionsModal';
 import { TechnicalInventoryManager } from '../technical/TechnicalInventoryManager';
-import { IntegrationScopeStudio } from '../technical/IntegrationScopeStudio';
 import { TestingAssuranceView } from './TestingAssuranceView';
 import { DEFAULT_TECHNICAL_INTEGRATIONS } from '../../data/technicalScopingData';
 import { SmartBlueprintAutoFillDrawer } from '../ai/SmartBlueprintAutoFillDrawer';
@@ -1914,13 +1913,7 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
 
       {/* SECTION 2: Technical Objects & S/M/C Matrix */}
       {activeSection === 'technical' && (
-        <div className="space-y-6 animate-in fade-in duration-150">
-          <IntegrationScopeStudio
-            scenario={scenario}
-            onUpdateScenario={onUpdateScenario}
-            data={projectData}
-          />
-
+        <div className="space-y-4 animate-in fade-in duration-150">
           <TechnicalInventoryManager
             scenario={scenario}
             onUpdateScenario={onUpdateScenario}

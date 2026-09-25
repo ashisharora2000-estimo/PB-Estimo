@@ -18,7 +18,9 @@ import {
   TableProperties,
   Database,
   Grid,
-  Upload
+  Upload,
+  Workflow,
+  Sliders
 } from 'lucide-react';
 import {
   ProjectScenario,
@@ -33,6 +35,7 @@ import { TechnicalSmcMatrix } from './TechnicalSmcMatrix';
 import { ConversionMatrixManager } from './ConversionMatrixManager';
 import { TechnicalTowerBenchmarks } from './TechnicalTowerBenchmarks';
 import { UnifiedRicefwSummaryGrid } from './UnifiedRicefwSummaryGrid';
+import { IntegrationScopeStudio } from './IntegrationScopeStudio';
 import { IntelUploadHubModal } from '../modals/IntelUploadHubModal';
 import { IntegrationInventoryIngestModal } from './IntegrationInventoryIngestModal';
 import { IntegrationInventoryParseResult } from '../../utils/integrationInventoryParser';
@@ -53,7 +56,9 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
   onUpdateScenario,
   data
 }) => {
-  const [activeTab, setActiveTab] = useState<'ricefw_unified' | 'integrations' | 'conversions' | 'benchmarks' | 'smc_matrix'>('ricefw_unified');
+  const [viewMode, setViewMode] = useState<'detailed' | 'macro'>('detailed');
+  const [activeTab, setActiveTab] = useState<'integrations' | 'conversions' | 'ricefw_unified' | 'benchmarks' | 'smc_matrix'>('integrations');
+  const [benchmarkSubTab, setBenchmarkSubTab] = useState<'tshirt' | 'smc'>('tshirt');
   const [editingIntegration, setEditingIntegration] = useState<TechnicalIntegrationItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isIntelModalOpen, setIsIntelModalOpen] = useState<boolean>(false);
@@ -151,6 +156,65 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
     });
   };
 
+  const handleSyncFromMacroPreset = () => {
+    const opts = scenario.integrationScopingOptions;
+    if (!opts) return;
+    const targetSimple = opts.simpleCount || 0;
+    const targetMedium = opts.mediumCount || 0;
+    const targetComplex = (opts.complexCount || 0) + (opts.extraLargeCount || 0);
+    const totalTarget = targetSimple + targetMedium + targetComplex;
+
+    const newItems: TechnicalIntegrationItem[] = [];
+    let sAdded = 0;
+    let mAdded = 0;
+
+    for (let i = 1; i <= totalTarget; i++) {
+      const code = `INT-${String(i).padStart(2, '0')}`;
+      const std = STANDARD_ENTERPRISE_INTEGRATIONS_CATALOG[code];
+      let tier: TechnicalComplexityTier = 'M';
+      if (sAdded < targetSimple) {
+        tier = 'S';
+        sAdded++;
+      } else if (mAdded < targetMedium) {
+        tier = 'M';
+        mAdded++;
+      } else {
+        tier = 'C';
+      }
+
+      const tierHours = tier === 'S' ? 40 : tier === 'M' ? 80 : 140;
+
+      newItems.push({
+        id: `int_synced_${i}`,
+        code,
+        name: std ? std.name : `Enterprise Integration Flow (${code})`,
+        pillar: std ? std.pillar : (i % 2 === 0 ? 'ERP' : 'SCM'),
+        sourceSystem: std ? std.sourceSystem : 'Enterprise Third-Party Platform',
+        targetSystem: std ? std.targetSystem : 'Oracle Cloud ERP & Financials',
+        type: std ? std.type : 'inbound_rest',
+        complexity: tier,
+        isQuestionDriven: true,
+        questionAnswers: {
+          patternDirection: 0,
+          mappingComplexity: tier === 'S' ? 0 : tier === 'M' ? 1 : 2,
+          connectivityProtocol: 0,
+          dataVolume: 0,
+          errorHandling: 1,
+          apiReadiness: 0
+        },
+        baseHours: tierHours,
+        calculatedHours: tierHours,
+        calculationFormula: `${tierHours}h standard tier allocation`,
+        compositeScore: tier === 'S' ? 1.0 : tier === 'M' ? 1.5 : 2.2,
+        rationale: std ? std.rationale : 'Synchronized from macro enterprise tier sizing.'
+      });
+    }
+
+    onUpdateScenario(prev => syncIntegrationsFromInventory(newItems, prev));
+    setViewMode('detailed');
+    setActiveTab('integrations');
+  };
+
   // Filtered integrations
   const filteredIntegrations = integrations.filter(item => {
     const matchesPillar = pillarFilter === 'all' || item.pillar === pillarFilter;
@@ -170,136 +234,291 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
   const avgHours = integrations.length > 0 ? Math.round(totalIntegrationHours / integrations.length) : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Sub-navigation bar */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-2">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setActiveTab('ricefw_unified')}
-            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 transition cursor-pointer ${
-              activeTab === 'ricefw_unified'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <TableProperties size={14} className="text-indigo-400" />
-            <span>Unified RICEFW Scoping Grid</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('integrations')}
-            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 transition cursor-pointer ${
-              activeTab === 'integrations'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <Calculator size={14} />
-            <span>Deep 6-Q Integrations ({integrations.length})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('conversions')}
-            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 transition cursor-pointer ${
-              activeTab === 'conversions'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <Database size={14} />
-            <span>Conversions & Mock Scale</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('benchmarks')}
-            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 transition cursor-pointer ${
-              activeTab === 'benchmarks'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <Layers size={14} />
-            <span>T-Shirt Benchmark Tower</span>
-          </button>
+    <div className="space-y-4">
+      {/* 1. EXECUTIVE TECHNICAL KPI STRIP */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+        <div className="bg-white border-2 border-slate-200 p-3 shadow-xs rounded-xs flex items-center justify-between">
+          <div className="space-y-0.5 min-w-0">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold block">
+              1. Technical Effort
+            </span>
+            <span className="text-xl font-bold font-mono text-slate-900 block truncate">
+              {(data?.technicalHours || totalIntegrationHours).toLocaleString()} <span className="text-xs text-slate-500 font-normal">hrs</span>
+            </span>
+            <span className="text-[10px] font-mono text-indigo-700 font-bold block">
+              {data?.totalHours > 0 ? Math.round(((data.technicalHours || totalIntegrationHours) / data.totalHours) * 100) : 0}% of Total Program
+            </span>
+          </div>
+          <div className="w-9 h-9 rounded-xs bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-200">
+            <Cpu size={18} />
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsIngestModalOpen(true)}
-            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 shadow-xs transition cursor-pointer"
-            title="Ingest external CSV, TSV, JSON, or table inventory"
-          >
-            <Upload size={14} />
-            <span>Ingest Inventory ({integrations.length})</span>
-          </button>
+        <div className="bg-white border-2 border-slate-200 p-3 shadow-xs rounded-xs flex items-center justify-between">
+          <div className="space-y-0.5 min-w-0">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold block">
+              2. OIC Interfaces ({integrations.length})
+            </span>
+            <span className="text-xl font-bold font-mono text-slate-900 block truncate">
+              {totalIntegrationHours.toLocaleString()} <span className="text-xs text-slate-500 font-normal">hrs</span>
+            </span>
+            <span className="text-[10px] font-mono text-blue-700 font-bold block">
+              {simpleCount}S • {mediumCount}M • {complexCount}C/XL
+            </span>
+          </div>
+          <div className="w-9 h-9 rounded-xs bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-200">
+            <Workflow size={18} />
+          </div>
+        </div>
 
-          <button
-            type="button"
-            onClick={() => setIsIntelModalOpen(true)}
-            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 shadow-xs transition cursor-pointer"
-            title="Ingest Spec Sheet, Interfaces & Conversion Matrix"
-          >
-            <Sparkles size={14} />
-            <span>Ingest Spec Sheet / Intel</span>
-          </button>
+        <div className="bg-white border-2 border-slate-200 p-3 shadow-xs rounded-xs flex items-center justify-between">
+          <div className="space-y-0.5 min-w-0">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold block">
+              3. Data Conversions
+            </span>
+            <span className="text-xl font-bold font-mono text-slate-900 block truncate">
+              {scenario.scaleDrivers?.conv_objects || 12} <span className="text-xs text-slate-500 font-normal">Objects</span>
+            </span>
+            <span className="text-[10px] font-mono text-emerald-700 font-bold block">
+              {scenario.scaleDrivers?.conv_runs || 3} Mock Conversion Runs
+            </span>
+          </div>
+          <div className="w-9 h-9 rounded-xs bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-200">
+            <Database size={18} />
+          </div>
+        </div>
 
-          {activeTab === 'integrations' && (
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={handleAddNewIntegration}
-                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 shadow-xs transition cursor-pointer"
-              >
-                <Plus size={14} />
-                <span>Add Endpoint</span>
-              </button>
-              {integrations.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleClearAllIntegrations}
-                  className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1 transition cursor-pointer"
-                  title="Reset to 0 integrations (Clean Slate)"
-                >
-                  <Trash2 size={13} />
-                  <span>Clear All</span>
-                </button>
-              )}
-            </div>
-          )}
+        <div className="bg-white border-2 border-slate-200 p-3 shadow-xs rounded-xs flex items-center justify-between">
+          <div className="space-y-0.5 min-w-0">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold block">
+              4. Active Scope Mode
+            </span>
+            <span className="text-base font-bold font-mono text-slate-900 block truncate">
+              {viewMode === 'detailed' ? 'Itemized 4-Tower' : 'Macro S/M/L T-Shirt'}
+            </span>
+            <span className="text-[10px] font-mono text-amber-700 font-bold block">
+              Oracle CEMLI Standards
+            </span>
+          </div>
+          <div className="w-9 h-9 rounded-xs bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-200">
+            <Layers size={18} />
+          </div>
         </div>
       </div>
 
-      {activeTab === 'ricefw_unified' ? (
-        <UnifiedRicefwSummaryGrid
-          scenario={scenario}
-          onUpdateScenario={onUpdateScenario}
-          data={data}
-          onIngestClick={() => setIsIngestModalOpen(true)}
-        />
-      ) : activeTab === 'conversions' ? (
-        <ConversionMatrixManager
-          scenario={scenario}
-          onUpdateScenario={onUpdateScenario}
-          data={data}
-        />
-      ) : activeTab === 'benchmarks' ? (
-        <TechnicalTowerBenchmarks
-          scenario={scenario}
-          onUpdateScenario={onUpdateScenario}
-          data={data}
-        />
-      ) : activeTab === 'smc_matrix' ? (
-        <TechnicalSmcMatrix
-          scenario={scenario}
-          onUpdateScenario={onUpdateScenario}
-          data={data}
-        />
+      {/* 2. MODE SWITCH: MACRO SIZING vs 4-TOWER DETAILED INVENTORY */}
+      <div className="bg-slate-100 border border-slate-300 p-1.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setViewMode('detailed')}
+            className={`px-3 py-1.5 text-xs font-bold uppercase font-mono tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
+              viewMode === 'detailed'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <Layers size={13} className={viewMode === 'detailed' ? 'text-amber-300' : 'text-slate-500'} />
+            <span>📋 Detailed CEMLI Inventory (4 Oracle Towers)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setViewMode('macro')}
+            className={`px-3 py-1.5 text-xs font-bold uppercase font-mono tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
+              viewMode === 'macro'
+                ? 'bg-indigo-900 text-white shadow-xs'
+                : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <Zap size={13} className={viewMode === 'macro' ? 'fill-amber-300 text-amber-300' : 'text-amber-600'} />
+            <span>⚡ Fast-Track Macro Sizing (T-Shirt Presets & Squad)</span>
+          </button>
+        </div>
+
+        {viewMode === 'macro' ? (
+          <button
+            type="button"
+            onClick={handleSyncFromMacroPreset}
+            className="px-2.5 py-1 text-xs font-mono font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition cursor-pointer shadow-xs flex items-center gap-1"
+            title="Generate itemized table rows matching the macro tier counts"
+          >
+            <span>🔄 Sync Macro Counts to Detailed Catalog</span>
+          </button>
+        ) : (
+          <div className="text-[11px] font-mono text-slate-500 px-2 hidden sm:block">
+            Oracle CEMLI Framework: <strong>Interfaces • Conversions • Reports • Extensions</strong>
+          </div>
+        )}
+      </div>
+
+      {/* 3. CONTENT AREA BASED ON VIEW MODE */}
+      {viewMode === 'macro' ? (
+        <div className="animate-in fade-in duration-150">
+          <IntegrationScopeStudio
+            scenario={scenario}
+            onUpdateScenario={onUpdateScenario}
+          />
+        </div>
       ) : (
+        <div className="space-y-4 animate-in fade-in duration-150">
+          {/* Sub-navigation bar: 4 Standard Oracle CEMLI Towers */}
+          <div className="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setActiveTab('integrations')}
+                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 transition cursor-pointer ${
+                  activeTab === 'integrations'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <Workflow size={14} className={activeTab === 'integrations' ? 'text-amber-300' : 'text-indigo-600'} />
+                <span>1. Interfaces / OIC ({integrations.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('conversions')}
+                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 transition cursor-pointer ${
+                  activeTab === 'conversions'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <Database size={14} className={activeTab === 'conversions' ? 'text-amber-300' : 'text-emerald-600'} />
+                <span>2. Data Conversions (FBDI / HDL)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('ricefw_unified')}
+                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 transition cursor-pointer ${
+                  activeTab === 'ricefw_unified'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <TableProperties size={14} className={activeTab === 'ricefw_unified' ? 'text-amber-300' : 'text-purple-600'} />
+                <span>3. Unified CEMLI Catalog</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('benchmarks')}
+                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 transition cursor-pointer ${
+                  activeTab === 'benchmarks' || activeTab === 'smc_matrix'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <Layers size={14} className={activeTab === 'benchmarks' || activeTab === 'smc_matrix' ? 'text-amber-300' : 'text-slate-600'} />
+                <span>4. Benchmarks & S/M/C Rates</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsIngestModalOpen(true)}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                title="Ingest external CSV, TSV, JSON, or table inventory"
+              >
+                <Upload size={14} />
+                <span>Ingest CSV / Inventory</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsIntelModalOpen(true)}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                title="Ingest Spec Sheet, Interfaces & Conversion Matrix"
+              >
+                <Sparkles size={14} />
+                <span>Ingest Intel</span>
+              </button>
+
+              {activeTab === 'integrations' && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleAddNewIntegration}
+                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    <span>Add Endpoint</span>
+                  </button>
+                  {integrations.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAllIntegrations}
+                      className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1 transition cursor-pointer"
+                      title="Reset to 0 integrations (Clean Slate)"
+                    >
+                      <Trash2 size={13} />
+                      <span>Clear All</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {activeTab === 'ricefw_unified' ? (
+            <UnifiedRicefwSummaryGrid
+              scenario={scenario}
+              onUpdateScenario={onUpdateScenario}
+              data={data}
+              onIngestClick={() => setIsIngestModalOpen(true)}
+            />
+          ) : activeTab === 'conversions' ? (
+            <ConversionMatrixManager
+              scenario={scenario}
+              onUpdateScenario={onUpdateScenario}
+              data={data}
+            />
+          ) : activeTab === 'benchmarks' || activeTab === 'smc_matrix' ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                <button
+                  type="button"
+                  onClick={() => setBenchmarkSubTab('tshirt')}
+                  className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-xs transition cursor-pointer ${
+                    benchmarkSubTab === 'tshirt'
+                      ? 'bg-slate-800 text-white font-mono shadow-xs'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 font-mono'
+                  }`}
+                >
+                  T-Shirt Tower Benchmarks
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBenchmarkSubTab('smc')}
+                  className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-xs transition cursor-pointer ${
+                    benchmarkSubTab === 'smc'
+                      ? 'bg-slate-800 text-white font-mono shadow-xs'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 font-mono'
+                  }`}
+                >
+                  S/M/C Complexity Multipliers
+                </button>
+              </div>
+              {benchmarkSubTab === 'tshirt' ? (
+                <TechnicalTowerBenchmarks
+                  scenario={scenario}
+                  onUpdateScenario={onUpdateScenario}
+                  data={data}
+                />
+              ) : (
+                <TechnicalSmcMatrix
+                  scenario={scenario}
+                  onUpdateScenario={onUpdateScenario}
+                  data={data}
+                />
+              )}
+            </div>
+          ) : (
         <div className="space-y-5 animate-in fade-in duration-150">
           {/* Top Banner */}
           <div className="bg-slate-900 text-white p-5 rounded-none border border-slate-800 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -591,6 +810,8 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
               </tfoot>
             </table>
           </div>
+        </div>
+      )}
         </div>
       )}
 
