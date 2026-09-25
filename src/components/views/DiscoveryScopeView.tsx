@@ -721,93 +721,93 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
             </h2>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Action Controls - Clean, Professional Toolbar */}
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => setIsAddCustomModuleOpen(true)}
-              className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-300 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer shadow-2xs font-mono"
+              className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-2xs rounded-xs"
               title="Add a custom Oracle module or define a new domain / pillar"
             >
               <Plus size={13} className="text-indigo-600" />
-              <span>+ Add Custom Module</span>
+              <span>Add Custom Module</span>
             </button>
 
             <button
               type="button"
               onClick={handleToggleBaselineFreeze}
-              className={`px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer border ${
+              className={`px-2.5 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer border rounded-xs shadow-2xs ${
                 scenario.isBlackoutLocked
-                  ? 'bg-rose-700 hover:bg-rose-600 text-white border-rose-600 shadow-xs'
-                  : 'bg-slate-900 hover:bg-slate-800 text-white border-slate-900 shadow-xs'
+                  ? 'bg-rose-700 hover:bg-rose-600 text-white border-rose-600'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
               }`}
               title={scenario.isBlackoutLocked ? 'Click to request SteerCo baseline unlock' : 'Lock questionnaire as SteerCo Approved Baseline'}
             >
-              <ShieldCheck size={13} className={scenario.isBlackoutLocked ? 'text-rose-200' : 'text-slate-300'} />
-              <span>{scenario.isBlackoutLocked ? '🔒 Baseline Frozen' : 'Freeze Baseline'}</span>
+              <ShieldCheck size={13} className={scenario.isBlackoutLocked ? 'text-rose-200' : 'text-slate-500'} />
+              <span>{scenario.isBlackoutLocked ? 'Baseline Frozen' : 'Freeze Baseline'}</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setScopingAgentInitialMode('upload_rfp');
-                setIsScopingAgentModalOpen(true);
-              }}
-              className="px-3 py-1.5 bg-indigo-900 hover:bg-indigo-800 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer shadow-xs border border-indigo-700 font-mono"
-              title="One-Stop AI Scoping Agent: RFP Document Upload, RFP Memo & Intel Ingestion"
-            >
-              <Sparkles size={13} className="text-amber-400 animate-pulse" />
-              <span>✨ AI Scoping Agent</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleSetQuestionScopeMode(isReducedMode ? 'full' : 'reduced')}
-              className={`px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer font-mono border shadow-2xs ${
-                isReducedMode
-                  ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 ring-1 ring-amber-400/40'
-                  : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
-              }`}
-              title="Toggle between Reduced Questions (5 Core Architectural Drivers) and Full 20 Questions"
-            >
-              <Zap size={13} className={isReducedMode ? 'fill-white text-white' : 'text-amber-600'} />
-              <span>Scope Q's: {isReducedMode ? '⚡ 5 Core (Reduced)' : '📋 20 Full'}</span>
-            </button>
+            {/* Scope Question Depth Toggle */}
+            <div className="flex items-center rounded-xs border border-slate-300 bg-slate-100 p-0.5 text-xs">
+              <button
+                type="button"
+                onClick={() => handleSetQuestionScopeMode('reduced')}
+                className={`px-2 py-1 rounded-2xs font-semibold transition cursor-pointer flex items-center gap-1 ${
+                  isReducedMode
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="5 Core Architectural Drivers (Fast-Track Scoping)"
+              >
+                <Zap size={11} className={isReducedMode ? 'text-amber-500' : 'text-slate-400'} />
+                <span>5 Core Q's</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetQuestionScopeMode('full')}
+                className={`px-2 py-1 rounded-2xs font-semibold transition cursor-pointer flex items-center gap-1 ${
+                  !isReducedMode
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Full 20-Question Depth per module"
+              >
+                <span>20 Full Q's</span>
+              </button>
+            </div>
 
             <button
               type="button"
               onClick={() => setIsBidDefaultsModalOpen(true)}
-              className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-300 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer font-mono shadow-2xs"
+              className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-2xs rounded-xs"
               title="Configure Bid-Specific Defaults, Input Reduction Profile & AI Confidence calibration"
             >
-              <Sliders size={13} className="text-indigo-600" />
-              <span>
-                Defaults: {scenario.scopingInputMode === 'fast_track' ? '⚡ Reduced Inputs' : scenario.scopingInputMode === 'comprehensive' ? 'Full Depth' : 'Standard'}
-              </span>
+              <Sliders size={13} className="text-slate-500" />
+              <span>Defaults</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsClientQaModalOpen(true)}
-              className={`px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer border font-mono ${
+              className={`px-2.5 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer border rounded-xs shadow-2xs ${
                 clientClarificationCount > 0
-                  ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-400 animate-pulse'
-                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-300'
+                  ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-400'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
               }`}
               title="Export client questions for low-confidence areas"
             >
               <FileQuestion size={13} className={clientClarificationCount > 0 ? 'text-amber-600' : 'text-slate-500'} />
-              <span>Client Q&A ({clientClarificationCount})</span>
+              <span>Client Q&A {clientClarificationCount > 0 && `(${clientClarificationCount})`}</span>
             </button>
 
             <button
               type="button"
               onClick={exportScopingSheetCsv}
-              className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer font-mono"
+              className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer rounded-xs shadow-2xs"
               title="Export complete Scoping Sheet with T-Shirt sizes and 20-Q scores to CSV"
             >
-              <Download size={13} />
-              <span>Export CSV</span>
+              <Download size={13} className="text-slate-500" />
+              <span>CSV</span>
             </button>
           </div>
         </div>
@@ -913,13 +913,6 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
           </div>
         </div>
       </div>
-
-      {/* AI Smart Client Blueprint Auto-Fill Drawer (1-Click RFP & Context Ingestion) */}
-      <SmartBlueprintAutoFillDrawer
-        scenario={scenario}
-        onUpdateScenario={onUpdateScenario}
-        onOpenComplexityStudio={onOpenComplexityStudio}
-      />
 
       {/* SteerCo Baseline Freeze Notice Banner */}
       {scenario.isBlackoutLocked && (

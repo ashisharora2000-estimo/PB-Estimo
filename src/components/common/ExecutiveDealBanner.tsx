@@ -15,7 +15,9 @@ import {
   Presentation,
   Save,
   RotateCcw,
-  Check
+  Check,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData } from '../../types';
 
@@ -99,17 +101,86 @@ export const ExecutiveDealBanner: React.FC<ExecutiveDealBannerProps> = ({
     return `$${Math.round(val)}`;
   };
 
+  const [isCollapsed, setIsCollapsed] = React.useState<boolean>(() => {
+    try {
+      return localStorage.getItem('pb_exec_banner_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleCollapse = () => {
+    setIsCollapsed(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('pb_exec_banner_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Compact collapsed state: ultra-slim single-line ribbon (takes minimal vertical space)
+  if (isCollapsed) {
+    return (
+      <div className="w-full bg-slate-900 text-white border-b border-slate-800 shadow-2xs">
+        <div className="max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 py-1.5 flex items-center justify-between text-xs gap-3">
+          <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
+            <span className="px-1.5 py-0.2 rounded-2xs font-mono font-bold text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 shrink-0">
+              {thorId !== 'N/A' ? thorId : 'NO THOR ID'}
+            </span>
+            <span className="font-bold text-slate-200 text-xs truncate max-w-sm">{scenario.name}</span>
+            <span className="text-slate-600 hidden sm:inline">•</span>
+            <span className="text-slate-300 font-mono text-[11px] font-bold hidden sm:inline">
+              {totalHours.toLocaleString()}h
+            </span>
+            <span className="text-slate-600 hidden sm:inline">•</span>
+            <span className="text-amber-300 font-mono text-[11px] font-bold hidden sm:inline">
+              {durationWeeks}w ({avgFte.toFixed(1)} FTE)
+            </span>
+            <span className="text-slate-600 hidden md:inline">•</span>
+            <span className="text-emerald-400 font-mono text-[11px] font-bold hidden md:inline">
+              {formatCompactCurrency(estimatedTcv)}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {onSaveScenario && (
+              <button
+                type="button"
+                onClick={handleTriggerSave}
+                className="px-2 py-0.5 rounded-xs bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                title="Save proposal changes"
+              >
+                {justSaved ? <Check size={11} /> : <Save size={11} />}
+                <span>{justSaved ? 'Saved!' : 'Save'}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={toggleCollapse}
+              className="p-1 rounded-xs text-slate-400 hover:text-white transition cursor-pointer text-[10px] flex items-center gap-1 hover:bg-slate-800"
+              title="Expand Executive Banner"
+            >
+              <span className="hidden sm:inline">Expand Banner</span>
+              <ChevronDown size={13} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full bg-slate-900 text-white border-b border-slate-800 shadow-md">
-      <div className="max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-wrap items-center justify-between gap-2.5 text-xs">
         {/* Deal Identity: Thor ID & Client / Scenario + Quick Actions */}
-        <div className="flex items-center gap-3 min-w-0 flex-wrap">
+        <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="px-2 py-0.5 rounded-xs font-mono font-black text-[11px] bg-indigo-500/20 text-indigo-300 border border-indigo-400/40 tracking-wider shrink-0">
+            <span className="px-2 py-0.5 rounded-xs font-mono font-black text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-400/40 tracking-wider shrink-0">
               {thorId !== 'N/A' ? thorId : 'NO THOR ID'}
             </span>
             <div className="min-w-0">
-              <div className="font-bold text-slate-100 truncate text-xs sm:text-sm flex items-center gap-1.5">
+              <div className="font-bold text-slate-100 truncate text-xs flex items-center gap-1.5">
                 <span className="truncate">{scenario.name}</span>
                 {scenario.scaleDrivers?.industry && (
                   <span className="text-[10px] text-slate-400 font-normal hidden lg:inline truncate">
@@ -125,14 +196,14 @@ export const ExecutiveDealBanner: React.FC<ExecutiveDealBannerProps> = ({
               type="button"
               id="executive-banner-save-btn"
               onClick={handleTriggerSave}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-xs text-[11px] font-bold transition-all cursor-pointer border shrink-0 ${
+              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-xs text-[10px] font-bold transition-all cursor-pointer border shrink-0 ${
                 justSaved
                   ? 'bg-emerald-500 text-slate-950 border-emerald-400'
                   : 'bg-emerald-600/90 hover:bg-emerald-500 text-white border-emerald-400/40 shadow-xs'
               }`}
               title="Save all changes to proposal and synchronize calculated metrics across all screens"
             >
-              {justSaved ? <Check size={12} className="stroke-[3]" /> : <Save size={12} className="stroke-[2.5]" />}
+              {justSaved ? <Check size={11} className="stroke-[3]" /> : <Save size={11} className="stroke-[2.5]" />}
               <span>{justSaved ? 'Saved & Synced!' : (lastSavedTimestamp ? `Save (${lastSavedTimestamp})` : 'Save Changes')}</span>
             </button>
           )}
@@ -146,10 +217,10 @@ export const ExecutiveDealBanner: React.FC<ExecutiveDealBannerProps> = ({
                   onResetDefaults();
                 }
               }}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold transition-colors cursor-pointer border border-slate-700 shrink-0"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10px] font-semibold transition-colors cursor-pointer border border-slate-700 shrink-0"
               title="Reset numbers to baseline defaults"
             >
-              <RotateCcw size={11} />
+              <RotateCcw size={10} />
               <span className="hidden sm:inline">Reset Defaults</span>
             </button>
           )}
@@ -158,73 +229,73 @@ export const ExecutiveDealBanner: React.FC<ExecutiveDealBannerProps> = ({
             <button
               type="button"
               onClick={onOpenNewProposal}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs bg-emerald-600/90 hover:bg-emerald-500 text-white text-[11px] font-bold transition-colors cursor-pointer border border-emerald-400/40 shrink-0"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs bg-emerald-600/90 hover:bg-emerald-500 text-white text-[10px] font-bold transition-colors cursor-pointer border border-emerald-400/40 shrink-0"
               title="Start a new proposal / blank slate or clone"
             >
-              <Plus size={12} className="stroke-[3]" />
+              <Plus size={11} className="stroke-[3]" />
               <span>New Deal</span>
             </button>
           )}
         </div>
 
-        {/* 4 Core Bid Executive Metrics */}
-        <div className="flex items-center gap-3 sm:gap-6 flex-wrap">
+        {/* 4 Core Bid Executive Metrics + Collapse Toggle */}
+        <div className="flex items-center gap-3 sm:gap-5 flex-wrap">
           {/* 1. Total Effort */}
           <div 
             onClick={() => handleNav && handleNav('estimation')}
-            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition group"
+            className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition group"
             title="Total target baseline effort (Hours / Person-Days)"
           >
             <div className="p-1 rounded-xs bg-slate-800 text-indigo-400 group-hover:bg-indigo-950">
-              <Clock size={13} />
+              <Clock size={12} />
             </div>
             <div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Total Effort</div>
-              <div className="font-bold text-slate-100 font-mono">
-                {totalHours.toLocaleString()}h <span className="text-[10px] text-slate-400 font-normal">({totalDays.toLocaleString()}d)</span>
+              <div className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">Total Effort</div>
+              <div className="font-bold text-slate-100 font-mono text-[11px]">
+                {totalHours.toLocaleString()}h <span className="text-[9px] text-slate-400 font-normal">({totalDays.toLocaleString()}d)</span>
               </div>
             </div>
           </div>
 
-          <div className="h-6 w-px bg-slate-800 hidden sm:block" />
+          <div className="h-5 w-px bg-slate-800 hidden sm:block" />
 
           {/* 2. Program Duration & Schedule Quick Controller */}
           <div 
             onClick={() => handleNav && handleNav('schedule')}
-            className="flex items-center gap-2 cursor-pointer hover:bg-slate-800/60 p-1 rounded-xs transition group"
+            className="flex items-center gap-1.5 cursor-pointer hover:bg-slate-800/60 p-0.5 rounded-xs transition group"
             title="Total program duration, target Go-Live, and staffing sync. Click to open Gantt."
           >
             <div className="p-1 rounded-xs bg-slate-800 text-amber-400 group-hover:bg-amber-950">
-              <Calendar size={13} />
+              <Calendar size={12} />
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Duration</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">Duration</span>
                 {isOutOfSyncWithRecommended && onUpdateScenario && (
                   <button
                     type="button"
                     onClick={handleSyncToRecommended}
-                    className="text-[9px] font-bold px-1.5 py-0.2 rounded-2xs bg-amber-500/20 text-amber-300 border border-amber-400/40 hover:bg-amber-500 hover:text-slate-950 transition cursor-pointer"
+                    className="text-[8px] font-bold px-1 py-0.2 rounded-2xs bg-amber-500/20 text-amber-300 border border-amber-400/40 hover:bg-amber-500 hover:text-slate-950 transition cursor-pointer"
                     title={`Complexity Sizing recommends ${data.recommendedDurationWeeks}w. Click to sync.`}
                   >
                     Sync {data.recommendedDurationWeeks}w
                   </button>
                 )}
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-slate-100 font-mono">
+              <div className="flex items-center gap-1 font-mono text-[11px]">
+                <span className="font-bold text-slate-100">
                   {durationWeeks} Wks
                 </span>
-                <span className="text-[10px] text-amber-300/80 font-mono">
-                  &bull; {avgFte.toFixed(1)} FTE
+                <span className="text-[9px] text-amber-300/80">
+                  • {avgFte.toFixed(1)} FTE
                 </span>
 
                 {onUpdateScenario && (
-                  <div className="inline-flex items-center gap-0.5 ml-1" onClick={(e) => e.stopPropagation()}>
+                  <div className="inline-flex items-center gap-0.5 ml-0.5" onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
                       onClick={(e) => handleAdjustWeeks(-1, e)}
-                      className="w-4 h-4 rounded-2xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center text-[10px] font-mono cursor-pointer border border-slate-700"
+                      className="w-3.5 h-3.5 rounded-2xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center text-[9px] font-mono cursor-pointer border border-slate-700"
                       title="Decrease schedule by 1 week"
                     >
                       -
@@ -232,7 +303,7 @@ export const ExecutiveDealBanner: React.FC<ExecutiveDealBannerProps> = ({
                     <button
                       type="button"
                       onClick={(e) => handleAdjustWeeks(1, e)}
-                      className="w-4 h-4 rounded-2xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center text-[10px] font-mono cursor-pointer border border-slate-700"
+                      className="w-3.5 h-3.5 rounded-2xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center text-[9px] font-mono cursor-pointer border border-slate-700"
                       title="Increase schedule by 1 week"
                     >
                       +
@@ -243,44 +314,53 @@ export const ExecutiveDealBanner: React.FC<ExecutiveDealBannerProps> = ({
             </div>
           </div>
 
-          <div className="h-6 w-px bg-slate-800 hidden sm:block" />
+          <div className="h-5 w-px bg-slate-800 hidden sm:block" />
 
           {/* 3. Est. TCV & Blended Rate */}
           <div 
             onClick={() => handleNav && handleNav('commercial')}
-            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition group"
+            className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition group"
             title="Estimated Total Contract Value & Blended Bill Rate"
           >
             <div className="p-1 rounded-xs bg-slate-800 text-emerald-400 group-hover:bg-emerald-950">
-              <DollarSign size={13} />
+              <DollarSign size={12} />
             </div>
             <div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Est. TCV (Blended)</div>
-              <div className="font-bold text-emerald-400 font-mono">
-                {formatCompactCurrency(estimatedTcv)} <span className="text-[10px] text-slate-400 font-normal">(${blendedRate}/h)</span>
+              <div className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">Est. TCV</div>
+              <div className="font-bold text-emerald-400 font-mono text-[11px]">
+                {formatCompactCurrency(estimatedTcv)} <span className="text-[9px] text-slate-400 font-normal">(${blendedRate}/h)</span>
               </div>
             </div>
           </div>
 
-          <div className="h-6 w-px bg-slate-800 hidden md:block" />
+          <div className="h-5 w-px bg-slate-800 hidden md:block" />
 
-          {/* 4. Peak Team Size & RFP Quick Link */}
+          {/* 4. Peak Team Size */}
           <div 
             onClick={() => handleNav && handleNav('reports')}
-            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition group"
+            className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition group"
             title="Peak FTE headcount and quick access to RFP Dossier"
           >
             <div className="p-1 rounded-xs bg-slate-800 text-purple-400 group-hover:bg-purple-950">
-              <Users size={13} />
+              <Users size={12} />
             </div>
             <div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Peak Squad</div>
-              <div className="font-bold text-slate-100 font-mono flex items-center gap-1">
-                <span>{peakFte > 0 ? `${peakFte.toFixed(1)} FTE` : '0.0 FTE'}</span>
-                <ChevronRight size={12} className="text-slate-400 group-hover:text-purple-300 group-hover:translate-x-0.5 transition-transform" />
+              <div className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">Peak Squad</div>
+              <div className="font-bold text-slate-100 font-mono text-[11px]">
+                {peakFte > 0 ? `${peakFte.toFixed(1)} FTE` : '0.0 FTE'}
               </div>
             </div>
           </div>
+
+          {/* Collapse Button */}
+          <button
+            type="button"
+            onClick={toggleCollapse}
+            className="p-1 rounded-xs text-slate-400 hover:text-white transition cursor-pointer text-[10px] flex items-center gap-0.5 hover:bg-slate-800 ml-1"
+            title="Collapse Executive Banner for more vertical space"
+          >
+            <ChevronUp size={14} />
+          </button>
         </div>
       </div>
     </div>
