@@ -102,9 +102,9 @@ export const WORKFLOW_STEPS: GuidedStep[] = [
     stepNumber: 8,
     stageNumber: 3,
     stageName: 'Stage 3: Pricing & Governance',
-    label: 'Proposal Dossier & SOW',
-    sub: 'Final SOW & Exports',
-    roles: ['all', 'commercial', 'executive']
+    label: 'Reports & Portfolios',
+    sub: 'Reports, Portfolios & SOW',
+    roles: ['all', 'architect', 'commercial', 'executive']
   }
 ];
 

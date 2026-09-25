@@ -233,10 +233,10 @@ export const BID_LIFECYCLE_STAGES: NavStageDefinition[] = [
       {
         id: 'reports',
         stepNumber: '8',
-        label: 'Proposal Dossier',
-        sub: 'RFP Brief & SOW Exports',
+        label: 'Reports & Portfolios',
+        sub: '8 Reports, Portfolio & SOW',
         icon: FileText,
-        roles: ['all', 'commercial', 'executive']
+        roles: ['all', 'architect', 'commercial', 'executive']
       }
     ]
   }

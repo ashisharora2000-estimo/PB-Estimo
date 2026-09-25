@@ -199,6 +199,36 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </div>
       </div>
 
+      {/* Sub-Section Navigation Tabs Strip */}
+      <div className="bg-white border border-slate-200 p-1.5 shadow-2xs overflow-x-auto print:hidden">
+        <div className="flex items-center gap-1.5 min-w-max">
+          {REPORT_SUB_ITEMS.map((sub) => {
+            const isSubActive = activeSubSection === sub.id;
+            return (
+              <button
+                key={sub.id}
+                type="button"
+                onClick={() => onSelectSubSection && onSelectSubSection(sub.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold transition rounded-xs cursor-pointer ${
+                  isSubActive
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200'
+                }`}
+              >
+                <span
+                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-mono font-bold ${
+                    isSubActive ? 'bg-indigo-500 text-white' : 'bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  {sub.number}
+                </span>
+                <span>{sub.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ========================================================================= */}
       {/* SUB-SECTION 1: EXECUTIVE RFP BRIEF (Printable Dossier)                    */}
       {/* ========================================================================= */}
