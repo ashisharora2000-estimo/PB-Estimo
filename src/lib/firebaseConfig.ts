@@ -14,7 +14,8 @@ export interface FirebaseAppConfig {
 }
 
 const rawConfig = (config || {}) as Partial<FirebaseAppConfig>;
-const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : ({} as Record<string, string>);
+const metaEnv = typeof import.meta !== 'undefined' ? (import.meta as unknown as { env?: Record<string, string> })?.env : undefined;
+const env = metaEnv || ({} as Record<string, string>);
 
 export const firebaseConfig: FirebaseAppConfig = {
   projectId: env.VITE_FIREBASE_PROJECT_ID || rawConfig.projectId || '',

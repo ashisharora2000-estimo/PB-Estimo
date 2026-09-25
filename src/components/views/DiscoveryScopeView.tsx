@@ -1051,71 +1051,7 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
 
           {/* TABULAR SCOPING SHEET (Clean, High-Density Professional Table) */}
           <div className="space-y-3 animate-in fade-in duration-150">
-
-              {/* PROMINENT SCOPING QUESTION DEPTH SWITCHER BANNER */}
-              <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-indigo-500/10 border-2 border-amber-400/80 p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm">
-                <div className="flex items-start sm:items-center gap-3">
-                  <div className={`w-10 h-10 rounded-sm flex items-center justify-center shrink-0 shadow-xs ${
-                    isReducedMode ? 'bg-amber-500 text-white' : 'bg-slate-800 text-white'
-                  }`}>
-                    {isReducedMode ? <Zap size={22} className="fill-white" /> : <ListChecks size={22} />}
-                  </div>
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold font-mono uppercase tracking-wider text-slate-900">
-                        Module Scoping Questionnaire Depth
-                      </span>
-                      <span className={`text-[10px] font-mono px-2 py-0.5 font-bold uppercase border ${
-                        isReducedMode
-                          ? 'bg-amber-500 text-white border-amber-600 shadow-2xs'
-                          : 'bg-slate-800 text-white border-slate-900 shadow-2xs'
-                      }`}>
-                        {isReducedMode ? '⚡ Reduced Questions Mode Active (5 Core Drivers)' : '📋 Full 20-Question Mode Active'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-700 leading-snug">
-                      {isReducedMode ? (
-                        <span>
-                          <strong>Fast-Track Scoping Active:</strong> Displaying the <strong>5 Core Mandatory Architectural Drivers</strong> per module (COA Segments, Multi-Ledger, Legal Entities, Volumes, Security). The other 15 secondary questions are auto-calibrated to Fit-to-Standard MBP.
-                        </span>
-                      ) : (
-                        <span>
-                          <strong>Comprehensive 20-Q Scoping Active:</strong> Displaying all <strong>20 detailed architectural questions</strong> across Process, Integrations, Data, Approvals, Reporting, and Compliance for full customization.
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5 bg-white border border-slate-300 p-1 shrink-0 self-start md:self-auto shadow-2xs">
-                  <button
-                    type="button"
-                    onClick={() => handleSetQuestionScopeMode('reduced')}
-                    className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
-                      isReducedMode
-                        ? 'bg-amber-500 text-white shadow-xs font-mono'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-mono'
-                    }`}
-                  >
-                    <Zap size={13} className={isReducedMode ? 'fill-white' : 'text-amber-600'} />
-                    <span>⚡ Reduced (5 Core Q's)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSetQuestionScopeMode('full')}
-                    className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
-                      !isReducedMode
-                        ? 'bg-slate-900 text-white shadow-xs font-mono'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-mono'
-                    }`}
-                  >
-                    <ListChecks size={13} />
-                    <span>📋 Full 20 Questions</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Table Filter Controls & Pillar Selector */}
+            {/* Table Filter Controls & Pillar Selector */}
               <div className="bg-white border border-slate-200 p-2.5 space-y-2.5 shadow-2xs">
                 {/* Pillar Bar */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-2 border-b border-slate-100">
