@@ -34,6 +34,7 @@ import { exportWbsToCsv, exportCommercialsToCsv, exportProjectJson } from '../ut
 import { generateExecutiveSlideDeck } from '../utils/executivePptxGenerator';
 import { UniversalSnapshotManager } from './common/UniversalSnapshotManager';
 import { CloudDatabaseSyncModal } from './modals/CloudDatabaseSyncModal';
+import { downloadAllKnowledgeFiles } from '../utils/downloadClaudeKnowledge';
 
 interface NavbarProps {
   scenario: ProjectScenario;
@@ -506,6 +507,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <div>
                       <div className="font-bold">Leadership Audit Hub</div>
                       <div className="text-[10px] text-slate-500 font-normal">Full formula transparency & trace math</div>
+                    </div>
+                  </button>
+
+                  <div className="h-px bg-slate-100 my-1" />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      downloadAllKnowledgeFiles();
+                      setToolsOpen(false);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold text-purple-700 hover:bg-purple-50 hover:text-purple-900 flex items-center gap-2 transition"
+                    title="Download 5 .MD Knowledge Base files for Claude Project Knowledge"
+                  >
+                    <Download size={13} className="text-purple-600 shrink-0" />
+                    <div>
+                      <div className="font-bold">Download Claude Knowledge (.MD)</div>
+                      <div className="text-[10px] text-slate-500 font-normal">5 Markdown files for Claude Project</div>
                     </div>
                   </button>
                 </div>

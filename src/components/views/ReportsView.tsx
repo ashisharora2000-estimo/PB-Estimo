@@ -39,6 +39,7 @@ import { getQuestionsForModule, ModuleScopingQuestion } from '../../data/moduleS
 import { ReportSubSectionId, REPORT_SUB_ITEMS } from '../Sidebar';
 import { NotebookLMPodcastCard } from '../podcast/NotebookLMPodcastCard';
 import { BaselineVarianceReportView } from './BaselineVarianceReportView';
+import { downloadAllKnowledgeFiles } from '../../utils/downloadClaudeKnowledge';
 
 interface ReportsViewProps {
   scenario: ProjectScenario;
@@ -195,6 +196,15 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           >
             <DollarSign size={13} />
             <span>Export Commercials</span>
+          </button>
+          <button
+            type="button"
+            onClick={downloadAllKnowledgeFiles}
+            className="px-3 py-1.5 rounded-none bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-800 text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer font-mono"
+            title="Download all 5 Knowledge Base articles as .md files for Claude Project Knowledge"
+          >
+            <Download size={13} />
+            <span>Download Claude .MD Pack</span>
           </button>
         </div>
       </div>
