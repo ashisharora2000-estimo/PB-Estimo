@@ -165,18 +165,6 @@ export const ExecutiveDealBanner: React.FC<ExecutiveDealBannerProps> = ({
               <span>New Deal</span>
             </button>
           )}
-
-          {onOpenSlideDeck && (
-            <button
-              type="button"
-              onClick={onOpenSlideDeck}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs bg-indigo-600/90 hover:bg-indigo-500 text-white text-[11px] font-bold transition-colors cursor-pointer border border-indigo-400/40 shrink-0 shadow-2xs"
-              title="Open / Download Executive 5-Slide PowerPoint Deck"
-            >
-              <Presentation size={12} className="stroke-[2.5]" />
-              <span>Executive Slide Deck</span>
-            </button>
-          )}
         </div>
 
         {/* 4 Core Bid Executive Metrics */}
