@@ -118,8 +118,12 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   }
 
   // 2. Physical Scale Drivers Effort & Data Conversion Sizing (TBD 5-Tier T-Shirt & 4-Mock Sliding Scale)
-  const dataObjects = scaleDrivers.tech_data_objects || 0;
-  const conversionCycles = scaleDrivers.tech_conversion_cycles !== undefined ? Math.max(1, scaleDrivers.tech_conversion_cycles) : 3;
+  const dataObjects = scaleDrivers.tech_data_objects !== undefined
+    ? scaleDrivers.tech_data_objects
+    : (scaleDrivers.conv_objects !== undefined ? scaleDrivers.conv_objects : 0);
+  const conversionCycles = scaleDrivers.tech_conversion_cycles !== undefined
+    ? Math.max(1, scaleDrivers.tech_conversion_cycles)
+    : (scaleDrivers.conv_runs !== undefined ? Math.max(1, scaleDrivers.conv_runs) : 3);
   const historicalYears = scaleDrivers.tech_historical_years !== undefined ? Math.max(0, scaleDrivers.tech_historical_years) : 1;
 
   // TBD 4-Tier Mock Sliding Scale Cumulative Multiplier (Whiteboard Image 4)
@@ -209,12 +213,20 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
     scaleBaseHours += hc > 0 ? Math.min(2500, Math.sqrt(hc) * 22) : 0; // Damped sublinear scaling for headcount
     scaleBaseHours += (scaleDrivers.hcm_pay_countries || 0) * 380;
     scaleBaseHours += (scaleDrivers.hcm_union_groups || 0) * 220;
-    // Tech & CEMLI (honoring SMC complexity overrides and itemized technical integrations)
+    // Tech & CEMLI (honoring SMC complexity overrides, external integration counts, and itemized technical integrations)
     const intRows = TECHNICAL_OBJECT_SMC_CATALOG.filter(r => r.category === 'integrations');
     const hasIntSmcOverrides = intRows.some(r => scenario.technicalSmcOverrides?.[r.typeId] !== undefined);
     let totalIntegrationBaseHours = 0;
 
-    if (hasIntSmcOverrides) {
+    const extIntCount = scaleDrivers.tech_external_integrations_count;
+    const extIntComplexity = scaleDrivers.tech_external_integrations_complexity || 'medium';
+    const extMultiplier = scaleDrivers.tech_external_integrations_multiplier ||
+      (extIntComplexity === 'simple' ? 0.85 : extIntComplexity === 'complex' ? 1.75 : 1.20);
+
+    if (extIntCount !== undefined && extIntCount >= 0) {
+      // Dynamic scaling: specific external integration count scaled by complexity multiplier
+      totalIntegrationBaseHours = Math.round(extIntCount * 80 * extMultiplier);
+    } else if (hasIntSmcOverrides) {
       intRows.forEach(r => {
         const stats = getEffectiveSmcCounts(r, scenario);
         totalIntegrationBaseHours += stats.totalHours;
@@ -1116,12 +1128,25 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
     : (scenario.scaleDrivers.tech_oic === 0 ? [] : DEFAULT_TECHNICAL_INTEGRATIONS);
   const itemizedIntegrationHours = technicalIntegrations.reduce((sum, item) => sum + (item.calculatedHours || 80), 0);
   
-  // Single source of truth: if technicalIntegrations is provided, its length is effective count
-  const effectiveOicCount = scenario.technicalIntegrations !== undefined
-    ? scenario.technicalIntegrations.length
-    : (scenario.scaleDrivers.tech_oic !== undefined ? scenario.scaleDrivers.tech_oic : technicalIntegrations.length);
-  const avgHoursPerIntegration = technicalIntegrations.length > 0 ? (itemizedIntegrationHours / technicalIntegrations.length) : 95;
-  const techOicHours = effectiveOicCount === 0 ? 0 : (technicalIntegrations.length === effectiveOicCount ? itemizedIntegrationHours : Math.round(effectiveOicCount * avgHoursPerIntegration));
+  // Single source of truth: external integrations modifier or itemized/scaleDriver count
+  const extIntCount = scaleDrivers.tech_external_integrations_count;
+  const extIntComplexity = scaleDrivers.tech_external_integrations_complexity || 'medium';
+  const extMultiplier = scaleDrivers.tech_external_integrations_multiplier ||
+    (extIntComplexity === 'simple' ? 0.85 : extIntComplexity === 'complex' ? 1.75 : 1.20);
+
+  let effectiveOicCount: number;
+  let techOicHours: number;
+
+  if (extIntCount !== undefined && extIntCount >= 0) {
+    effectiveOicCount = extIntCount;
+    techOicHours = Math.round(extIntCount * 80 * extMultiplier);
+  } else {
+    effectiveOicCount = scenario.technicalIntegrations !== undefined
+      ? scenario.technicalIntegrations.length
+      : (scenario.scaleDrivers.tech_oic !== undefined ? scenario.scaleDrivers.tech_oic : technicalIntegrations.length);
+    const avgHoursPerIntegration = technicalIntegrations.length > 0 ? (itemizedIntegrationHours / technicalIntegrations.length) : 95;
+    techOicHours = effectiveOicCount === 0 ? 0 : (technicalIntegrations.length === effectiveOicCount ? itemizedIntegrationHours : Math.round(effectiveOicCount * avgHoursPerIntegration));
+  }
 
   const techPaasHours = (scaleDrivers.tech_paas || 0) * 550;
   const techReportsBipHours = (scaleDrivers.tech_reports_bip || 0) * 45;
@@ -1129,7 +1154,7 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   const techFastFormulasHours = (scaleDrivers.tech_fast_formulas || 0) * 75;
   const techWorkflowsHours = (scaleDrivers.tech_workflows || 0) * 55;
   const techSecurityRolesHours = (scaleDrivers.tech_security_roles || 0) * 35;
-  const hasTechScope = effectiveOicCount > 0 || techPaasHours > 0 || techReportsBipHours > 0 || techReportsOtbiHours > 0 || (scaleDrivers.tech_data_objects || 0) > 0 || selectedModules.length > 0;
+  const hasTechScope = effectiveOicCount > 0 || techPaasHours > 0 || techReportsBipHours > 0 || techReportsOtbiHours > 0 || dataObjects > 0 || selectedModules.length > 0;
   const techCutoverHours = hasTechScope ? (160 + (scaleDrivers.tech_cutover_dr_runs || 0) * 60) : 0;
   const rawTechnicalHours = techOicHours + techPaasHours + techReportsBipHours + techReportsOtbiHours + techFastFormulasHours + techWorkflowsHours + techSecurityRolesHours + techCutoverHours;
   const finalTechnicalP80Hours = rawTechnicalHours === 0 ? 0 : Math.max(80, Math.round(rawTechnicalHours * netClientModifier * (1 + contingencyPct)));
@@ -1159,7 +1184,9 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
     ...(intOptions?.includePartnerCoTesting ? ['Joint 3rd-Party Endpoint Co-Testing & Staging Support'] : []),
     `Connected Endpoints: ${(intOptions?.targetSystems && intOptions.targetSystems.length > 0) ? intOptions.targetSystems.join(', ') : 'Enterprise SaaS & Core Platforms'}`
   ] : [
-    `${effectiveOicCount} OIC Cloud Integrations (${simpleIntCount}S / ${mediumIntCount}M / ${complexIntCount}C)`,
+    extIntCount !== undefined
+      ? `${extIntCount} External Cloud Integrations (${extIntComplexity.toUpperCase()} @ ${extMultiplier.toFixed(2)}x modifier)`
+      : `${effectiveOicCount} OIC Cloud Integrations (${simpleIntCount}S / ${mediumIntCount}M / ${complexIntCount}C)`,
     `${scaleDrivers.tech_paas || 0} PaaS / VBCS Custom Extensions`,
     `${(scaleDrivers.tech_reports_bip || 0) + (scaleDrivers.tech_reports_otbi || 0)} Operational BIP & OTBI Analytics Reports`,
     `${scaleDrivers.tech_security_roles || 0} Custom Security Roles & SOD Governance Matrices`,
@@ -1191,7 +1218,7 @@ export function calculateProjectMetrics(scenario: ProjectScenario): CalculatedPr
   // Business Testing 1 - SIT Arithmetic
   const sitFuncScriptHours = Math.round(sitCycles * testScripts * 0.70);
   const sitOicIntHours = Math.round(sitCycles * effectiveOicCount * 16);
-  const sitMockDataHours = Math.round((scaleDrivers.tech_data_objects || 0) * 8 * (sitCycles >= 2 ? 1.5 : 1.0));
+  const sitMockDataHours = Math.round(dataObjects * 8 * (sitCycles >= 2 ? 1.5 : 1.0));
   const sitDefectTriageHours = Math.round((sitFuncScriptHours + sitOicIntHours + sitMockDataHours) * 0.25);
   const rawSitHours = sitFuncScriptHours + sitOicIntHours + sitMockDataHours + sitDefectTriageHours;
 

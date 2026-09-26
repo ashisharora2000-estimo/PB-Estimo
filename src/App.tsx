@@ -358,6 +358,12 @@ export default function App() {
             onOpenComplexityStudio={handleOpenComplexityStudio}
             onOpenTraceMath={handleOpenTraceMath}
             onSaveScenario={handleSaveScenario}
+            onNavigateTab={(tab, subSection) => {
+              setActiveTab(tab);
+              if (subSection && tab === 'discovery') {
+                setDiscoverySubSection(subSection as DiscoverySubSectionId);
+              }
+            }}
           />
         );
       case 'delivery_confidence':

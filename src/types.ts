@@ -77,11 +77,16 @@ export interface ScaleDrivers {
   hcm_union_groups: number;
   // Technical, Integrations & Data (CEMLI / RICEFW)
   tech_oic: number;
+  tech_external_integrations_count?: number;        // Specific count of external integrations
+  tech_external_integrations_complexity?: 'simple' | 'medium' | 'complex'; // Complexity tier (simple/medium/complex)
+  tech_external_integrations_multiplier?: number;   // Dynamic multiplier based on complexity
   tech_endpoints?: number;          // External connected boundary endpoints/systems (e.g. 6)
   tech_integrations_per_endpoint?: number; // Average integration flows per endpoint (e.g. 2.5 or 3.0)
   tech_paas: number;
   tech_data_objects: number;
+  conv_objects?: number;           // Alias for tech_data_objects
   tech_conversion_cycles?: number; // Number of Mock Data Conversion Load iterations (1 to 6, default 3)
+  conv_runs?: number;              // Alias for tech_conversion_cycles
   tech_historical_years?: number;  // Years of legacy transactional history (0 = Open Balances Only, 1, 2, 3+ yrs)
   tech_reports_bip: number;
   tech_reports_otbi: number;
@@ -422,6 +427,7 @@ export interface ProjectScenario {
   scopeMode?: ScopeMode;
   integrationScopingOptions?: IntegrationScopingOptions;
   technicalIntegrations?: TechnicalIntegrationItem[];
+  integrationMatrixItems?: IntegrationMatrixItem[];
   technicalSmcOverrides?: Record<string, { simple?: number; medium?: number; complex?: number }>;
   // Comprehensive Intel & Spec Sheet Ingestion Engine
   clientIntel?: ClientIntelData;
@@ -564,6 +570,20 @@ export interface IntelSynthesisResult {
     clarificationsRequiredCount: number;
   };
   fieldUpdatesApplied: string[];
+}
+
+export type IntegrationComplexityLevel = 'Simple' | 'Medium' | 'Complex';
+
+export interface IntegrationMatrixItem {
+  id: string;
+  name: string;
+  complexity: IntegrationComplexityLevel;
+  oracleModuleId: OracleModule;
+  oracleModuleName?: string;
+  direction?: 'Inbound' | 'Outbound' | 'Bidirectional';
+  connectedSystem?: string;
+  estimatedHours?: number;
+  notes?: string;
 }
 
 export type TechnicalComplexityTier = 'S' | 'M' | 'C' | 'XL';

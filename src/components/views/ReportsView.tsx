@@ -33,6 +33,8 @@ import { ProjectScenario, CalculatedProjectData, OracleModule, TShirtSize } from
 import { ORACLE_MODULE_CATALOG, ORACLE_PATCH_COHORTS } from '../../data/oraclePhases';
 import { exportWbsToCsv, exportCommercialsToCsv, exportScopingSummaryCsv } from '../../utils/exporter';
 import { generateExecutiveSlideDeck } from '../../utils/executivePptxGenerator';
+import { generateFrameworkWordDoc } from '../../utils/frameworkDocxGenerator';
+import { generateFrameworkPdf } from '../../utils/frameworkPdfGenerator';
 import { TShirtBadge, T_SHIRT_CONFIG } from '../common/TShirtBadge';
 import { ModuleTShirtMatrix } from '../common/ModuleTShirtMatrix';
 import { getQuestionsForModule, ModuleScopingQuestion } from '../../data/moduleScopingQuestions';
@@ -141,6 +143,24 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           )}
           {/* Listen Podcast - Hidden for future release */}
 
+          <button
+            type="button"
+            onClick={() => generateFrameworkPdf(scenario, data)}
+            className="px-3.5 py-1.5 rounded-none bg-rose-700 hover:bg-rose-600 text-white text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-xs border border-rose-500"
+            title="Download Complete Framework Specification Document (.pdf for Adobe Acrobat)"
+          >
+            <FileText size={14} className="stroke-[2.5]" />
+            <span>Framework Deliverable (PDF)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => generateFrameworkWordDoc(scenario, data)}
+            className="px-3.5 py-1.5 rounded-none bg-blue-700 hover:bg-blue-600 text-white text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-xs border border-blue-500"
+            title="Download Complete Framework Specification Document (.doc for Word)"
+          >
+            <FileText size={14} className="stroke-[2.5]" />
+            <span>Framework Deliverable (Word)</span>
+          </button>
           {onOpenSlideDeck ? (
             <button
               type="button"

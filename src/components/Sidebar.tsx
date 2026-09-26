@@ -41,6 +41,7 @@ export type NavTabId =
 export type DiscoverySubSectionId =
   | 'modules'
   | 'technical'
+  | 'integration_matrix'
   | 'testing'
   | 'modifiers'
   | 'rollout'
@@ -55,12 +56,13 @@ export const DISCOVERY_SUB_ITEMS: Array<{
 }> = [
   { id: 'modules', number: '1', label: 'Modules & 20-Q Depth' },
   { id: 'technical', number: '2', label: 'Technical Estimation & RICEFW' },
-  { id: 'testing', number: '3', label: 'Business Testing (SIT & UAT)' },
-  { id: 'modifiers', number: '4', label: 'Program Modifiers (7 Risks)' },
-  { id: 'rollout', number: '5', label: 'Rollout & Wave Architecture' },
-  { id: 'blackout', number: '6', label: 'Blackout & Freeze Windows' },
-  { id: 'topology', number: '7', label: 'Scale Drivers & Topology' },
-  { id: 'traceability', number: '8', label: 'Traceability & Math' }
+  { id: 'integration_matrix', number: '3', label: 'Integration Complexity Matrix' },
+  { id: 'testing', number: '4', label: 'Business Testing (SIT & UAT)' },
+  { id: 'modifiers', number: '5', label: 'Program Modifiers (7 Risks)' },
+  { id: 'rollout', number: '6', label: 'Rollout & Wave Architecture' },
+  { id: 'blackout', number: '7', label: 'Blackout & Freeze Windows' },
+  { id: 'topology', number: '8', label: 'Scale Drivers & Topology' },
+  { id: 'traceability', number: '9', label: 'Traceability & Math' }
 ];
 
 export type ReportSubSectionId =

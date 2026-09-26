@@ -62,11 +62,11 @@ export const ConversionMatrixManager: React.FC<ConversionMatrixManagerProps> = (
 
   const currentCycles = scenario.scaleDrivers.tech_conversion_cycles !== undefined
     ? Math.max(1, scenario.scaleDrivers.tech_conversion_cycles)
-    : 3;
+    : (scenario.scaleDrivers.conv_runs !== undefined ? Math.max(1, scenario.scaleDrivers.conv_runs) : 3);
   const currentHistoryYears = scenario.scaleDrivers.tech_historical_years !== undefined
     ? Math.max(0, scenario.scaleDrivers.tech_historical_years)
     : 1;
-  const currentObjects = scenario.scaleDrivers.tech_data_objects || entities.length;
+  const currentObjects = scenario.scaleDrivers.tech_data_objects ?? scenario.scaleDrivers.conv_objects ?? entities.length;
 
   const cumulativeMultiplier = getMockCumulativeMultiplier(currentCycles);
   const conversionMetrics = data.conversionMetrics;
@@ -76,7 +76,8 @@ export const ConversionMatrixManager: React.FC<ConversionMatrixManagerProps> = (
       ...prev,
       scaleDrivers: {
         ...prev.scaleDrivers,
-        tech_conversion_cycles: cycles
+        tech_conversion_cycles: cycles,
+        conv_runs: cycles
       }
     }));
   };
@@ -92,12 +93,13 @@ export const ConversionMatrixManager: React.FC<ConversionMatrixManagerProps> = (
   };
 
   const handleUpdateObjectCount = (count: number) => {
-    const clamped = Math.max(1, count);
+    const clamped = Math.max(0, count);
     onUpdateScenario(prev => ({
       ...prev,
       scaleDrivers: {
         ...prev.scaleDrivers,
-        tech_data_objects: clamped
+        tech_data_objects: clamped,
+        conv_objects: clamped
       }
     }));
   };

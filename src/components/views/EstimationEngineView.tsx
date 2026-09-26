@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Scale,
   Sliders,
@@ -19,13 +19,20 @@ import {
   Settings2,
   FileCode2,
   Calculator,
-  Save
+  Save,
+  Network,
+  Plus,
+  Minus,
+  RotateCcw,
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
-import { ProjectScenario, CalculatedProjectData, OracleModule } from '../../types';
+import { ProjectScenario, CalculatedProjectData, OracleModule, NavTabId } from '../../types';
 import { exportWbsToCsv } from '../../utils/exporter';
 import { ModuleTShirtMatrix } from '../common/ModuleTShirtMatrix';
 import { TShirtBadge } from '../common/TShirtBadge';
 import { CLIENT_FRICTION_FACTORS_DEF } from '../../data/clientFrictionData';
+import { getMockCumulativeMultiplier } from '../../data/technicalScopingData';
 
 interface EstimationEngineViewProps {
   scenario: ProjectScenario;
@@ -34,6 +41,7 @@ interface EstimationEngineViewProps {
   onOpenComplexityStudio?: (tab?: 'complexity' | 'questions' | 'drivers' | 'ai_advisor') => void;
   onOpenTraceMath?: (target?: OracleModule | 'project_total') => void;
   onSaveScenario?: () => void;
+  onNavigateTab?: (tab: NavTabId, subSection?: string) => void;
 }
 
 export const EstimationEngineView: React.FC<EstimationEngineViewProps> = ({
@@ -42,10 +50,38 @@ export const EstimationEngineView: React.FC<EstimationEngineViewProps> = ({
   onUpdateScenario,
   onOpenComplexityStudio,
   onOpenTraceMath,
-  onSaveScenario
+  onSaveScenario,
+  onNavigateTab
 }) => {
   const [showDriverCalibration, setShowDriverCalibration] = useState<boolean>(false);
   const [showAllFrictionFactors, setShowAllFrictionFactors] = useState<boolean>(false);
+
+  // External Integrations Dynamic Scaling Modifier State
+  const initialExtCount = scenario.scaleDrivers.tech_external_integrations_count ?? scenario.scaleDrivers.tech_oic ?? 12;
+  const initialExtComplexity = scenario.scaleDrivers.tech_external_integrations_complexity ?? 'medium';
+  const initialExtMultiplier = scenario.scaleDrivers.tech_external_integrations_multiplier ??
+    (initialExtComplexity === 'simple' ? 0.85 : initialExtComplexity === 'complex' ? 1.75 : 1.20);
+
+  const [externalIntegrationsCount, setExternalIntegrationsCount] = useState<number>(initialExtCount);
+  const [integrationComplexity, setIntegrationComplexity] = useState<'simple' | 'medium' | 'complex'>(initialExtComplexity);
+  const [integrationMultiplier, setIntegrationMultiplier] = useState<number>(initialExtMultiplier);
+
+  // Sync state if scenario updates from external modals/screens
+  useEffect(() => {
+    if (scenario.scaleDrivers.tech_external_integrations_count !== undefined) {
+      setExternalIntegrationsCount(scenario.scaleDrivers.tech_external_integrations_count);
+    }
+    if (scenario.scaleDrivers.tech_external_integrations_complexity !== undefined) {
+      setIntegrationComplexity(scenario.scaleDrivers.tech_external_integrations_complexity);
+    }
+    if (scenario.scaleDrivers.tech_external_integrations_multiplier !== undefined) {
+      setIntegrationMultiplier(scenario.scaleDrivers.tech_external_integrations_multiplier);
+    }
+  }, [
+    scenario.scaleDrivers.tech_external_integrations_count,
+    scenario.scaleDrivers.tech_external_integrations_complexity,
+    scenario.scaleDrivers.tech_external_integrations_multiplier
+  ]);
 
   const updateConfidence = (val: number) => {
     onUpdateScenario(prev => ({
@@ -55,13 +91,29 @@ export const EstimationEngineView: React.FC<EstimationEngineViewProps> = ({
   };
 
   const updateScaleDriver = (key: keyof ProjectScenario['scaleDrivers'], val: number) => {
-    onUpdateScenario(prev => ({
-      ...prev,
-      scaleDrivers: {
+    onUpdateScenario(prev => {
+      const clamped = Math.max(0, val);
+      const nextScaleDrivers = {
         ...prev.scaleDrivers,
-        [key]: Math.max(0, val)
+        [key]: clamped
+      };
+      if (key === 'tech_conversion_cycles' || key === 'conv_runs') {
+        nextScaleDrivers.tech_conversion_cycles = Math.max(1, clamped);
+        nextScaleDrivers.conv_runs = Math.max(1, clamped);
       }
-    }));
+      if (key === 'tech_data_objects' || key === 'conv_objects') {
+        nextScaleDrivers.tech_data_objects = clamped;
+        nextScaleDrivers.conv_objects = clamped;
+      }
+      if (key === 'tech_oic' || key === 'tech_external_integrations_count') {
+        nextScaleDrivers.tech_oic = clamped;
+        nextScaleDrivers.tech_external_integrations_count = clamped;
+      }
+      return {
+        ...prev,
+        scaleDrivers: nextScaleDrivers
+      };
+    });
   };
 
   const updateModifier = (key: keyof ProjectScenario['clientModifiers'], val: number) => {
@@ -70,6 +122,60 @@ export const EstimationEngineView: React.FC<EstimationEngineViewProps> = ({
       clientModifiers: {
         ...prev.clientModifiers,
         [key]: val
+      }
+    }));
+  };
+
+  // External Integrations Modifier Handler
+  const handleUpdateExternalIntegrations = (
+    newCount: number,
+    newComplexity: 'simple' | 'medium' | 'complex' = integrationComplexity,
+    customMult?: number
+  ) => {
+    const validCount = Math.max(0, newCount);
+    const defaultMult = newComplexity === 'simple' ? 0.85 : newComplexity === 'complex' ? 1.75 : 1.20;
+    const finalMult = customMult !== undefined ? customMult : defaultMult;
+
+    setExternalIntegrationsCount(validCount);
+    setIntegrationComplexity(newComplexity);
+    setIntegrationMultiplier(finalMult);
+
+    onUpdateScenario(prev => ({
+      ...prev,
+      scaleDrivers: {
+        ...prev.scaleDrivers,
+        tech_external_integrations_count: validCount,
+        tech_external_integrations_complexity: newComplexity,
+        tech_external_integrations_multiplier: finalMult,
+        tech_oic: validCount
+      }
+    }));
+  };
+
+  // Conversion Mock Rehearsals Handler (supporting 1, 2, 3, 4 Mocks)
+  const currentConversionCycles = scenario.scaleDrivers.tech_conversion_cycles ?? scenario.scaleDrivers.conv_runs ?? 3;
+  const currentDataObjects = scenario.scaleDrivers.tech_data_objects ?? scenario.scaleDrivers.conv_objects ?? 12;
+
+  const handleUpdateConversionCycles = (cycles: number) => {
+    const validCycles = Math.max(1, cycles);
+    onUpdateScenario(prev => ({
+      ...prev,
+      scaleDrivers: {
+        ...prev.scaleDrivers,
+        tech_conversion_cycles: validCycles,
+        conv_runs: validCycles
+      }
+    }));
+  };
+
+  const handleUpdateDataObjects = (objects: number) => {
+    const validObjects = Math.max(0, objects);
+    onUpdateScenario(prev => ({
+      ...prev,
+      scaleDrivers: {
+        ...prev.scaleDrivers,
+        tech_data_objects: validObjects,
+        conv_objects: validObjects
       }
     }));
   };
@@ -419,6 +525,7 @@ export const EstimationEngineView: React.FC<EstimationEngineViewProps> = ({
         </div>
 
         {/* Quick Driver Calibration Drawer if toggled */}
+        {/* Quick Driver Calibration Drawer if toggled */}
         {showDriverCalibration && (
           <div className="p-4 bg-slate-50 border border-slate-300 rounded-sm space-y-4 animate-in fade-in duration-150">
             <div className="flex items-center justify-between">
@@ -431,18 +538,66 @@ export const EstimationEngineView: React.FC<EstimationEngineViewProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 text-xs">
               <div className="bg-white p-2.5 rounded-sm border border-slate-200 space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase block">OIC Integrations</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase block">Ext. Integrations</label>
                 <input
                   type="number"
                   min={0}
                   max={150}
-                  value={scenario.scaleDrivers.tech_oic || 0}
-                  onChange={(e) => updateScaleDriver('tech_oic', parseInt(e.target.value) || 0)}
+                  value={externalIntegrationsCount}
+                  onChange={(e) => handleUpdateExternalIntegrations(parseInt(e.target.value) || 0)}
                   className="w-full font-mono font-bold text-slate-900 border border-slate-300 px-2 py-1 text-xs"
                 />
-                <span className="text-[9px] text-slate-400 block">Endpoints / APIs</span>
+                <span className="text-[9px] text-slate-400 block">{integrationComplexity.toUpperCase()} ({integrationMultiplier.toFixed(2)}x)</span>
+              </div>
+
+              <div className="bg-white p-2.5 rounded-sm border border-slate-200 space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase block">Int. Complexity</label>
+                <select
+                  value={integrationComplexity}
+                  onChange={(e) => handleUpdateExternalIntegrations(externalIntegrationsCount, e.target.value as 'simple' | 'medium' | 'complex')}
+                  className="w-full font-mono font-bold text-slate-900 border border-slate-300 px-1 py-1 text-xs"
+                >
+                  <option value="simple">Simple (0.85x)</option>
+                  <option value="medium">Medium (1.20x)</option>
+                  <option value="complex">Complex (1.75x)</option>
+                </select>
+                <span className="text-[9px] text-slate-400 block">Effort Multiplier</span>
+              </div>
+
+              <div className="bg-white p-2.5 rounded-sm border border-slate-200 space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase block">Data Objects</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={60}
+                  value={currentDataObjects}
+                  onChange={(e) => handleUpdateDataObjects(parseInt(e.target.value) || 0)}
+                  className="w-full font-mono font-bold text-slate-900 border border-slate-300 px-2 py-1 text-xs"
+                />
+                <span className="text-[9px] text-slate-400 block">FBDI / HDL Entities</span>
+              </div>
+
+              <div className="bg-white p-2.5 rounded-sm border border-slate-200 space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase block">Mock Cycles</label>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4].map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => handleUpdateConversionCycles(c)}
+                      className={`flex-1 py-1 text-center font-mono font-bold text-xs border ${
+                        currentConversionCycles === c
+                          ? 'bg-emerald-700 text-white border-emerald-800'
+                          : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-[9px] text-slate-400 block">{currentConversionCycles === 4 ? '4 Mocks (2.80x)' : `${currentConversionCycles} Mocks`}</span>
               </div>
 
               <div className="bg-white p-2.5 rounded-sm border border-slate-200 space-y-1">
@@ -497,22 +652,350 @@ export const EstimationEngineView: React.FC<EstimationEngineViewProps> = ({
                 />
                 <span className="text-[9px] text-slate-400 block">ACCELQ / OATS %</span>
               </div>
-
-              <div className="bg-white p-2.5 rounded-sm border border-slate-200 space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase block">Payroll Parallels</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={6}
-                  value={scenario.scaleDrivers.test_payroll_parallels || 0}
-                  onChange={(e) => updateScaleDriver('test_payroll_parallels', parseInt(e.target.value) || 0)}
-                  className="w-full font-mono font-bold text-slate-900 border border-slate-300 px-2 py-1 text-xs"
-                />
-                <span className="text-[9px] text-slate-400 block">Parallel Runs</span>
-              </div>
             </div>
           </div>
         )}
+
+        {/* Dynamic Modifiers & Scaling Engine (External Integrations & 4-Mock Conversion) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-1">
+          {/* Card A: External Integrations Dynamic Modifier */}
+          <div className="bg-blue-50/50 border-2 border-blue-200 rounded-sm p-5 space-y-4 shadow-xs">
+            <div className="flex items-start justify-between gap-2 pb-3 border-b border-blue-200">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-sm bg-blue-600 text-white shadow-xs">
+                  <Network size={18} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-slate-900 text-sm">
+                      External Integrations Dynamic Modifier
+                    </h4>
+                    <span className="px-2 py-0.5 rounded-none text-[10px] font-mono font-bold uppercase tracking-wider bg-blue-100 text-blue-800 border border-blue-300">
+                      Technical Scaler
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-0.5">
+                    Input count of external integrations to dynamically scale technical effort based on interface complexity.
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-right flex flex-col items-end gap-1">
+                <span className="text-xl font-mono font-bold text-blue-900 block">
+                  {externalIntegrationsCount} Flows
+                </span>
+                <span className="text-[10px] font-mono font-bold text-blue-700 uppercase bg-blue-100 px-1.5 py-0.5 border border-blue-200">
+                  {integrationComplexity} ({integrationMultiplier.toFixed(2)}x)
+                </span>
+                {onNavigateTab && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigateTab('discovery', 'integration_matrix')}
+                    className="text-[10px] font-bold text-blue-700 hover:text-blue-900 underline flex items-center gap-1 cursor-pointer mt-0.5"
+                  >
+                    <span>View Matrix Catalog</span>
+                    <ArrowRight size={10} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Integration Count Input & Quick Preset Buttons */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <label className="font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                  <span>Count of External Integrations:</span>
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateExternalIntegrations(externalIntegrationsCount - 1)}
+                    disabled={externalIntegrationsCount <= 0}
+                    className="w-7 h-7 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold flex items-center justify-center cursor-pointer transition disabled:opacity-30 disabled:cursor-not-allowed shadow-2xs"
+                    title="Decrement count"
+                  >
+                    <Minus size={13} />
+                  </button>
+                  <input
+                    type="number"
+                    min={0}
+                    max={150}
+                    value={externalIntegrationsCount}
+                    onChange={(e) => handleUpdateExternalIntegrations(parseInt(e.target.value) || 0)}
+                    className="w-16 px-2 py-1 text-center font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded-none text-sm focus:outline-none focus:border-blue-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateExternalIntegrations(externalIntegrationsCount + 1)}
+                    className="w-7 h-7 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold flex items-center justify-center cursor-pointer transition shadow-2xs"
+                    title="Increment count"
+                  >
+                    <Plus size={13} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Count Presets */}
+              <div className="flex items-center gap-1.5 pt-0.5">
+                <span className="text-[10px] font-mono uppercase text-slate-500 font-bold">Presets:</span>
+                {[
+                  { count: 6, label: '6 Low' },
+                  { count: 12, label: '12 Standard' },
+                  { count: 18, label: '18 Enterprise' },
+                  { count: 24, label: '24 Multi-Cloud' }
+                ].map(preset => (
+                  <button
+                    key={preset.count}
+                    type="button"
+                    onClick={() => handleUpdateExternalIntegrations(preset.count)}
+                    className={`px-2 py-0.5 text-[10px] font-mono font-bold transition border cursor-pointer ${
+                      externalIntegrationsCount === preset.count
+                        ? 'bg-blue-700 text-white border-blue-800 shadow-2xs'
+                        : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Complexity Level Selector Cards (Simple / Medium / Complex) */}
+            <div className="space-y-1.5 pt-1">
+              <label className="font-bold text-slate-800 uppercase tracking-wider text-[11px] block">
+                Integration Complexity Tier & Multiplier:
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {/* Simple */}
+                <button
+                  type="button"
+                  onClick={() => handleUpdateExternalIntegrations(externalIntegrationsCount, 'simple', 0.85)}
+                  className={`p-2.5 text-left border transition cursor-pointer flex flex-col justify-between ${
+                    integrationComplexity === 'simple'
+                      ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/30 shadow-xs'
+                      : 'bg-white hover:bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-emerald-950">Simple</span>
+                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      0.85x
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-emerald-700 font-semibold mt-1">
+                    ~68h / interface
+                  </span>
+                  <p className="text-[9px] text-slate-500 mt-1 leading-tight line-clamp-2">
+                    1-way batch / standard REST pass-through, pre-built schemas
+                  </p>
+                </button>
+
+                {/* Medium */}
+                <button
+                  type="button"
+                  onClick={() => handleUpdateExternalIntegrations(externalIntegrationsCount, 'medium', 1.20)}
+                  className={`p-2.5 text-left border transition cursor-pointer flex flex-col justify-between ${
+                    integrationComplexity === 'medium'
+                      ? 'bg-blue-50 border-blue-600 ring-2 ring-blue-600/30 shadow-xs'
+                      : 'bg-white hover:bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-blue-950">Medium</span>
+                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-blue-100 text-blue-800 border border-blue-300">
+                      1.20x
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-blue-700 font-semibold mt-1">
+                    ~96h / interface
+                  </span>
+                  <p className="text-[9px] text-slate-500 mt-1 leading-tight line-clamp-2">
+                    Standard 2-way sync, DVM lookups, token auth & field mapping
+                  </p>
+                </button>
+
+                {/* Complex */}
+                <button
+                  type="button"
+                  onClick={() => handleUpdateExternalIntegrations(externalIntegrationsCount, 'complex', 1.75)}
+                  className={`p-2.5 text-left border transition cursor-pointer flex flex-col justify-between ${
+                    integrationComplexity === 'complex'
+                      ? 'bg-purple-50 border-purple-600 ring-2 ring-purple-600/30 shadow-xs'
+                      : 'bg-white hover:bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-purple-950">Complex</span>
+                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-purple-100 text-purple-800 border border-purple-300">
+                      1.75x
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-purple-700 font-semibold mt-1">
+                    ~140h / interface
+                  </span>
+                  <p className="text-[9px] text-slate-500 mt-1 leading-tight line-clamp-2">
+                    Bi-directional real-time, multi-entity hierarchy, custom XSLT / pub-sub
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {/* Live Calculation Lineage & Trace Badge */}
+            <div className="p-2.5 rounded-sm bg-blue-900 text-white font-mono text-xs space-y-1">
+              <div className="flex items-center justify-between text-[11px] text-blue-200">
+                <span className="font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1">
+                  <Calculator size={12} />
+                  <span>Dynamic Mathematical Formula:</span>
+                </span>
+                <span className="text-[10px] text-blue-300">
+                  Direct Workstream Scaler
+                </span>
+              </div>
+              <div className="text-[11px] text-white">
+                {externalIntegrationsCount} External Integrations × 80h Base × {integrationMultiplier.toFixed(2)}x ({integrationComplexity.toUpperCase()}) = <span className="font-bold text-amber-300">{Math.round(externalIntegrationsCount * 80 * integrationMultiplier).toLocaleString()}h</span> Baseline
+              </div>
+              <div className="text-[10px] text-blue-200 border-t border-blue-800/80 pt-1 flex items-center justify-between">
+                <span>Scaled Defensible Quote (w/ Friction & Contingency):</span>
+                <span className="font-bold text-emerald-300 text-xs">
+                  {(Math.round(data.technicalWorkstreamEstimate?.integrationsHours || 0)).toLocaleString()} hrs
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card B: Data Conversion Scope & 4-Mock Rehearsal Engine Card */}
+          <div className="bg-emerald-50/40 border-2 border-emerald-200 rounded-sm p-5 space-y-4 shadow-xs">
+            <div className="flex items-start justify-between gap-2 pb-3 border-b border-emerald-200">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-sm bg-emerald-600 text-white shadow-xs">
+                  <Database size={18} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-slate-900 text-sm">
+                      Data Conversion Scope & 4-Mock Engine
+                    </h4>
+                    <span className="px-2 py-0.5 rounded-none text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      TBD Sliding Scale
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-0.5">
+                    Iterative mock rehearsals reduce exception rates. Select <strong>4 Mocks</strong> for complete cutover dress rehearsal defense.
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <span className="text-xl font-mono font-bold text-emerald-900 block">
+                  {currentDataObjects} Objects
+                </span>
+                <span className="text-[10px] font-mono font-bold text-emerald-700 uppercase bg-emerald-100 px-1.5 py-0.5 border border-emerald-200">
+                  {currentConversionCycles} {currentConversionCycles === 1 ? 'Mock Cycle' : 'Mock Cycles'}
+                </span>
+              </div>
+            </div>
+
+            {/* Data Objects Stepper */}
+            <div className="flex items-center justify-between text-xs">
+              <label className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                Legacy Data Objects (FBDI / HDL):
+              </label>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleUpdateDataObjects(currentDataObjects - 1)}
+                  disabled={currentDataObjects <= 0}
+                  className="w-7 h-7 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold flex items-center justify-center cursor-pointer transition disabled:opacity-30 disabled:cursor-not-allowed shadow-2xs"
+                  title="Decrement objects"
+                >
+                  <Minus size={13} />
+                </button>
+                <input
+                  type="number"
+                  min={0}
+                  max={60}
+                  value={currentDataObjects}
+                  onChange={(e) => handleUpdateDataObjects(parseInt(e.target.value) || 0)}
+                  className="w-16 px-2 py-1 text-center font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded-none text-sm focus:outline-none focus:border-emerald-600"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleUpdateDataObjects(currentDataObjects + 1)}
+                  className="w-7 h-7 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold flex items-center justify-center cursor-pointer transition shadow-2xs"
+                  title="Increment objects"
+                >
+                  <Plus size={13} />
+                </button>
+              </div>
+            </div>
+
+            {/* Mock Cycles Selector (1 to 4 Mocks with explicit 4th Mock) */}
+            <div className="space-y-1.5 pt-1">
+              <div className="flex items-center justify-between">
+                <label className="font-bold text-slate-800 uppercase tracking-wider text-[11px] block">
+                  Mock Rehearsal Cycles (Including 4 Mocks Option):
+                </label>
+                <span className="text-[10px] font-mono text-emerald-800 font-bold">
+                  Multiplier: {getMockCumulativeMultiplier(currentConversionCycles).toFixed(2)}x
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { cycles: 1, label: '1 Mock', pct: '1.00x', desc: 'Baseline load' },
+                  { cycles: 2, label: '2 Mocks', pct: '1.80x', desc: 'SIT cycle' },
+                  { cycles: 3, label: '3 Mocks', pct: '2.40x', desc: 'UAT volume' },
+                  { cycles: 4, label: '4 Mocks', pct: '2.80x', desc: 'Cutover Dress Rehearsal' }
+                ].map(opt => (
+                  <button
+                    key={opt.cycles}
+                    type="button"
+                    onClick={() => handleUpdateConversionCycles(opt.cycles)}
+                    className={`p-2 text-center border transition cursor-pointer flex flex-col justify-between ${
+                      currentConversionCycles === opt.cycles
+                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                        : 'bg-white hover:bg-slate-50 text-slate-800 border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      <span className="font-bold text-xs">{opt.label}</span>
+                      {opt.cycles === 4 && (
+                        <Sparkles size={11} className={currentConversionCycles === 4 ? 'text-amber-300' : 'text-emerald-600'} />
+                      )}
+                    </div>
+                    <span className={`text-[10px] font-mono font-bold mt-1 ${currentConversionCycles === opt.cycles ? 'text-emerald-100' : 'text-emerald-700'}`}>
+                      {opt.pct}
+                    </span>
+                    <span className={`text-[8.5px] mt-0.5 ${currentConversionCycles === opt.cycles ? 'text-emerald-100' : 'text-slate-500'}`}>
+                      {opt.desc}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Live Conversion Calculation Readout */}
+            <div className="p-2.5 rounded-sm bg-emerald-950 text-white font-mono text-xs space-y-1">
+              <div className="flex items-center justify-between text-[11px] text-emerald-200">
+                <span className="font-bold uppercase tracking-wider text-emerald-300 flex items-center gap-1">
+                  <Calculator size={12} />
+                  <span>Conversion Mathematics Lineage:</span>
+                </span>
+                <span className="text-[10px] text-emerald-300">
+                  {currentConversionCycles >= 4 ? '4-Mock Fixed Price Protected' : `${currentConversionCycles}-Mock Configuration`}
+                </span>
+              </div>
+              <div className="text-[11px] text-white">
+                {currentDataObjects} Objects × 45h/Mock × {getMockCumulativeMultiplier(currentConversionCycles).toFixed(2)}x ({currentConversionCycles} Mocks) = <span className="font-bold text-emerald-300">{Math.round(currentDataObjects * 45 * getMockCumulativeMultiplier(currentConversionCycles)).toLocaleString()}h</span> Base Conversion
+              </div>
+              <div className="text-[10px] text-emerald-200 border-t border-emerald-900 pt-1 flex items-center justify-between">
+                <span>Total Defensible P80 Conversion Effort:</span>
+                <span className="font-bold text-amber-300 text-xs">
+                  {(Math.round(data.conversionMetrics?.totalConversionP80Hours || 0)).toLocaleString()} hrs ({((data.conversionMetrics?.totalConversionP80Hours || 0) / 160).toFixed(1)} PM)
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* 2 Big Workstream Breakdown Cards */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -555,8 +1038,8 @@ export const EstimationEngineView: React.FC<EstimationEngineViewProps> = ({
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
                   <div className="bg-white p-2 rounded-sm border border-slate-200">
                     <div className="flex items-center justify-between text-slate-500 text-[10px]">
-                      <span>OIC Integrations</span>
-                      <span className="font-mono font-bold">{scenario.scaleDrivers.tech_oic || 0}</span>
+                      <span>Ext. Integrations</span>
+                      <span className="font-mono font-bold">{externalIntegrationsCount} ({integrationComplexity.toUpperCase()} @ {integrationMultiplier.toFixed(2)}x)</span>
                     </div>
                     <div className="font-mono font-bold text-slate-900 text-sm mt-0.5">
                       {(Math.round(data.technicalWorkstreamEstimate.integrationsHours || 0)).toLocaleString()}h

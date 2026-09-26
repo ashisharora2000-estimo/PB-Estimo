@@ -66,6 +66,7 @@ import { AddCustomQuestionModal } from '../modals/AddCustomQuestionModal';
 import { Module20QuestionsModal } from '../modals/Module20QuestionsModal';
 import { TechnicalInventoryManager } from '../technical/TechnicalInventoryManager';
 import { TestingAssuranceView } from './TestingAssuranceView';
+import { IntegrationComplexityMatrix } from '../discovery/IntegrationComplexityMatrix';
 import { DEFAULT_TECHNICAL_INTEGRATIONS } from '../../data/technicalScopingData';
 import { SmartBlueprintAutoFillDrawer } from '../ai/SmartBlueprintAutoFillDrawer';
 import { CLIENT_FRICTION_FACTORS_DEF, calculateNetClientModifier } from '../../data/clientFrictionData';
@@ -75,8 +76,8 @@ interface DiscoveryScopeViewProps {
   onUpdateScenario: (updater: (prev: ProjectScenario) => ProjectScenario) => void;
   onOpenComplexityStudio?: (tab?: 'complexity' | 'questions' | 'drivers' | 'ai_advisor') => void;
   onOpenTraceMath?: (target?: OracleModule | 'project_total') => void;
-  activeSection?: 'modules' | 'technical' | 'testing' | 'modifiers' | 'rollout' | 'blackout' | 'topology' | 'traceability';
-  onSectionChange?: (section: 'modules' | 'technical' | 'testing' | 'modifiers' | 'rollout' | 'blackout' | 'topology' | 'traceability') => void;
+  activeSection?: 'modules' | 'technical' | 'integration_matrix' | 'testing' | 'modifiers' | 'rollout' | 'blackout' | 'topology' | 'traceability';
+  onSectionChange?: (section: 'modules' | 'technical' | 'integration_matrix' | 'testing' | 'modifiers' | 'rollout' | 'blackout' | 'topology' | 'traceability') => void;
 }
 
 export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
@@ -87,10 +88,10 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
   activeSection: controlledActiveSection,
   onSectionChange
 }) => {
-  const [internalActiveSection, setInternalActiveSection] = useState<'modules' | 'technical' | 'testing' | 'modifiers' | 'rollout' | 'blackout' | 'topology' | 'traceability'>('modules');
+  const [internalActiveSection, setInternalActiveSection] = useState<'modules' | 'technical' | 'integration_matrix' | 'testing' | 'modifiers' | 'rollout' | 'blackout' | 'topology' | 'traceability'>('modules');
   const activeSection = controlledActiveSection ?? internalActiveSection;
 
-  const setActiveSection = (section: 'modules' | 'technical' | 'testing' | 'modifiers' | 'rollout' | 'blackout' | 'topology' | 'traceability') => {
+  const setActiveSection = (section: 'modules' | 'technical' | 'integration_matrix' | 'testing' | 'modifiers' | 'rollout' | 'blackout' | 'topology' | 'traceability') => {
     setInternalActiveSection(section);
     if (onSectionChange) {
       onSectionChange(section);
@@ -530,13 +531,27 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
   };
 
   const updateScaleDriver = (key: keyof ScaleDrivers, value: number) => {
-    onUpdateScenario(prev => ({
-      ...prev,
-      scaleDrivers: {
+    onUpdateScenario(prev => {
+      const val = Math.max(0, value);
+      const nextScaleDrivers = {
         ...prev.scaleDrivers,
-        [key]: Math.max(0, value)
+        [key]: val
+      };
+
+      if (key === 'tech_conversion_cycles' || key === 'conv_runs') {
+        nextScaleDrivers.tech_conversion_cycles = Math.max(1, val);
+        nextScaleDrivers.conv_runs = Math.max(1, val);
       }
-    }));
+      if (key === 'tech_data_objects' || key === 'conv_objects') {
+        nextScaleDrivers.tech_data_objects = val;
+        nextScaleDrivers.conv_objects = val;
+      }
+
+      return {
+        ...prev,
+        scaleDrivers: nextScaleDrivers
+      };
+    });
   };
 
   // Module question answer
@@ -1922,7 +1937,15 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
         </div>
       )}
 
-      {/* SECTION 3: Business Testing 1 (SIT) & Business Testing 2 (UAT) Quality Assurance */}
+      {/* SECTION 3: Integration Complexity Matrix (Visual Boundary Feeds & Dynamic Sizing) */}
+      {activeSection === 'integration_matrix' && (
+        <IntegrationComplexityMatrix
+          scenario={scenario}
+          onUpdateScenario={onUpdateScenario}
+        />
+      )}
+
+      {/* SECTION 4: Business Testing 1 (SIT) & Business Testing 2 (UAT) Quality Assurance */}
       {activeSection === 'testing' && (
         <div className="space-y-6 animate-in fade-in duration-150">
           <TestingAssuranceView

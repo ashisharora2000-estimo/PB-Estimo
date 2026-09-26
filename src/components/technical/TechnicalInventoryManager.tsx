@@ -187,20 +187,21 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
   const complexCount = integrations.filter(i => i.complexity === 'C' || i.complexity === 'XL').length;
   const avgHours = integrations.length > 0 ? Math.round(totalIntegrationHours / integrations.length) : 0;
 
-  // Driver metrics
-  const convObjects = scenario.scaleDrivers?.conv_objects ?? 12;
-  const convRuns = scenario.scaleDrivers?.conv_runs ?? 3;
+  // Driver metrics - synchronize both tech_* standard keys and conv_* aliases
+  const convObjects = scenario.scaleDrivers?.tech_data_objects ?? scenario.scaleDrivers?.conv_objects ?? 12;
+  const convRuns = scenario.scaleDrivers?.tech_conversion_cycles ?? scenario.scaleDrivers?.conv_runs ?? 3;
   const reportsBip = scenario.scaleDrivers?.tech_reports_bip ?? 10;
   const reportsOtbi = scenario.scaleDrivers?.tech_reports_otbi ?? 10;
   const paasCount = scenario.scaleDrivers?.tech_paas ?? 1;
   const workflowsCount = scenario.scaleDrivers?.tech_workflows ?? 4;
 
-  const convHours = data?.conversionMetrics?.totalConversionP80Hours || (convObjects * convRuns * 12);
+  const convHours = data?.conversionMetrics?.totalConversionP80Hours ?? Math.round(convObjects * 45 * (convRuns === 1 ? 1.0 : convRuns === 2 ? 1.8 : convRuns === 3 ? 2.4 : 2.8));
   const reportsHours = (reportsBip * 45) + (reportsOtbi * 18);
   const extensionsHours = (paasCount * 550) + (workflowsCount * 55);
 
   const totalProgramHours = data?.p80_DefensibleHours || data?.targetHours || data?.p50_BaselineHours || data?.totalBaseHours || 0;
-  const totalTechHours = data?.technicalWorkstreamEstimate?.totalHours || (totalIntegrationHours + convHours + reportsHours + extensionsHours);
+  // Total technical scope includes Interfaces, Conversions, Reports, and Extensions
+  const totalTechHours = totalIntegrationHours + convHours + reportsHours + extensionsHours;
   const techPercentOfProgram = totalProgramHours > 0 ? Math.round((totalTechHours / totalProgramHours) * 100) : 0;
 
   // Stepper handlers
@@ -249,21 +250,43 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
   };
 
   const updateConvObjects = (delta: number) => {
-    onUpdateScenario(prev => ({
-      ...prev,
-      scaleDrivers: {
-        ...prev.scaleDrivers,
-        conv_objects: Math.max(0, (prev.scaleDrivers?.conv_objects ?? 12) + delta)
-      }
-    }));
+    onUpdateScenario(prev => {
+      const current = prev.scaleDrivers?.tech_data_objects ?? prev.scaleDrivers?.conv_objects ?? 12;
+      const nextVal = Math.max(0, current + delta);
+      return {
+        ...prev,
+        scaleDrivers: {
+          ...prev.scaleDrivers,
+          tech_data_objects: nextVal,
+          conv_objects: nextVal
+        }
+      };
+    });
   };
 
   const updateConvRuns = (delta: number) => {
+    onUpdateScenario(prev => {
+      const current = prev.scaleDrivers?.tech_conversion_cycles ?? prev.scaleDrivers?.conv_runs ?? 3;
+      const nextVal = Math.max(1, current + delta);
+      return {
+        ...prev,
+        scaleDrivers: {
+          ...prev.scaleDrivers,
+          tech_conversion_cycles: nextVal,
+          conv_runs: nextVal
+        }
+      };
+    });
+  };
+
+  const setExactConvRuns = (runs: number) => {
+    const nextVal = Math.max(1, runs);
     onUpdateScenario(prev => ({
       ...prev,
       scaleDrivers: {
         ...prev.scaleDrivers,
-        conv_runs: Math.max(1, (prev.scaleDrivers?.conv_runs ?? 3) + delta)
+        tech_conversion_cycles: nextVal,
+        conv_runs: nextVal
       }
     }));
   };
@@ -486,7 +509,9 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
         scaleDrivers: {
           ...updated.scaleDrivers,
           tech_oic: intCount,
+          tech_data_objects: convObj,
           conv_objects: convObj,
+          tech_conversion_cycles: convRun,
           conv_runs: convRun,
           tech_reports_bip: repBip,
           tech_reports_otbi: repOtbi,
@@ -854,31 +879,55 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
               </div>
             </div>
 
-            {/* Mock Runs Stepper */}
-            <div className="mt-2 flex items-center justify-between text-[11px] font-mono text-slate-600">
-              <span>Mock Rehearsals:</span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => updateConvRuns(-1)}
-                  disabled={convRuns <= 1}
-                  className="w-5 h-5 bg-white border border-slate-300 flex items-center justify-center font-bold hover:bg-slate-100 cursor-pointer disabled:opacity-30"
-                >
-                  -
-                </button>
-                <span className="font-bold text-slate-800 px-1">{convRuns} Runs</span>
-                <button
-                  type="button"
-                  onClick={() => updateConvRuns(1)}
-                  className="w-5 h-5 bg-white border border-slate-300 flex items-center justify-center font-bold hover:bg-slate-100 cursor-pointer"
-                >
-                  +
-                </button>
+            {/* Mock Runs Stepper & Quick 4-Mock Selector */}
+            <div className="mt-2 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] font-mono text-slate-600">
+                <span>Mock Rehearsals:</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => updateConvRuns(-1)}
+                    disabled={convRuns <= 1}
+                    className="w-5 h-5 bg-white border border-slate-300 flex items-center justify-center font-bold hover:bg-slate-100 cursor-pointer disabled:opacity-30"
+                  >
+                    -
+                  </button>
+                  <span className="font-bold text-slate-800 px-1">{convRuns} Runs</span>
+                  <button
+                    type="button"
+                    onClick={() => updateConvRuns(1)}
+                    className="w-5 h-5 bg-white border border-slate-300 flex items-center justify-center font-bold hover:bg-slate-100 cursor-pointer"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-1">
+                {[1, 2, 3, 4].map(cycles => (
+                  <button
+                    key={cycles}
+                    type="button"
+                    onClick={() => setExactConvRuns(cycles)}
+                    className={`py-0.5 text-[10px] font-mono font-bold transition border cursor-pointer rounded-xs text-center ${
+                      convRuns === cycles
+                        ? 'bg-emerald-700 text-white border-emerald-800 shadow-2xs'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-emerald-50 hover:border-emerald-300'
+                    }`}
+                  >
+                    {cycles === 4 ? '4 Mocks' : `${cycles}M`}
+                  </button>
+                ))}
               </div>
             </div>
             <p className="text-[10px] text-slate-500 mt-1 leading-snug">
-              Master data, open balances, and rehearsal cleansing loads.
+              Master data, open balances, and rehearsal cleansing loads. {convRuns === 4 ? '(4 Mocks: Includes Cutover Dry Run @ 2.80x)' : ''}
             </p>
+
+            {/* Live Effort Formula Badge */}
+            <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-emerald-800 bg-emerald-50/80 border border-emerald-200 px-2 py-1 rounded-xs">
+              <span className="font-semibold">{convObjects} Objects &times; {convRuns} Mocks</span>
+              <span className="font-bold">{convHours.toLocaleString()}h</span>
+            </div>
           </div>
 
           <button

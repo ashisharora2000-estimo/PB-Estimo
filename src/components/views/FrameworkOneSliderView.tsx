@@ -25,10 +25,13 @@ import {
   Zap,
   Users,
   Globe,
-  Radio
+  Radio,
+  FileText
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData, NavTabId } from '../../types';
 import { askOracleAiAdvisor } from '../../utils/aiService';
+import { generateFrameworkWordDoc } from '../../utils/frameworkDocxGenerator';
+import { generateFrameworkPdf } from '../../utils/frameworkPdfGenerator';
 
 interface FrameworkOneSliderViewProps {
   scenario: ProjectScenario;
@@ -358,6 +361,22 @@ Structure into: 1. Executive Summary, 2. Methodological Rigor (TCM + CEMLI), 3. 
           </div>
 
           <div className="flex flex-wrap lg:flex-col items-end justify-start sm:justify-end gap-3 shrink-0">
+            <button
+              onClick={() => generateFrameworkPdf(scenario, data)}
+              className="px-4 py-2.5 bg-rose-700 hover:bg-rose-600 border border-rose-500 rounded-md text-xs font-semibold text-white flex items-center gap-2 transition-colors shadow-xs cursor-pointer"
+              title="Download Complete Framework Deliverable Document in PDF"
+            >
+              <FileText className="w-4 h-4 text-white" />
+              <span>Download Framework (PDF)</span>
+            </button>
+            <button
+              onClick={() => generateFrameworkWordDoc(scenario, data)}
+              className="px-4 py-2.5 bg-blue-700 hover:bg-blue-600 border border-blue-500 rounded-md text-xs font-semibold text-white flex items-center gap-2 transition-colors shadow-xs cursor-pointer"
+              title="Download Complete Framework Deliverable Document in Word (.doc)"
+            >
+              <FileText className="w-4 h-4 text-white" />
+              <span>Download Framework Doc (Word)</span>
+            </button>
             <button
               onClick={handleCopyScript}
               className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-md text-xs font-semibold text-slate-200 flex items-center gap-2 transition-colors shadow-xs"
