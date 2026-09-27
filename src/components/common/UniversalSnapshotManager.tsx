@@ -22,7 +22,7 @@ export interface ScenarioSnapshotItem {
   id: string;
   name: string;
   timestamp: string;
-  actionSource: 'ai_ingest' | 'manual_save' | 'multi_vendor' | 'custom_calibration' | 'pre_flight_apply';
+  actionSource: 'ai_ingest' | 'manual_save' | 'multi_vendor' | 'custom_calibration' | 'pre_flight_apply' | 'automated_daily' | 'automated_session';
   scenarioState: ProjectScenario;
   summary: string;
   metrics: {
@@ -240,11 +240,15 @@ export const UniversalSnapshotManager: React.FC<UniversalSnapshotManagerProps> =
                         </span>
                       )}
                       <span className={`text-[9px] font-mono px-1 py-0.2 border ${
+                        item.actionSource === 'automated_daily' ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold' :
+                        item.actionSource === 'automated_session' ? 'bg-sky-100 text-sky-800 border-sky-300 font-semibold' :
                         item.actionSource === 'ai_ingest' ? 'bg-purple-100 text-purple-800 border-purple-200' :
                         item.actionSource === 'pre_flight_apply' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' :
                         'bg-slate-200 text-slate-700 border-slate-300'
                       }`}>
-                        {item.actionSource === 'ai_ingest' ? '🤖 AI Ingest' :
+                        {item.actionSource === 'automated_daily' ? '📅 Auto Daily' :
+                         item.actionSource === 'automated_session' ? '⏱️ Auto Session' :
+                         item.actionSource === 'ai_ingest' ? '🤖 AI Ingest' :
                          item.actionSource === 'pre_flight_apply' ? '⚡ Pre-Flight' : '📸 Manual'}
                       </span>
                     </div>

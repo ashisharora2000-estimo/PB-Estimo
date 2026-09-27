@@ -26,12 +26,15 @@ import {
   Briefcase,
   TrendingUp,
   Save,
-  RotateCcw
+  RotateCcw,
+  History
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData, OracleModule } from '../../types';
 import { COMPLEXITY_PILLARS, ORACLE_PATCH_COHORTS } from '../../data/oraclePhases';
 import { ScheduleStaffingCapacityCard } from '../schedule/ScheduleStaffingCapacityCard';
 import { NotebookLMPodcastCard } from '../podcast/NotebookLMPodcastCard';
+import { VersionHistoryPanel } from '../dashboard/VersionHistoryPanel';
+import { useAutomatedBackup } from '../../hooks/useAutomatedBackup';
 
 interface DashboardViewProps {
   scenario: ProjectScenario;
@@ -61,6 +64,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenNotebookLmPodcast
 }) => {
   const [showStaffingModel, setShowStaffingModel] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+
+  // Automated daily & session-based backup mechanism to Cloud Firestore
+  const { snapshotCount, isBackingUp, dailyBackedUp, sessionBackedUp } = useAutomatedBackup(
+    scenario,
+    data.targetEffortHours
+  );
 
   const handleAdjustWeeks = (delta: number) => {
     if (!onUpdateScenario) return;
@@ -100,6 +110,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Version History Toggle */}
+            <button
+              type="button"
+              onClick={() => setShowVersionHistory(prev => !prev)}
+              className={`px-3 py-2 rounded-sm text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-xs border ${
+                showVersionHistory
+                  ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-600 ring-2 ring-amber-300'
+                  : 'bg-white hover:bg-amber-50 text-slate-800 border-slate-300'
+              }`}
+              title="Toggle Automated Version History & Firestore Snapshots Ledger"
+            >
+              <History size={14} className={showVersionHistory ? 'text-slate-950 stroke-[2.5]' : 'text-amber-600 stroke-[2.5]'} />
+              <span>Version History</span>
+              {snapshotCount > 0 && (
+                <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold ${
+                  showVersionHistory ? 'bg-slate-950 text-amber-400' : 'bg-amber-100 text-amber-900 border border-amber-300'
+                }`}>
+                  {snapshotCount}
+                </span>
+              )}
+            </button>
+
             {onSaveScenario && (
               <button
                 onClick={onSaveScenario}
@@ -171,6 +203,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Automated Version History & Snapshots Panel */}
+      {showVersionHistory && (
+        <VersionHistoryPanel
+          scenario={scenario}
+          totalEffortHours={data.targetEffortHours}
+          onRestoreScenario={(restored) => {
+            if (onUpdateScenario) {
+              onUpdateScenario(() => restored);
+            }
+          }}
+          onClose={() => setShowVersionHistory(false)}
+        />
+      )}
 
       {/* NotebookLM Audio Overview Banner Card - Hidden for future release */}
 

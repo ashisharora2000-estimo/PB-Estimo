@@ -42,6 +42,7 @@ import {
   deleteScenarioFromCloud,
   subscribeToCloudScenarios
 } from './services/firestoreService';
+import { useAutomatedBackup } from './hooks/useAutomatedBackup';
 
 const STORAGE_CUSTOM_PROPOSALS_KEY = 'pb_estimo_custom_proposals';
 
@@ -251,6 +252,9 @@ export default function App() {
   const calculatedData = useMemo(() => {
     return calculateProjectMetrics(activeScenario);
   }, [activeScenario]);
+
+  // Automated daily & session backup mechanism to Cloud Firestore
+  useAutomatedBackup(activeScenario, calculatedData.targetEffortHours);
 
   const [lastSavedTimestamp, setLastSavedTimestamp] = useState<string | null>(null);
 

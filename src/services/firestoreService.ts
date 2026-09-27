@@ -214,11 +214,15 @@ export async function saveSnapshotToCloud(snapshot: ScenarioSnapshotItem, scenar
   const path = `universal_snapshots/${snapshot.id}`;
   try {
     const docRef = doc(db, 'universal_snapshots', snapshot.id);
+    const taggedDescription = snapshot.summary && snapshot.summary.startsWith('[src:')
+      ? snapshot.summary
+      : `[src:${snapshot.actionSource}] ${snapshot.summary || ''}`.trim();
+
     const payload = {
       id: snapshot.id,
       scenarioId,
       scenarioName: snapshot.name.slice(0, 256),
-      description: (snapshot.summary || '').slice(0, 1024),
+      description: taggedDescription.slice(0, 1024),
       totalEffortHours: snapshot.metrics?.totalHours || 0,
       projectWeeks: snapshot.metrics?.timelineWeeks || 32,
       avgFte: 0,
@@ -232,6 +236,48 @@ export async function saveSnapshotToCloud(snapshot: ScenarioSnapshotItem, scenar
   }
 }
 
+function parseSnapshotDoc(data: any): ScenarioSnapshotItem | null {
+  if (!data || !data.scenarioDataJson) return null;
+  try {
+    const scenarioState = JSON.parse(data.scenarioDataJson) as ProjectScenario;
+    let actionSource: ScenarioSnapshotItem['actionSource'] = 'manual_save';
+    const desc = data.description || '';
+    if (desc.includes('[src:automated_daily]') || data.id?.startsWith('snap_daily_') || data.id?.includes('daily')) {
+      actionSource = 'automated_daily';
+    } else if (desc.includes('[src:automated_session]') || data.id?.startsWith('snap_sess_') || data.id?.includes('sess')) {
+      actionSource = 'automated_session';
+    } else if (desc.includes('[src:ai_ingest]') || data.id?.includes('ai_ingest')) {
+      actionSource = 'ai_ingest';
+    } else if (desc.includes('[src:pre_flight_apply]') || data.id?.includes('pre_flight')) {
+      actionSource = 'pre_flight_apply';
+    } else if (desc.includes('[src:custom_calibration]')) {
+      actionSource = 'custom_calibration';
+    } else if (desc.includes('[src:multi_vendor]')) {
+      actionSource = 'multi_vendor';
+    }
+
+    const cleanSummary = desc.replace(/^\[src:[^\]]+\]\s*/, '');
+
+    return {
+      id: data.id,
+      name: data.scenarioName || 'Snapshot',
+      timestamp: data.timestamp,
+      actionSource,
+      scenarioState,
+      summary: cleanSummary,
+      metrics: {
+        totalHours: data.totalEffortHours || 0,
+        timelineWeeks: data.projectWeeks || 32,
+        moduleCount: scenarioState.selectedModules?.length || 0,
+        grossMarginPct: (scenarioState as any).targetGrossMarginPct || (scenarioState as any).grossMarginPct || undefined
+      }
+    };
+  } catch (e) {
+    console.error('Failed to parse snapshot JSON', data.id, e);
+    return null;
+  }
+}
+
 export async function listCloudSnapshots(): Promise<ScenarioSnapshotItem[]> {
   const path = 'universal_snapshots';
   try {
@@ -239,32 +285,62 @@ export async function listCloudSnapshots(): Promise<ScenarioSnapshotItem[]> {
     const snapshot = await getDocs(colRef);
     const results: ScenarioSnapshotItem[] = [];
     snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      if (data.scenarioDataJson) {
-        try {
-          const scenarioState = JSON.parse(data.scenarioDataJson) as ProjectScenario;
-          results.push({
-            id: data.id,
-            name: data.scenarioName || 'Snapshot',
-            timestamp: data.timestamp,
-            actionSource: 'manual_save',
-            scenarioState,
-            summary: data.description || '',
-            metrics: {
-              totalHours: data.totalEffortHours || 0,
-              timelineWeeks: data.projectWeeks || 32,
-              moduleCount: scenarioState.selectedModules?.length || 0
-            }
-          });
-        } catch (e) {
-          console.error('Failed to parse snapshot JSON', docSnap.id, e);
-        }
-      }
+      const parsed = parseSnapshotDoc(docSnap.data());
+      if (parsed) results.push(parsed);
     });
     return results;
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, path);
   }
+}
+
+export async function listCloudSnapshotsForScenario(scenarioId: string): Promise<ScenarioSnapshotItem[]> {
+  const path = 'universal_snapshots';
+  try {
+    const colRef = collection(db, 'universal_snapshots');
+    const snapshot = await getDocs(colRef);
+    const results: ScenarioSnapshotItem[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data.scenarioId === scenarioId) {
+        const parsed = parseSnapshotDoc(data);
+        if (parsed) results.push(parsed);
+      }
+    });
+    // Sort newest first
+    results.sort((a, b) => b.id.localeCompare(a.id));
+    return results;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+  }
+}
+
+export function subscribeToCloudSnapshots(
+  scenarioId: string,
+  onUpdate: (items: ScenarioSnapshotItem[]) => void,
+  onError?: (err: unknown) => void
+): Unsubscribe {
+  const path = 'universal_snapshots';
+  const colRef = collection(db, 'universal_snapshots');
+  return onSnapshot(
+    colRef,
+    (snapshot) => {
+      const results: ScenarioSnapshotItem[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data.scenarioId === scenarioId) {
+          const parsed = parseSnapshotDoc(data);
+          if (parsed) results.push(parsed);
+        }
+      });
+      results.sort((a, b) => b.id.localeCompare(a.id));
+      onUpdate(results);
+    },
+    (error) => {
+      if (onError) onError(error);
+      handleFirestoreError(error, OperationType.GET, path);
+    }
+  );
 }
 
 export async function deleteSnapshotFromCloud(id: string): Promise<void> {
