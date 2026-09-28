@@ -605,34 +605,36 @@ export const TechnicalInventoryManager: React.FC<TechnicalInventoryManagerProps>
 
   return (
     <div className="space-y-4">
-      {/* 1. EXECUTIVE TECHNICAL COCKPIT HEADER */}
+      {/* 1. EXECUTIVE TECHNICAL WORKSTREAM HEADER */}
       <div className="bg-slate-900 text-white p-4 sm:p-5 rounded-xs border border-slate-800 shadow-md flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1.5">
             <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 font-mono text-[10px] font-bold uppercase tracking-wider border border-blue-500/30">
-              Oracle True Cloud Method • CEMLI Cockpit
+              Technical Workstream
             </span>
-            <span className="text-slate-400 text-xs font-mono">
-              Synchronized Technical Workstream Engine
+            <span className="text-slate-400 text-xs">
+              Integrations, Data Conversions, Reports & Extensions
             </span>
           </div>
           <div className="flex items-baseline gap-3">
             <h3 className="text-2xl sm:text-3xl font-extrabold font-mono tracking-tight text-white">
-              {totalTechHours.toLocaleString()} <span className="text-base text-slate-300 font-normal">hrs</span>
+              {Math.round(totalTechHours).toLocaleString()} <span className="text-base text-slate-300 font-normal">hrs</span>
             </h3>
             <span className="px-2.5 py-0.5 bg-amber-400 text-slate-950 font-mono font-bold text-xs rounded-xs">
-              {totalProgramHours > 0 ? `${techPercentOfProgram}% of Total Program (${totalProgramHours.toLocaleString()}h)` : 'Stand-Alone Technical Track'}
+              {totalProgramHours > 0
+                ? `${techPercentOfProgram}% of Total Program (${Math.round(totalProgramHours).toLocaleString()} hrs)`
+                : 'Stand-Alone Technical Track'}
             </span>
           </div>
           <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
-            All 4 technical towers are synchronized in real time. Adjust any count below with the steppers or choose an enterprise package.
+            Covers all integration flows, legacy data conversion cycles, BI reports, and workflow extensions. Adjust counts below or select an enterprise sizing package.
           </p>
         </div>
 
         {/* 1-Click Quick Package Tiers */}
         <div className="flex flex-col sm:items-end gap-1.5 shrink-0">
           <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
-            1-Click Sizing Packages:
+            Quick Sizing Packages:
           </span>
           <div className="flex items-center gap-1.5 flex-wrap">
             <button
