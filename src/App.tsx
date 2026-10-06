@@ -535,7 +535,7 @@ export default function App() {
   // Front login screen gate: if proposal is not unlocked, show ProposalAccessPortal
   if (!isProposalUnlocked) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white font-sans antialiased">
+      <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans antialiased selection:bg-slate-900 selection:text-white">
         <ProposalAccessPortal
           customProposals={customProposals}
           activeScenario={activeScenario}

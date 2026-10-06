@@ -89,18 +89,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenGuidedTour,
   onLockSession
 }) => {
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-  const [mpinTargetProposal, setMpinTargetProposal] = useState<ProjectScenario | null>(null);
-  const [mpinInput, setMpinInput] = useState('');
-  const [mpinError, setMpinError] = useState<string | null>(null);
   const [cloudSyncOpen, setCloudSyncOpen] = useState(false);
   const [riskPopoverOpen, setRiskPopoverOpen] = useState(false);
   const [copiedSummary, setCopiedSummary] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const scenarioDropdownRef = useRef<HTMLDivElement>(null);
   const toolsDropdownRef = useRef<HTMLDivElement>(null);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
   const riskPopoverRef = useRef<HTMLDivElement>(null);
@@ -109,9 +104,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (dropdownOpen && scenarioDropdownRef.current && !scenarioDropdownRef.current.contains(target)) {
-        setDropdownOpen(false);
-      }
       if (toolsOpen && toolsDropdownRef.current && !toolsDropdownRef.current.contains(target)) {
         setToolsOpen(false);
       }
@@ -126,7 +118,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
     };
-  }, [dropdownOpen, toolsOpen, exportOpen, riskPopoverOpen]);
+  }, [toolsOpen, exportOpen, riskPopoverOpen]);
 
   // Delivery Confidence & Margin Risk Score
   const deliveryConfidence = useMemo(() => {
@@ -249,109 +241,15 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <div className="h-4 w-px bg-slate-200 hidden sm:block shrink-0 mx-0.5" />
 
-          {/* Scenario Switcher */}
+          {/* Active Proposal Display & Lock Portal */}
           <div className="flex items-center gap-1.5 shrink-0">
-            {/* Scenario Dropdown */}
-            <div ref={scenarioDropdownRef} className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setDropdownOpen(!dropdownOpen);
-                  setToolsOpen(false);
-                  setExportOpen(false);
-                  setRiskPopoverOpen(false);
-                }}
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-sm bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-800 text-xs font-semibold transition cursor-pointer max-w-[120px] sm:max-w-[160px]"
-              >
-                <Sparkles size={12} className="text-indigo-600 shrink-0" />
-                <span className="truncate">{scenario.name}</span>
-                <ChevronDown size={12} className="text-slate-400 shrink-0" />
-              </button>
-
-              {dropdownOpen && (
-                <div className="absolute left-0 mt-1.5 w-80 bg-white border border-slate-200 rounded-sm shadow-xl z-50 p-2 space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-150 max-h-[80vh] overflow-y-auto">
-                  {/* Custom User Proposals */}
-                  {customScenarios.length > 0 && (
-                    <div>
-                      <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                        My Custom Proposals ({customScenarios.length})
-                      </div>
-                      <div className="space-y-1">
-                        {customScenarios.map((custom) => (
-                          <div
-                            key={custom.id}
-                            className={`w-full flex items-center justify-between p-2 rounded-sm text-xs transition ${
-                              scenario.id === custom.id
-                                ? 'bg-slate-900 text-white font-bold'
-                                : 'text-slate-700 hover:bg-slate-100'
-                            }`}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (custom.id === scenario.id) {
-                                  setDropdownOpen(false);
-                                } else {
-                                  setMpinTargetProposal(custom);
-                                  setMpinInput('');
-                                  setMpinError(null);
-                                  setDropdownOpen(false);
-                                }
-                              }}
-                              className="text-left flex-1 min-w-0 pr-2 cursor-pointer"
-                            >
-                              <div className="font-bold flex items-center gap-1.5 truncate">
-                                <span className="truncate">{custom.name}</span>
-                                {scenario.id === custom.id && <CheckCircle2 size={13} className="text-white shrink-0" />}
-                              </div>
-                              <div className={`text-[10px] line-clamp-1 ${scenario.id === custom.id ? 'text-slate-300' : 'text-slate-500'}`}>
-                                {custom.selectedModules.length} Modules &bull; {custom.projectWeeks} Wks
-                              </div>
-                            </button>
-                            {onDeleteCustomScenario && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (window.confirm(`Delete custom proposal "${custom.name}"?`)) {
-                                    onDeleteCustomScenario(custom.id);
-                                  }
-                                }}
-                                className={`p-1 rounded-xs transition cursor-pointer ${
-                                  scenario.id === custom.id
-                                    ? 'text-slate-400 hover:text-rose-300 hover:bg-slate-800'
-                                    : 'text-slate-400 hover:text-rose-600 hover:bg-slate-200'
-                                }`}
-                                title="Delete proposal"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Active Proposal Card */}
-                  <div className="border-t border-slate-100 pt-2">
-                    <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                      Active Proposal
-                    </div>
-                    <div className="p-2 rounded-sm bg-slate-900 text-white font-bold text-xs flex items-center justify-between">
-                      <div className="min-w-0 pr-2">
-                        <div className="flex items-center gap-1.5 truncate font-bold">
-                          <span className="truncate">{scenario.name}</span>
-                          <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
-                        </div>
-                        <div className="text-[10px] text-slate-300 font-normal truncate mt-0.5">
-                          {scenario.selectedModules.length} Modules &bull; {scenario.projectWeeks} Wks &bull; {scenario.clientName || 'Active'}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+            {/* Active Proposal Display (Clean & Static - other proposals only accessible via Front Security Gate) */}
+            <div
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm bg-slate-50 border border-slate-200 text-slate-800 text-xs font-semibold max-w-[140px] sm:max-w-[200px]"
+              title={`Active Proposal: ${scenario.name} (${scenario.clientName || 'Enterprise Account'})`}
+            >
+              <Sparkles size={12} className="text-indigo-600 shrink-0" />
+              <span className="truncate">{scenario.name}</span>
             </div>
 
             {/* Lock Session to Return to Front Portal */}
@@ -360,26 +258,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="button"
                 onClick={onLockSession}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-sm bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-950 border border-slate-200 text-xs font-semibold transition cursor-pointer shrink-0"
-                title="Lock active proposal and return to Portal (Master MPIN: 1909)"
+                title="Lock active proposal and return to Proposal Security Gate"
               >
                 <Lock size={12} className="text-amber-600 shrink-0" />
                 <span className="hidden md:inline font-mono text-[11px]">Lock Portal</span>
               </button>
             )}
+          </div>
 
-            {/* Deal Tools & Studios Dropdown - Always Visible */}
-            <div ref={toolsDropdownRef} className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setToolsOpen(!toolsOpen);
-                  setDropdownOpen(false);
-                  setExportOpen(false);
-                  setRiskPopoverOpen(false);
-                }}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-sm bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer"
-                title="Open Estimation Tools, AI Ingestion & Leadership Audit Hubs"
-              >
+          {/* Deal Tools & Studios Dropdown - Always Visible */}
+          <div ref={toolsDropdownRef} className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setToolsOpen(!toolsOpen);
+                setExportOpen(false);
+                setRiskPopoverOpen(false);
+              }}
+              className="flex items-center gap-1 px-2 py-1.5 rounded-sm bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer"
+              title="Open Estimation Tools, AI Ingestion & Leadership Audit Hubs"
+            >
                 <Layers size={13} className="text-slate-600" />
                 <span>Deal Tools</span>
                 <ChevronDown size={11} className="text-slate-400" />
@@ -549,7 +447,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
           </div>
-        </div>
 
         {/* Right: Vitals, Ask Agent, Snapshot & Export */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
@@ -649,7 +546,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 setRiskPopoverOpen(!riskPopoverOpen);
                 setExportOpen(false);
                 setToolsOpen(false);
-                setDropdownOpen(false);
               }}
               className={`flex items-center gap-1.5 px-2 py-1.5 rounded-sm border text-xs font-mono font-bold transition cursor-pointer shrink-0 shadow-2xs ${
                 deliveryConfidence.level === 'High'
@@ -799,7 +695,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               onClick={() => {
                 setExportOpen(!exportOpen);
-                setDropdownOpen(false);
                 setToolsOpen(false);
                 setRiskPopoverOpen(false);
               }}
@@ -959,93 +854,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       )}
 
-      {/* Switch Proposal MPIN Modal */}
-      {mpinTargetProposal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-slate-900 border-2 border-slate-700 rounded-sm p-5 w-full max-w-sm space-y-4 text-white shadow-2xl animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-              <div className="flex items-center gap-2">
-                <div className="p-1 rounded-sm bg-amber-500 text-slate-950 font-bold">
-                  <Lock size={14} className="stroke-[2.5]" />
-                </div>
-                <h4 className="font-bold text-xs uppercase tracking-wider text-white">Proposal MPIN Required</h4>
-              </div>
-              <button
-                type="button"
-                onClick={() => setMpinTargetProposal(null)}
-                className="text-slate-400 hover:text-white text-xs cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="bg-slate-950 p-2.5 rounded-sm border border-slate-850 space-y-0.5">
-              <span className="text-[10px] text-slate-400 uppercase font-mono block">Switching to:</span>
-              <span className="font-bold text-xs text-amber-300 block truncate">{mpinTargetProposal.name}</span>
-              <span className="text-[11px] text-slate-400 block truncate">{mpinTargetProposal.clientName || 'Enterprise Account'}</span>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs text-slate-300 font-semibold block">Enter 4-Digit MPIN (Default: 0000 or Master: 1909):</label>
-              <input
-                type="password"
-                maxLength={4}
-                value={mpinInput}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, '').slice(0, 4);
-                  setMpinInput(val);
-                  setMpinError(null);
-                  if (val.length === 4) {
-                    const isMaster = val === '1909';
-                    const targetPin = mpinTargetProposal.mpin || '0000';
-                    if (isMaster || val === targetPin) {
-                      onSelectScenario(mpinTargetProposal);
-                      setMpinTargetProposal(null);
-                    } else {
-                      setMpinError('Invalid MPIN. Try again, use default (0000), or enter Master MPIN (1909).');
-                      setMpinInput('');
-                    }
-                  }
-                }}
-                autoFocus
-                placeholder="••••"
-                className="w-full text-center text-xl tracking-[0.5em] font-mono font-bold p-2.5 bg-slate-950 border border-slate-700 rounded-sm text-white focus:outline-hidden focus:border-amber-400"
-              />
-              {mpinError && <p className="text-[11px] text-red-400 font-semibold">{mpinError}</p>}
-            </div>
-
-            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-800">
-              <span className="text-slate-400 font-mono text-[10px]">Master: <strong className="text-amber-400">1909</strong> | Default: <strong className="text-slate-200">0000</strong></span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setMpinTargetProposal(null)}
-                  className="px-2.5 py-1 text-slate-400 hover:text-white text-xs cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const isMaster = mpinInput === '1909';
-                    const targetPin = mpinTargetProposal.mpin || '0000';
-                    if (isMaster || mpinInput === targetPin) {
-                      onSelectScenario(mpinTargetProposal);
-                      setMpinTargetProposal(null);
-                    } else {
-                      setMpinError('Invalid MPIN. Try again, use default (0000), or enter Master MPIN (1909).');
-                      setMpinInput('');
-                    }
-                  }}
-                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold uppercase rounded-sm cursor-pointer text-xs transition"
-                >
-                  Verify & Switch
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </header>
   );
 };

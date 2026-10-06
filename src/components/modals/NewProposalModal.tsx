@@ -166,7 +166,7 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
       hasError = true;
     }
     if (mpin.trim() && (mpin.trim().length !== 4 || !/^\d{4}$/.test(mpin.trim()))) {
-      setMpinError('MPIN must be exactly 4 numeric digits (or leave blank to use default 0000).');
+      setMpinError('MPIN must be exactly 4 numeric digits (or leave blank for system default).');
       hasError = true;
     }
     if (hasError) {
@@ -611,19 +611,16 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
                   <Lock size={14} className="text-amber-700" />
-                  <span>Proposal Security MPIN (4 Digits) <span className="text-red-500">*</span></span>
+                  <span>Proposal Security MPIN (4 Digits)</span>
                 </label>
                 <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold">
-                  <span className="px-1.5 py-0.5 bg-slate-200 text-slate-800 rounded-xs">
-                    Default: 0000
-                  </span>
                   <span className="px-1.5 py-0.5 bg-amber-200/80 text-amber-900 rounded-xs">
-                    Master MPIN: 1909
+                    Confidential
                   </span>
                 </div>
               </div>
               <p className="text-[11px] text-amber-900 leading-tight">
-                Protects this proposal from unauthorized access on the front login portal. If left blank, the proposal defaults to <strong>0000</strong>. Master MPIN <strong>1909</strong> always grants universal supervisor access.
+                Protects this proposal from unauthorized access on the front login portal. Enter a 4-digit numeric MPIN, or leave blank to assign system default.
               </p>
               <div className="flex items-center gap-3">
                 <input
@@ -637,17 +634,17 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
                     setMpin(clean);
                     if (clean.length === 4) setMpinError(null);
                   }}
-                  placeholder="0000"
+                  placeholder="••••"
                   className={`w-36 px-3 py-2 bg-white border ${
                     mpinError ? 'border-red-500 ring-1 ring-red-400' : 'border-amber-300'
                   } rounded-sm text-xs font-mono font-bold tracking-[0.25em] text-center text-slate-900 focus:outline-hidden focus:border-amber-600`}
                 />
                 <span className="text-xs text-slate-500 font-mono">
                   {mpin.length === 4
-                    ? '✓ 4-digit custom MPIN'
+                    ? '✓ 4-digit MPIN configured'
                     : mpin.length > 0
                     ? `${4 - mpin.length} more digits`
-                    : 'Default MPIN: 0000'}
+                    : 'Optional (default applied)'}
                 </span>
               </div>
               {mpinError && (

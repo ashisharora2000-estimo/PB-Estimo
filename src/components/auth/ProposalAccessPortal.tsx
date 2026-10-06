@@ -175,11 +175,7 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
         onUnlockProposal(selectedProposal);
         setSelectedProposal(null);
       } else {
-        setErrorMessage(
-          (selectedProposal.mpin && selectedProposal.mpin !== '0000')
-            ? 'Invalid MPIN. Please enter the configured proposal MPIN or Master MPIN (1909).'
-            : 'Invalid MPIN. Enter default MPIN (0000) or Master MPIN (1909).'
-        );
+        setErrorMessage('Invalid Security MPIN. Please enter your valid 4-digit code.');
         triggerShake();
         setEnteredPin('');
         pinInputRef.current?.focus();
@@ -193,22 +189,22 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col font-sans antialiased selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans antialiased selection:bg-slate-900 selection:text-white">
       {/* Top Security Banner / Header */}
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
+      <header className="border-b border-slate-200 bg-white sticky top-0 z-30 shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-sm bg-amber-500 text-slate-950 flex items-center justify-center font-bold shadow-xs">
+            <div className="p-2 rounded-sm bg-slate-900 text-white flex items-center justify-center font-bold shadow-xs">
               <Database size={18} className="stroke-[2.5]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-base tracking-tight text-white">PB-Estimo</span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-xs bg-slate-800 text-amber-400 border border-slate-700">
+                <span className="font-extrabold text-base tracking-tight text-slate-900">PB-Estimo</span>
+                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-xs bg-slate-100 text-slate-700 border border-slate-200 font-mono">
                   Proposal Security Gate
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium">
+              <p className="text-[11px] text-slate-500 font-medium">
                 Oracle Cloud Enterprise Implementation Sizing & Project Plan Generator
               </p>
             </div>
@@ -223,18 +219,16 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
               className="hidden"
             />
 
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-slate-800/80 border border-slate-700 text-[11px] font-mono text-slate-300">
-              <Key size={12} className="text-amber-400" />
-              <span>Master MPIN: <strong className="text-amber-300 font-bold">1909</strong></span>
-              <span className="text-slate-600">|</span>
-              <span className="text-slate-400">Default: <strong className="text-slate-200">0000</strong></span>
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-slate-100 border border-slate-200 text-[11px] font-mono text-slate-700">
+              <ShieldCheck size={12} className="text-amber-600" />
+              <span>Confidential MPIN Gate</span>
             </div>
 
             {onImportJson && (
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="px-3 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-semibold rounded-sm flex items-center gap-1.5 transition cursor-pointer border border-slate-700"
+                className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-xs font-semibold rounded-sm flex items-center gap-1.5 transition cursor-pointer border border-slate-200 shadow-xs"
                 title="Import existing proposal JSON"
               >
                 <Upload size={13} />
@@ -245,7 +239,7 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
             <button
               type="button"
               onClick={onOpenNewProposal}
-              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 transition cursor-pointer shadow-xs border border-emerald-500"
+              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 transition cursor-pointer shadow-xs border border-emerald-500"
             >
               <Plus size={14} className="stroke-[3]" />
               <span>New Proposal</span>
@@ -257,38 +251,38 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-slate-800 rounded-sm p-6 sm:p-8 shadow-xl">
+        <div className="bg-white border border-slate-200 rounded-sm p-6 sm:p-8 shadow-xs">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2 max-w-2xl">
               <div className="flex items-center gap-2">
-                <ShieldCheck size={18} className="text-emerald-400" />
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs bg-emerald-50 border border-emerald-200 text-xs font-mono font-bold uppercase tracking-wider text-emerald-700">
+                  <ShieldCheck size={14} className="text-emerald-600" />
                   Role-Based Proposal Access Control Active
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                 Select Custom Deal to Authenticate & Unlock
               </h1>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
                 All client proposals in PB-Estimo are strictly custom deals secured by a 4-digit MPIN. Select your proposal below and enter its MPIN to launch the live sizing cockpit.
               </p>
             </div>
 
-            <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-sm space-y-2 text-xs font-mono shrink-0">
-              <div className="text-[11px] text-slate-400 uppercase tracking-wider font-bold">
+            <div className="bg-slate-50 border border-slate-200 p-4 rounded-sm space-y-2 text-xs font-mono shrink-0">
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-bold">
                 Access Verification Rules:
               </div>
-              <ul className="space-y-1 text-slate-300 text-[11px]">
+              <ul className="space-y-1.5 text-slate-700 text-[11px]">
                 <li className="flex items-center gap-1.5">
-                  <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />
+                  <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
                   <span>Custom Deal MPIN (set during creation)</span>
                 </li>
                 <li className="flex items-center gap-1.5">
-                  <CheckCircle2 size={12} className="text-amber-400 shrink-0" />
-                  <span>Universal Master MPIN: <strong className="text-amber-300">1909</strong> for all proposals</span>
+                  <CheckCircle2 size={13} className="text-amber-600 shrink-0" />
+                  <span>Universal Master Security MPIN override supported</span>
                 </li>
                 <li className="flex items-center gap-1.5">
-                  <CheckCircle2 size={12} className="text-blue-400 shrink-0" />
+                  <CheckCircle2 size={13} className="text-indigo-600 shrink-0" />
                   <span>Auto-saved to Cloud Firestore & session ledger</span>
                 </li>
               </ul>
@@ -306,13 +300,13 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by custom deal title, client, industry, or Thor ID..."
-              className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-sm text-xs font-mono text-white placeholder-slate-500 focus:outline-hidden focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-sm text-xs font-mono text-slate-900 placeholder-slate-400 focus:outline-hidden focus:border-slate-900 focus:ring-1 focus:ring-slate-900 shadow-xs"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
               >
                 ✕
               </button>
@@ -321,8 +315,8 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
 
           {/* Deal Count Badge */}
           <div className="flex items-center gap-2">
-            <div className="px-3 py-1.5 text-xs font-bold rounded-sm bg-slate-900 border border-slate-800 text-slate-300 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <div className="px-3 py-1.5 text-xs font-bold rounded-sm bg-white border border-slate-200 text-slate-700 flex items-center gap-2 shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
               <span>Custom Deals ({allProposals.length})</span>
             </div>
           </div>
@@ -331,16 +325,16 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
         {/* Proposals Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredList.length === 0 ? (
-            <div className="col-span-full p-12 text-center bg-slate-900/50 border border-dashed border-slate-800 rounded-sm space-y-3">
-              <AlertTriangle size={28} className="mx-auto text-amber-400" />
-              <p className="text-sm font-bold text-slate-300">No matching custom proposals found</p>
+            <div className="col-span-full p-12 text-center bg-white border border-dashed border-slate-300 rounded-sm space-y-3 shadow-xs">
+              <AlertTriangle size={28} className="mx-auto text-amber-500" />
+              <p className="text-sm font-bold text-slate-800">No matching custom proposals found</p>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
                 No custom deals match "{searchQuery}". Create a new proposal to get started.
               </p>
               <button
                 type="button"
                 onClick={onOpenNewProposal}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase rounded-sm inline-flex items-center gap-1.5"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase rounded-sm inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
                 <Plus size={13} />
                 <span>Create New Custom Deal</span>
@@ -349,23 +343,22 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
           ) : (
             filteredList.map((item) => {
               const p = item.scenario;
-              const isCurrent = p.id === activeScenario.id;
 
               return (
                 <div
                   key={p.id}
                   onClick={() => handleSelectCard(p)}
-                  className="group bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/80 rounded-sm p-5 flex flex-col justify-between transition-all duration-150 cursor-pointer shadow-md hover:shadow-xl hover:translate-y-[-1px]"
+                  className="group bg-white hover:bg-slate-50/70 border border-slate-200 hover:border-slate-350 rounded-sm p-5 flex flex-col justify-between transition-all duration-150 cursor-pointer shadow-xs hover:shadow-md hover:translate-y-[-1px]"
                 >
                   <div className="space-y-3">
                     {/* Card Top Badges */}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-xs uppercase tracking-wider bg-indigo-900/60 text-indigo-300 border border-indigo-700/50">
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-xs uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
                           Custom Deal
                         </span>
                         {p.status && (
-                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-xs bg-slate-800 text-slate-400">
+                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-xs bg-slate-100 text-slate-600 border border-slate-200">
                             {p.status}
                           </span>
                         )}
@@ -381,65 +374,65 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
                                 onDeleteProposal(p.id);
                               }
                             }}
-                            className="p-1 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded-xs transition cursor-pointer"
+                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-xs transition cursor-pointer"
                             title="Delete Proposal"
                           >
                             <Trash2 size={13} />
                           </button>
                         )}
-                        <div className="flex items-center gap-1 text-[11px] font-mono text-amber-400 group-hover:text-amber-300">
+                        <div className="flex items-center gap-1 text-[11px] font-mono text-slate-500 group-hover:text-slate-800">
                           <Lock size={12} className="stroke-[2.5]" />
-                          <span>{p.mpin && p.mpin !== '0000' ? 'Custom MPIN' : 'MPIN: 0000'}</span>
+                          <span>Protected</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Proposal Title & Client */}
                     <div>
-                      <h3 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors line-clamp-2">
+                      <h3 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-2">
                         {p.name}
                       </h3>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-slate-400 font-medium">
-                        <Building2 size={12} className="shrink-0 text-slate-500" />
+                      <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 font-medium">
+                        <Building2 size={12} className="shrink-0 text-slate-400" />
                         <span className="truncate">{p.clientName || 'Enterprise Account'}</span>
                         {p.industry && (
                           <>
                             <span>&bull;</span>
-                            <span className="truncate text-slate-500">{p.industry}</span>
+                            <span className="truncate text-slate-400">{p.industry}</span>
                           </>
                         )}
                       </div>
                     </div>
 
                     {/* Metrics Chips */}
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-xs font-mono">
-                      <div className="bg-slate-950/60 p-2 rounded-xs border border-slate-850">
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs font-mono">
+                      <div className="bg-slate-50 p-2 rounded-xs border border-slate-100">
                         <span className="text-[10px] text-slate-500 block uppercase">Scope</span>
-                        <span className="font-bold text-slate-200">
+                        <span className="font-bold text-slate-800">
                           {p.selectedModules?.length || 0} Modules
                         </span>
                       </div>
-                      <div className="bg-slate-950/60 p-2 rounded-xs border border-slate-850">
+                      <div className="bg-slate-50 p-2 rounded-xs border border-slate-100">
                         <span className="text-[10px] text-slate-500 block uppercase">Timeline</span>
-                        <span className="font-bold text-slate-200">
+                        <span className="font-bold text-slate-800">
                           {p.projectWeeks || 32} Weeks
                         </span>
                       </div>
                     </div>
 
                     {p.description && (
-                      <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                      <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
                         {p.description}
                       </p>
                     )}
                   </div>
 
                   {/* Card Action Footer */}
-                  <div className="pt-4 mt-3 border-t border-slate-800/80 flex items-center justify-between">
-                    <span className="text-[10px] font-mono text-slate-500">
+                  <div className="pt-4 mt-3 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-slate-400">
                       {p.thorId ? p.thorId : `ID: ${p.id.slice(0, 14)}`}
                     </span>
-                    <div className="flex items-center gap-1 text-xs font-bold text-amber-400 group-hover:translate-x-1 transition-transform">
+                    <div className="flex items-center gap-1 text-xs font-bold text-indigo-600 group-hover:text-indigo-800 group-hover:translate-x-1 transition-transform">
                       <span>Unlock & Sizing</span>
                       <ChevronRight size={14} />
                     </div>
@@ -453,14 +446,14 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
 
       {/* MPIN Verification Modal Dialog */}
       {selectedProposal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div
-            className={`bg-slate-900 border-2 border-slate-700 rounded-sm shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150 ${
+            className={`bg-white border border-slate-200 rounded-sm shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150 ${
               shakeError ? 'animate-shake' : ''
             }`}
           >
             {/* Modal Header */}
-            <div className="bg-slate-950 px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+            <div className="bg-slate-900 text-white px-5 py-4 border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="p-1.5 rounded-sm bg-amber-500 text-slate-950 font-bold">
                   <Lock size={16} className="stroke-[2.5]" />
@@ -480,16 +473,16 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 space-y-5 text-slate-200">
+            <div className="p-6 space-y-5 text-slate-800">
               {/* Proposal Summary Card */}
-              <div className="bg-slate-950/80 border border-slate-800 p-3.5 rounded-sm space-y-1">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-bold block">
+              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-sm space-y-1">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-600 font-bold block">
                   Target Proposal:
                 </span>
-                <div className="font-bold text-sm text-white line-clamp-1">
+                <div className="font-bold text-sm text-slate-900 line-clamp-1">
                   {selectedProposal.name}
                 </div>
-                <div className="text-xs text-slate-400 flex items-center gap-2">
+                <div className="text-xs text-slate-500 flex items-center gap-2">
                   <span>{selectedProposal.clientName || 'Apex Global Industries'}</span>
                   <span>&bull;</span>
                   <span>{selectedProposal.selectedModules?.length || 0} Modules</span>
@@ -501,13 +494,13 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
               {/* Pin Entry Field */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-300">
+                  <label className="text-xs font-bold text-slate-700">
                     Enter 4-Digit Security MPIN:
                   </label>
                   <button
                     type="button"
                     onClick={() => setShowPin(!showPin)}
-                    className="text-[11px] text-slate-400 hover:text-slate-200 flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer"
                   >
                     {showPin ? <EyeOff size={12} /> : <Eye size={12} />}
                     <span>{showPin ? 'Hide' : 'Show'}</span>
@@ -531,7 +524,7 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
                       }
                     }}
                     placeholder="••••"
-                    className="w-full text-center text-2xl tracking-[0.5em] font-mono font-bold p-3 bg-slate-950 border border-slate-700 rounded-sm text-white focus:outline-hidden focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+                    className="w-full text-center text-2xl tracking-[0.5em] font-mono font-bold p-3 bg-white border border-slate-300 rounded-sm text-slate-900 focus:outline-hidden focus:border-slate-900 focus:ring-1 focus:ring-slate-900 shadow-xs"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') verifyPin();
                     }}
@@ -540,8 +533,8 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
 
                 {/* Error message */}
                 {errorMessage && (
-                  <div className="p-2.5 rounded-sm bg-red-950/60 border border-red-800 text-red-300 text-xs flex items-center gap-1.5 animate-in fade-in">
-                    <ShieldAlert size={14} className="shrink-0 text-red-400" />
+                  <div className="p-2.5 rounded-sm bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-1.5 animate-in fade-in">
+                    <ShieldAlert size={14} className="shrink-0 text-rose-600" />
                     <span>{errorMessage}</span>
                   </div>
                 )}
@@ -554,7 +547,7 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
                     key={digit}
                     type="button"
                     onClick={() => handleKeypadPress(digit)}
-                    className="py-2.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-650 text-white font-mono font-bold text-base rounded-xs transition cursor-pointer border border-slate-750"
+                    className="py-2.5 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-900 font-mono font-bold text-base rounded-xs transition cursor-pointer border border-slate-200 shadow-2xs"
                   >
                     {digit}
                   </button>
@@ -562,52 +555,42 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
                 <button
                   type="button"
                   onClick={handleClearPin}
-                  className="py-2.5 bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-mono font-bold rounded-xs transition cursor-pointer border border-slate-750"
+                  className="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-mono text-xs font-bold rounded-xs transition cursor-pointer border border-slate-200"
                 >
                   Clear
                 </button>
                 <button
                   type="button"
                   onClick={() => handleKeypadPress('0')}
-                  className="py-2.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-650 text-white font-mono font-bold text-base rounded-xs transition cursor-pointer border border-slate-750"
+                  className="py-2.5 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-900 font-mono font-bold text-base rounded-xs transition cursor-pointer border border-slate-200 shadow-2xs"
                 >
                   0
                 </button>
                 <button
                   type="button"
                   onClick={handleBackspace}
-                  className="py-2.5 bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-mono font-bold rounded-xs transition cursor-pointer border border-slate-750"
+                  className="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-mono text-xs font-bold rounded-xs transition cursor-pointer border border-slate-200"
                 >
                   ⌫
                 </button>
               </div>
 
-              {/* Master PIN Notification Note */}
-              <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xs text-[11px] text-amber-300 flex items-center justify-between">
-                <span>Accepted MPIN:</span>
-                <span className="font-mono text-[11px] flex items-center gap-1.5">
-                  {(!selectedProposal.mpin || selectedProposal.mpin === '0000') ? (
-                    <span className="px-1.5 py-0.2 bg-slate-800 text-slate-200 border border-slate-700 rounded-xs font-bold">
-                      Default: 0000
-                    </span>
-                  ) : (
-                    <span className="px-1.5 py-0.2 bg-indigo-900/80 text-indigo-200 border border-indigo-700 rounded-xs font-bold">
-                      Deal MPIN
-                    </span>
-                  )}
-                  <span className="px-1.5 py-0.2 bg-amber-400 text-slate-950 rounded-xs font-bold">
-                    Master: 1909
-                  </span>
+              {/* Confidential Security Verification Note */}
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xs text-[11px] text-slate-600 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-slate-700">
+                  <Lock size={12} className="text-amber-600" />
+                  <span>Confidential Deal Access</span>
                 </span>
+                <span className="text-[10px] text-slate-500 font-mono">4-Digit Security Code</span>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="bg-slate-950 px-6 py-3.5 border-t border-slate-800 flex items-center justify-between">
+            <div className="bg-slate-50 px-6 py-3.5 border-t border-slate-200 flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => setSelectedProposal(null)}
-                className="text-xs text-slate-400 hover:text-white cursor-pointer"
+                className="text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
               >
                 Cancel
               </button>
@@ -616,7 +599,7 @@ export const ProposalAccessPortal: React.FC<ProposalAccessPortalProps> = ({
                 type="button"
                 onClick={() => verifyPin()}
                 disabled={enteredPin.length !== 4 || isVerifying}
-                className="px-5 py-2 bg-amber-500 hover:bg-amber-400 disabled:bg-slate-800 disabled:text-slate-500 text-slate-950 text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 cursor-pointer shadow-xs transition"
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 cursor-pointer shadow-xs transition"
               >
                 {isVerifying ? (
                   <span>Verifying...</span>

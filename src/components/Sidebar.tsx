@@ -317,7 +317,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             type="button"
             onClick={onLockSession}
             className="w-full flex items-center justify-between p-2 rounded-sm bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white font-medium text-xs transition border border-slate-800 cursor-pointer shadow-xs group"
-            title="Lock active proposal and return to front login screen (Master MPIN: 1909)"
+            title="Lock active proposal and return to Proposal Security Gate"
           >
             <div className="flex items-center gap-2">
               <div className="p-1 rounded-xs bg-slate-800 text-amber-400 group-hover:scale-105 transition-transform">
@@ -325,11 +325,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <div className="text-left">
                 <div className="text-xs font-bold leading-tight">Proposal Security Gate</div>
-                <div className="text-[10px] text-slate-400 font-mono leading-tight">Lock & Switch Proposal</div>
+                <div className="text-[10px] text-slate-400 font-mono leading-tight">Lock & Switch Deal</div>
               </div>
             </div>
-            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded-xs border border-amber-500/30">
-              1909
+            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-slate-800 text-slate-300 rounded-xs border border-slate-700">
+              Lock
             </span>
           </button>
         )}
