@@ -22,14 +22,12 @@ import { generateExecutiveSowMemo } from '../../utils/blueprintAutoFillEngine';
 interface ProposalViewProps {
   scenario: ProjectScenario;
   data: CalculatedProjectData;
-  onOpenNewProposal?: () => void;
   onSaveScenario?: () => void;
 }
 
 export const ProposalView: React.FC<ProposalViewProps> = ({
   scenario,
   data,
-  onOpenNewProposal,
   onSaveScenario
 }) => {
   const [isCopiedMemo, setIsCopiedMemo] = useState(false);
@@ -77,16 +75,6 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
             >
               <Save size={14} />
               <span>Save & Refresh All Screens</span>
-            </button>
-          )}
-          {onOpenNewProposal && (
-            <button
-              onClick={onOpenNewProposal}
-              className="px-3.5 py-2 rounded-sm bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-              title="Create a new implementation proposal"
-            >
-              <Plus size={14} className="stroke-[2.5]" />
-              <span>New Proposal</span>
             </button>
           )}
           <button

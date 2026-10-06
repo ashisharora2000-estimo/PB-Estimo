@@ -31,7 +31,6 @@ import { GuidedTourOverlay } from './components/common/GuidedTourOverlay';
 import { NotebookLMPodcastStudio } from './components/podcast/NotebookLMPodcastStudio';
 import { FloatingPodcastBar } from './components/podcast/FloatingPodcastBar';
 import { PodcastView } from './components/views/PodcastView';
-import { PRESET_SCENARIOS } from './data/templates';
 import { ProjectScenario, OracleModule, PodcastEpisode, PodcastTurn } from './types';
 import { calculateProjectMetrics } from './utils/calculator';
 import { generateBlankSlateScenario } from './utils/technicalSync';
@@ -43,10 +42,21 @@ import {
   subscribeToCloudScenarios
 } from './services/firestoreService';
 import { useAutomatedBackup } from './hooks/useAutomatedBackup';
+import { ProposalAccessPortal } from './components/auth/ProposalAccessPortal';
 
 const STORAGE_CUSTOM_PROPOSALS_KEY = 'pb_estimo_custom_proposals';
 
 export default function App() {
+  // Proposal security gate & MPIN authentication: front login screen is displayed by default
+  const [isProposalUnlocked, setIsProposalUnlocked] = useState<boolean>(() => {
+    try {
+      const savedUnlocked = sessionStorage.getItem('pb_estimo_unlocked_proposal_id');
+      return !!savedUnlocked;
+    } catch (e) {
+      return false;
+    }
+  });
+
   // Load initial custom proposals from localStorage if available
   const [customProposals, setCustomProposals] = useState<ProjectScenario[]>(() => {
     try {
@@ -55,13 +65,17 @@ export default function App() {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
           return parsed.map((p: ProjectScenario) => {
-            if (p.deliveryMix && p.deliveryMix.nearshore !== 0) {
+            const normalized = {
+              ...p,
+              mpin: p.mpin || '0000'
+            };
+            if (normalized.deliveryMix && normalized.deliveryMix.nearshore !== 0) {
               return {
-                ...p,
+                ...normalized,
                 deliveryMix: { onshore: 20, nearshore: 0, offshore: 80 }
               };
             }
-            return p;
+            return normalized;
           });
         }
       }
@@ -77,7 +91,7 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          let scenario = parsed[0];
+          let scenario = { ...parsed[0], mpin: parsed[0].mpin || '0000' };
           if (scenario.scopeMode === 'integrations_only') {
             scenario = { ...scenario, scopeMode: 'full' };
           }
@@ -196,9 +210,9 @@ export default function App() {
       if (cloudScenarios.length > 0) {
         setCustomProposals((prev) => {
           const map = new Map<string, ProjectScenario>();
-          cloudScenarios.forEach(p => map.set(p.id, p));
+          cloudScenarios.forEach(p => map.set(p.id, { ...p, mpin: p.mpin || '0000' }));
           prev.forEach(p => {
-            if (!map.has(p.id)) map.set(p.id, p);
+            if (!map.has(p.id)) map.set(p.id, { ...p, mpin: p.mpin || '0000' });
           });
           return Array.from(map.values());
         });
@@ -220,14 +234,42 @@ export default function App() {
     }
   };
 
+  const handleUnlockProposal = (proposal: ProjectScenario) => {
+    const safeProposal = { ...proposal, mpin: proposal.mpin || '0000' };
+    setActiveScenario(safeProposal);
+    setIsProposalUnlocked(true);
+    try {
+      sessionStorage.setItem('pb_estimo_unlocked_proposal_id', safeProposal.id);
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const handleLockSession = () => {
+    try {
+      sessionStorage.removeItem('pb_estimo_unlocked_proposal_id');
+    } catch (e) {
+      // ignore
+    }
+    setIsProposalUnlocked(false);
+  };
+
   const handleCreateProposal = (newScenario: ProjectScenario) => {
-    const updated = [newScenario, ...customProposals.filter(p => p.id !== newScenario.id)];
+    const safeNewScenario = { ...newScenario, mpin: newScenario.mpin || '0000' };
+    const updated = [safeNewScenario, ...customProposals.filter(p => p.id !== safeNewScenario.id)];
     saveCustomProposals(updated);
     // Asynchronously persist to Cloud Firestore
-    saveScenarioToCloud(newScenario).catch(err => {
+    saveScenarioToCloud(safeNewScenario).catch(err => {
       console.warn('Cloud sync error for new proposal:', err);
     });
-    setActiveScenario(newScenario);
+    setActiveScenario(safeNewScenario);
+    setIsProposalUnlocked(true);
+    try {
+      sessionStorage.setItem('pb_estimo_unlocked_proposal_id', safeNewScenario.id);
+    } catch (e) {
+      // ignore
+    }
+    setNewProposalModalOpen(false);
     setDiscoverySubSection('modules');
     setActiveTab('discovery');
   };
@@ -243,7 +285,14 @@ export default function App() {
       if (updated.length > 0) {
         setActiveScenario(updated[0]);
       } else {
-        setActiveScenario(PRESET_SCENARIOS[0]);
+        const fallback = generateBlankSlateScenario({
+          proposalName: 'New Custom Oracle Implementation Proposal',
+          thorId: 'THOR-PROPOSAL-001',
+          clientName: 'Apex Global Industries',
+          industry: 'General Enterprise',
+          projectWeeks: 36
+        });
+        setActiveScenario(fallback);
       }
     }
   };
@@ -281,17 +330,47 @@ export default function App() {
   };
 
   const handleResetDefaults = () => {
-    const originalPreset = PRESET_SCENARIOS.find(p => p.id === activeScenario.id) || PRESET_SCENARIOS[0];
-    setActiveScenario(JSON.parse(JSON.stringify(originalPreset)));
+    // Reset active custom proposal to default parameters without changing scope
+    setActiveScenario(prev => ({
+      ...prev,
+      deliveryMix: { onshore: 20, nearshore: 0, offshore: 80 },
+      clientModifiers: {
+        governanceCadence: 1.0,
+        decisionVelocity: 1.0,
+        skillReadiness: 1.0,
+        dataMaturity: 1.0,
+        sponsorEngagement: 1.0
+      }
+    }));
     setLastSavedTimestamp(null);
   };
 
   const handleSelectScenario = (scenario: ProjectScenario) => {
-    setActiveScenario(scenario);
+    const safeScenario = { ...scenario, mpin: scenario.mpin || '0000' };
+    setActiveScenario(safeScenario);
+    try {
+      sessionStorage.setItem('pb_estimo_unlocked_proposal_id', safeScenario.id);
+    } catch (e) {
+      // ignore
+    }
   };
 
   const handleImportJson = (imported: ProjectScenario) => {
-    setActiveScenario(imported);
+    const normalized = {
+      ...imported,
+      mpin: imported.mpin || '0000',
+      id: imported.id || ('imported_deal_' + Date.now())
+    };
+    const updated = [normalized, ...customProposals.filter(p => p.id !== normalized.id)];
+    saveCustomProposals(updated);
+    saveScenarioToCloud(normalized).catch(() => {});
+    setActiveScenario(normalized);
+    setIsProposalUnlocked(true);
+    try {
+      sessionStorage.setItem('pb_estimo_unlocked_proposal_id', normalized.id);
+    } catch (e) {
+      // ignore
+    }
   };
 
   const handleOpenComplexityStudio = (tab: 'complexity' | 'questions' | 'drivers' | 'ai_advisor' = 'complexity') => {
@@ -432,7 +511,6 @@ export default function App() {
             activeSubSection={reportSubSection}
             onSelectSubSection={setReportSubSection}
             onUpdateScenario={(updater) => setActiveScenario(updater)}
-            onOpenNewProposal={() => setNewProposalModalOpen(true)}
             onOpenSlideDeck={() => setSlideDeckModalOpen(true)}
             onSaveScenario={handleSaveScenario}
           />
@@ -444,7 +522,6 @@ export default function App() {
             data={calculatedData}
             onNavigateTab={(tab) => setActiveTab(tab)}
             onOpenTraceMath={handleOpenTraceMath}
-            onOpenNewProposal={() => setNewProposalModalOpen(true)}
             onOpenWhatIfSimulator={() => setWhatIfSimulatorOpen(true)}
             onOpenDealDefense={() => setDealDefenseModalOpen(true)}
             onUpdateScenario={setActiveScenario}
@@ -454,6 +531,32 @@ export default function App() {
         );
     }
   };
+
+  // Front login screen gate: if proposal is not unlocked, show ProposalAccessPortal
+  if (!isProposalUnlocked) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white font-sans antialiased">
+        <ProposalAccessPortal
+          customProposals={customProposals}
+          activeScenario={activeScenario}
+          onUnlockProposal={handleUnlockProposal}
+          onOpenNewProposal={() => setNewProposalModalOpen(true)}
+          onDeleteProposal={handleDeleteCustomProposal}
+          onImportJson={handleImportJson}
+        />
+
+        {/* Modal for creating a new proposal directly from the front login screen */}
+        {newProposalModalOpen && (
+          <NewProposalModal
+            isOpen={newProposalModalOpen}
+            onClose={() => setNewProposalModalOpen(false)}
+            onCreateProposal={handleCreateProposal}
+            activeScenario={activeScenario}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans antialiased selection:bg-slate-900 selection:text-white">
@@ -475,7 +578,6 @@ export default function App() {
         onOpenIntelHub={() => setIntelModalOpen(true)}
         onOpenTraceMath={handleOpenTraceMath}
         onOpenAshishCopilot={() => setAshishCopilotOpen(true)}
-        onOpenNewProposal={() => setNewProposalModalOpen(true)}
         onOpenWhatIfSimulator={() => setWhatIfSimulatorOpen(true)}
         onOpenDealDefense={() => setDealDefenseModalOpen(true)}
         onOpenSlideDeck={() => setSlideDeckModalOpen(true)}
@@ -483,6 +585,7 @@ export default function App() {
         onOpenGuidedTour={() => setGuidedTourOpen(true)}
         customScenarios={customProposals}
         onDeleteCustomScenario={handleDeleteCustomProposal}
+        onLockSession={handleLockSession}
       />
 
       {/* Main Container */}
@@ -504,12 +607,12 @@ export default function App() {
           hasPatchConflict={calculatedData.patchConflictWeeks.length > 0}
           doaTier={calculatedData.doaTier}
           onOpenComplexityStudio={() => handleOpenComplexityStudio('complexity')}
-          onOpenNewProposal={() => setNewProposalModalOpen(true)}
           onOpenWhatIfSimulator={() => setWhatIfSimulatorOpen(true)}
           onOpenDealDefense={() => setDealDefenseModalOpen(true)}
           onOpenSlideDeck={() => setSlideDeckModalOpen(true)}
           rolePreset={rolePreset}
           onSelectRolePreset={setRolePreset}
+          onLockSession={handleLockSession}
         />
 
         {/* Mobile Navigation Drawer Trigger */}
@@ -684,7 +787,6 @@ export default function App() {
             scenario={activeScenario}
             data={calculatedData}
             onSelectTab={setActiveTab}
-            onOpenNewProposal={() => setNewProposalModalOpen(true)}
             onOpenSlideDeck={() => setSlideDeckModalOpen(true)}
             onUpdateScenario={setActiveScenario}
             onSaveScenario={handleSaveScenario}
@@ -705,6 +807,7 @@ export default function App() {
       {/* Scenario Compare Modal */}
       <ScenarioCompareModal
         currentScenario={activeScenario}
+        customScenarios={customProposals}
         isOpen={compareModalOpen}
         onClose={() => setCompareModalOpen(false)}
         onSelectScenario={handleSelectScenario}
@@ -757,14 +860,6 @@ export default function App() {
         onOpenTraceMath={handleOpenTraceMath}
         onOpenComplexityStudio={handleOpenComplexityStudio}
         onUpdateScenario={(updater) => setActiveScenario(updater)}
-      />
-
-      {/* New Proposal / Deal Creation Modal */}
-      <NewProposalModal
-        isOpen={newProposalModalOpen}
-        onClose={() => setNewProposalModalOpen(false)}
-        activeScenario={activeScenario}
-        onCreateProposal={handleCreateProposal}
       />
 
       {/* Smartsheet Enterprise PMO Plan Initiation Modal - Hidden for future release */}

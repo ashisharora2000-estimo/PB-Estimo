@@ -668,6 +668,7 @@ export function generateBlankSlateScenario(
     name: finalProposalName,
     thorId: finalThorId,
     clientName: finalClientName,
+    mpin: '0000',
     industry: finalIndustry,
     description: finalDescription,
     selectedModules: [],

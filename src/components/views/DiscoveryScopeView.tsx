@@ -1100,7 +1100,39 @@ export const DiscoveryScopeView: React.FC<DiscoveryScopeViewProps> = ({
       {/* SECTION 1: Module Footprint & Granular 20-Question Scoping */}
       {activeSection === 'modules' && (
         <div className="space-y-3">
-          {/* Integrations-only banner hidden for future enablement */}
+          {/* Executive Testing & Quality Assurance (SIT & UAT) Banner on Screen 1 */}
+          <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-3 sm:p-4 rounded-xs border border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xs bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center shrink-0">
+                <ListChecks className="w-5 h-5 text-indigo-300" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-300">
+                    Business Testing & Quality Assurance
+                  </span>
+                  <span className="px-2 py-0.2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold rounded-xs">
+                    SIT & UAT Calibrated
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  Business Testing 1 (SIT) and Business Testing 2 (UAT) are dynamically scaled to the in-scope module footprint ({scenario.selectedModules.length} Modules).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => onSectionChange && onSectionChange('testing')}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-wider rounded-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                title="Open detailed Business Testing (SIT & UAT) configuration"
+              >
+                <span>View Testing Scope</span>
+                <ArrowRight size={13} />
+              </button>
+            </div>
+          </div>
 
           {/* TABULAR SCOPING SHEET (Clean, High-Density Professional Table) */}
           <div className="space-y-3 animate-in fade-in duration-150">

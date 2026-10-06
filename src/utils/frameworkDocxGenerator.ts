@@ -304,9 +304,9 @@ The platform is organized around seven integrated pillars that evaluate and synt
   <tbody>
     <tr>
       <td><strong>Pillar 01</strong></td>
-      <td><strong>Delivery Lifecycle Architecture</strong></td>
-      <td>7-Phase Oracle True Cloud Method (TCM) with stage gates (CRP1, CRP2, SIT, UAT, Cutover).</td>
-      <td>Baseline Schedule & Stage Gate Network</td>
+      <td><strong>Delivery Lifecycle & Business Testing Protocol</strong></td>
+      <td>7-Phase Oracle True Cloud Method (TCM) with rigorous testing gates (CRP1, CRP2, SIT, UAT, Cutover).</td>
+      <td>Baseline Schedule, Testing Strategy & Stage Gate Network</td>
     </tr>
     <tr>
       <td><strong>Pillar 02</strong></td>

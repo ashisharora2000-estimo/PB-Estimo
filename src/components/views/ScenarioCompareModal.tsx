@@ -8,11 +8,11 @@ import {
   BarChart3
 } from 'lucide-react';
 import { ProjectScenario } from '../../types';
-import { PRESET_SCENARIOS } from '../../data/templates';
 import { calculateProjectMetrics } from '../../utils/calculator';
 
 interface ScenarioCompareModalProps {
   currentScenario: ProjectScenario;
+  customScenarios?: ProjectScenario[];
   isOpen: boolean;
   onClose: () => void;
   onSelectScenario: (s: ProjectScenario) => void;
@@ -20,16 +20,20 @@ interface ScenarioCompareModalProps {
 
 export const ScenarioCompareModal: React.FC<ScenarioCompareModalProps> = ({
   currentScenario,
+  customScenarios = [],
   isOpen,
   onClose,
   onSelectScenario
 }) => {
   if (!isOpen) return null;
 
-  // Calculate metrics for all scenarios
+  // Filter other custom scenarios (excluding the current one)
+  const otherCustoms = customScenarios.filter(s => s.id !== currentScenario.id);
+
+  // Calculate metrics for active custom scenario + other custom scenarios
   const scenariosWithData = [
     { ...currentScenario, name: `${currentScenario.name} (Active)` },
-    ...PRESET_SCENARIOS.filter(s => s.id !== currentScenario.id)
+    ...otherCustoms
   ].map(s => ({
     scenario: s,
     data: calculateProjectMetrics(s)
@@ -46,10 +50,10 @@ export const ScenarioCompareModal: React.FC<ScenarioCompareModalProps> = ({
             </div>
             <div>
               <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-                Enterprise Scenario Benchmarking Matrix
+                Custom Deal Benchmarking Matrix
               </h2>
               <p className="text-xs text-slate-600">
-                Compare delivery timelines, staffing effort, and governance tiers across implementation archetypes
+                Compare delivery timelines, staffing effort, and governance tiers across your custom client proposals
               </p>
             </div>
           </div>
@@ -66,7 +70,7 @@ export const ScenarioCompareModal: React.FC<ScenarioCompareModalProps> = ({
         <div className="p-6 overflow-x-auto flex-1 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" style={{ minWidth: '800px' }}>
             {scenariosWithData.map(({ scenario, data }) => {
-              const isCurrent = scenario.id === currentScenario.id;
+              const isCurrent = scenario.id === currentScenario.id || scenario.id === `${currentScenario.id} (Active)`;
 
               return (
                 <div
@@ -82,9 +86,9 @@ export const ScenarioCompareModal: React.FC<ScenarioCompareModalProps> = ({
                       <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-none ${
                         isCurrent
                           ? 'bg-slate-900 text-white'
-                          : 'bg-slate-100 text-slate-600'
+                          : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
                       }`}>
-                        {isCurrent ? 'Active Plan' : 'Preset Blueprint'}
+                        {isCurrent ? 'Active Custom Deal' : 'Custom Deal'}
                       </span>
                       <span className={`text-[11px] font-bold ${data.doaColor}`}>
                         Tier {data.doaTier}
@@ -95,7 +99,7 @@ export const ScenarioCompareModal: React.FC<ScenarioCompareModalProps> = ({
                       {scenario.name}
                     </h3>
                     <p className="text-[11px] text-slate-600 line-clamp-2">
-                      {scenario.description}
+                      {scenario.description || 'Custom Oracle Cloud implementation roadmap and scoping footprint.'}
                     </p>
                   </div>
 
@@ -156,6 +160,16 @@ export const ScenarioCompareModal: React.FC<ScenarioCompareModalProps> = ({
                 </div>
               );
             })}
+
+            {otherCustoms.length === 0 && (
+              <div className="p-6 rounded-sm border-2 border-dashed border-slate-200 flex flex-col justify-center items-center text-center space-y-3 bg-slate-50/50">
+                <Sparkles size={24} className="text-indigo-500" />
+                <div className="font-bold text-xs text-slate-800">Compare Multiple Custom Deals</div>
+                <p className="text-[11px] text-slate-500 max-w-sm">
+                  Only one custom proposal is currently loaded. To create additional client proposals, lock the portal session using "Lock Portal" in the top bar to return to the front Proposal Security Gate.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

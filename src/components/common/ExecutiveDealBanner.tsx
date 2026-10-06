@@ -26,7 +26,6 @@ interface ExecutiveDealBannerProps {
   data: CalculatedProjectData;
   onSelectTab?: (tab: any) => void;
   onNavigateTab?: (tab: any) => void;
-  onOpenNewProposal?: () => void;
   onOpenSlideDeck?: () => void;
   onUpdateScenario?: (updater: (prev: ProjectScenario) => ProjectScenario) => void;
   onSaveScenario?: () => void;
@@ -39,7 +38,6 @@ export const ExecutiveDealBanner: React.FC<ExecutiveDealBannerProps> = ({
   data,
   onSelectTab,
   onNavigateTab,
-  onOpenNewProposal,
   onOpenSlideDeck,
   onUpdateScenario,
   onSaveScenario,
@@ -222,18 +220,6 @@ export const ExecutiveDealBanner: React.FC<ExecutiveDealBannerProps> = ({
             >
               <RotateCcw size={10} />
               <span className="hidden sm:inline">Reset Defaults</span>
-            </button>
-          )}
-
-          {onOpenNewProposal && (
-            <button
-              type="button"
-              onClick={onOpenNewProposal}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs bg-emerald-600/90 hover:bg-emerald-500 text-white text-[10px] font-bold transition-colors cursor-pointer border border-emerald-400/40 shrink-0"
-              title="Start a new proposal / blank slate or clone"
-            >
-              <Plus size={11} className="stroke-[3]" />
-              <span>New Deal</span>
             </button>
           )}
         </div>

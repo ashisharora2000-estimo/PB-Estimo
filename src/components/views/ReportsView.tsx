@@ -49,7 +49,6 @@ interface ReportsViewProps {
   activeSubSection?: ReportSubSectionId;
   onSelectSubSection?: (sub: ReportSubSectionId) => void;
   onUpdateScenario?: (updater: (prev: ProjectScenario) => ProjectScenario) => void;
-  onOpenNewProposal?: () => void;
   onOpenSlideDeck?: () => void;
   onSaveScenario?: () => void;
   onOpenNotebookLmPodcast?: () => void;
@@ -61,7 +60,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   activeSubSection = 'sow_brief',
   onSelectSubSection,
   onUpdateScenario,
-  onOpenNewProposal,
   onOpenSlideDeck,
   onSaveScenario,
   onOpenNotebookLmPodcast
@@ -180,17 +178,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             >
               <Presentation size={14} className="stroke-[2.5]" />
               <span>Executive Slide Deck (PPTX)</span>
-            </button>
-          )}
-          {onOpenNewProposal && (
-            <button
-              type="button"
-              onClick={onOpenNewProposal}
-              className="px-3.5 py-1.5 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-              title="Create a new implementation proposal"
-            >
-              <Plus size={13} className="stroke-[2.5]" />
-              <span>New Proposal</span>
             </button>
           )}
           <button

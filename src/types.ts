@@ -377,6 +377,7 @@ export interface ProjectScenario {
   thorId?: string;
   clientName?: string;
   industry?: string;
+  mpin?: string; // 4-digit security MPIN to restrict access to proposal
   description: string;
   proposalCreatedAt?: string;
   selectedModules: OracleModule[];

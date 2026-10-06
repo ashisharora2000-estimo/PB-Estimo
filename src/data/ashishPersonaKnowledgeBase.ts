@@ -210,7 +210,7 @@ export const ESTIMATION_KNOWLEDGE_BASE: KnowledgeTopic[] = [
     keywords: ['guardrails', 'hallucination', 'citation', 'snapshot', 'rollback', 'preflight', 'bounding', 'schema', 'attribution'],
     summary: 'How the platform eliminates AI hallucinations through Grounded Citations (G1), Bounding (G2), Pre-Flight Review (G3), Closed Schemas (G4), and 1-Click Snapshots (G5).',
     detailedContent: `To guarantee enterprise-grade estimation reliability, the platform implements 5 universal guardrails:
-- **Guardrail 1: Grounded Citation & Source Attribution (G1)**: Every AI-extracted driver displays a visual badge: 🟢 Direct Quote (literal contract citation), 🟡 Inferred Context, or 🔵 Industry Baseline.
+- **Guardrail 1: Grounded Citation & Source Attribution (G1)**: Every AI-extracted driver displays a visual badge: 🟢 Direct Quote (literal contract citation), 🟡 Inferred Context, or 🔵 System Default.
 - **Guardrail 2: Mathematical Bounding & Sanity Clamping (G2)**: All AI numeric recommendations are clamped within strict historical bounds (e.g. project weeks clamped between 12w and 104w; multipliers between 0.8x and 2.5x).
 - **Guardrail 3: Zero Silent Mutation / Pre-Flight Review (G3)**: The AI cannot mutate application state directly; all changes appear in a side-by-side diff drawer for human confirmation.
 - **Guardrail 4: Closed-Schema Deterministic Output (G4)**: AI outputs must conform strictly to vetted TypeScript schemas and approved Oracle catalog module enums.

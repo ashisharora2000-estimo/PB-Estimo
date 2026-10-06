@@ -124,7 +124,7 @@ export const ScheduleModifiersPanel: React.FC<ScheduleModifiersPanelProps> = ({
               {
                 id: 'hybrid_oum' as ImplementationMethodology,
                 label: 'Hybrid OUM (Iterative Design + Waterfall Cutover)',
-                sub: 'Standard industry baseline, balanced risk and stage gating'
+                sub: 'Standard delivery practice, balanced risk and stage gating'
               },
               {
                 id: 'waterfall' as ImplementationMethodology,

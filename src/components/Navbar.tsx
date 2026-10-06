@@ -30,7 +30,6 @@ import {
   LayoutDashboard
 } from 'lucide-react';
 import { ProjectScenario, CalculatedProjectData, OracleModule } from '../types';
-import { PRESET_SCENARIOS } from '../data/templates';
 import { exportWbsToCsv, exportCommercialsToCsv, exportProjectJson } from '../utils/exporter';
 import { generateExecutiveSlideDeck } from '../utils/executivePptxGenerator';
 import { UniversalSnapshotManager } from './common/UniversalSnapshotManager';
@@ -51,7 +50,6 @@ interface NavbarProps {
   onOpenIntelHub?: () => void;
   onOpenTraceMath?: (target?: OracleModule | 'project_total') => void;
   onOpenAshishCopilot?: () => void;
-  onOpenNewProposal?: () => void;
   onOpenWhatIfSimulator?: () => void;
   onOpenDealDefense?: () => void;
   onOpenSmartsheetExport?: () => void;
@@ -62,6 +60,7 @@ interface NavbarProps {
   customScenarios?: ProjectScenario[];
   onDeleteCustomScenario?: (id: string) => void;
   onOpenGuidedTour?: () => void;
+  onLockSession?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -78,7 +77,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenIntelHub,
   onOpenTraceMath,
   onOpenAshishCopilot,
-  onOpenNewProposal,
   onOpenWhatIfSimulator,
   onOpenDealDefense,
   onOpenSmartsheetExport,
@@ -88,11 +86,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   isPodcastPlaying,
   customScenarios = [],
   onDeleteCustomScenario,
-  onOpenGuidedTour
+  onOpenGuidedTour,
+  onLockSession
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [mpinTargetProposal, setMpinTargetProposal] = useState<ProjectScenario | null>(null);
+  const [mpinInput, setMpinInput] = useState('');
+  const [mpinError, setMpinError] = useState<string | null>(null);
   const [cloudSyncOpen, setCloudSyncOpen] = useState(false);
   const [riskPopoverOpen, setRiskPopoverOpen] = useState(false);
   const [copiedSummary, setCopiedSummary] = useState(false);
@@ -239,26 +241,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-xs bg-slate-100 text-slate-700 border border-slate-200 hidden sm:inline">
                 Oracle Cloud
               </span>
+              <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded-xs bg-emerald-100 text-emerald-800 border border-emerald-300 font-mono">
+                Hello World
+              </span>
             </div>
           </button>
 
           <div className="h-4 w-px bg-slate-200 hidden sm:block shrink-0 mx-0.5" />
 
-          {/* New Proposal & Scenario Switcher */}
+          {/* Scenario Switcher */}
           <div className="flex items-center gap-1.5 shrink-0">
-            {/* Direct + New Proposal Button */}
-            {onOpenNewProposal && (
-              <button
-                type="button"
-                onClick={onOpenNewProposal}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-sm bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0 border border-emerald-500"
-                title="Create a new implementation proposal / clean slate"
-              >
-                <Plus size={13} className="stroke-[3]" />
-                <span className="font-bold tracking-tight">New Proposal</span>
-              </button>
-            )}
-
             {/* Scenario Dropdown */}
             <div ref={scenarioDropdownRef} className="relative shrink-0">
               <button
@@ -278,31 +270,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {dropdownOpen && (
                 <div className="absolute left-0 mt-1.5 w-80 bg-white border border-slate-200 rounded-sm shadow-xl z-50 p-2 space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-150 max-h-[80vh] overflow-y-auto">
-                  {/* Action Card: Create New Proposal */}
-                  {onOpenNewProposal && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDropdownOpen(false);
-                        onOpenNewProposal();
-                      }}
-                      className="w-full text-left p-2 rounded-sm bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-950 transition cursor-pointer flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="p-1 rounded-sm bg-emerald-600 text-white">
-                          <Plus size={12} className="stroke-[3]" />
-                        </div>
-                        <div>
-                          <div className="font-bold text-xs text-emerald-950">+ New Proposal / Deal</div>
-                          <div className="text-[10px] text-emerald-700">Clean-slate, template, or clone</div>
-                        </div>
-                      </div>
-                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-emerald-200 text-emerald-900 rounded-xs uppercase">
-                        Create
-                      </span>
-                    </button>
-                  )}
-
                   {/* Custom User Proposals */}
                   {customScenarios.length > 0 && (
                     <div>
@@ -322,8 +289,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                             <button
                               type="button"
                               onClick={() => {
-                                onSelectScenario(custom);
-                                setDropdownOpen(false);
+                                if (custom.id === scenario.id) {
+                                  setDropdownOpen(false);
+                                } else {
+                                  setMpinTargetProposal(custom);
+                                  setMpinInput('');
+                                  setMpinError(null);
+                                  setDropdownOpen(false);
+                                }
                               }}
                               className="text-left flex-1 min-w-0 pr-2 cursor-pointer"
                             >
@@ -380,6 +353,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Lock Session to Return to Front Portal */}
+            {onLockSession && (
+              <button
+                type="button"
+                onClick={onLockSession}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-sm bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-950 border border-slate-200 text-xs font-semibold transition cursor-pointer shrink-0"
+                title="Lock active proposal and return to Portal (Master MPIN: 1909)"
+              >
+                <Lock size={12} className="text-amber-600 shrink-0" />
+                <span className="hidden md:inline font-mono text-[11px]">Lock Portal</span>
+              </button>
+            )}
 
             {/* Deal Tools & Studios Dropdown - Always Visible */}
             <div ref={toolsDropdownRef} className="relative shrink-0">
@@ -968,6 +954,94 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-2xs bg-rose-900/90 border border-rose-600/60 text-rose-200">
                 CR Protocol Enforced
               </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Switch Proposal MPIN Modal */}
+      {mpinTargetProposal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-slate-900 border-2 border-slate-700 rounded-sm p-5 w-full max-w-sm space-y-4 text-white shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="p-1 rounded-sm bg-amber-500 text-slate-950 font-bold">
+                  <Lock size={14} className="stroke-[2.5]" />
+                </div>
+                <h4 className="font-bold text-xs uppercase tracking-wider text-white">Proposal MPIN Required</h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMpinTargetProposal(null)}
+                className="text-slate-400 hover:text-white text-xs cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-slate-950 p-2.5 rounded-sm border border-slate-850 space-y-0.5">
+              <span className="text-[10px] text-slate-400 uppercase font-mono block">Switching to:</span>
+              <span className="font-bold text-xs text-amber-300 block truncate">{mpinTargetProposal.name}</span>
+              <span className="text-[11px] text-slate-400 block truncate">{mpinTargetProposal.clientName || 'Enterprise Account'}</span>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs text-slate-300 font-semibold block">Enter 4-Digit MPIN (Default: 0000 or Master: 1909):</label>
+              <input
+                type="password"
+                maxLength={4}
+                value={mpinInput}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                  setMpinInput(val);
+                  setMpinError(null);
+                  if (val.length === 4) {
+                    const isMaster = val === '1909';
+                    const targetPin = mpinTargetProposal.mpin || '0000';
+                    if (isMaster || val === targetPin) {
+                      onSelectScenario(mpinTargetProposal);
+                      setMpinTargetProposal(null);
+                    } else {
+                      setMpinError('Invalid MPIN. Try again, use default (0000), or enter Master MPIN (1909).');
+                      setMpinInput('');
+                    }
+                  }
+                }}
+                autoFocus
+                placeholder="••••"
+                className="w-full text-center text-xl tracking-[0.5em] font-mono font-bold p-2.5 bg-slate-950 border border-slate-700 rounded-sm text-white focus:outline-hidden focus:border-amber-400"
+              />
+              {mpinError && <p className="text-[11px] text-red-400 font-semibold">{mpinError}</p>}
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-800">
+              <span className="text-slate-400 font-mono text-[10px]">Master: <strong className="text-amber-400">1909</strong> | Default: <strong className="text-slate-200">0000</strong></span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMpinTargetProposal(null)}
+                  className="px-2.5 py-1 text-slate-400 hover:text-white text-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const isMaster = mpinInput === '1909';
+                    const targetPin = mpinTargetProposal.mpin || '0000';
+                    if (isMaster || mpinInput === targetPin) {
+                      onSelectScenario(mpinTargetProposal);
+                      setMpinTargetProposal(null);
+                    } else {
+                      setMpinError('Invalid MPIN. Try again, use default (0000), or enter Master MPIN (1909).');
+                      setMpinInput('');
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold uppercase rounded-sm cursor-pointer text-xs transition"
+                >
+                  Verify & Switch
+                </button>
+              </div>
             </div>
           </div>
         </div>

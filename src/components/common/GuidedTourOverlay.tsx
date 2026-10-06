@@ -210,7 +210,7 @@ export const TOUR_STEPS: TourStep[] = [
         description: 'Produces printable RFP Statement of Work documentation and 20-Question audit trails for contracting.'
       }
     ],
-    proTip: 'You have completed the guided tour! Start by clicking "+ New Proposal" or configuring your active deal.',
+    proTip: 'You have completed the guided tour! Start by scoping and configuring your active custom deal.',
     actionHint: 'Click "Finish Tour" to begin using Estimo.'
   }
 ];

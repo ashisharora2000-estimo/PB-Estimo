@@ -334,7 +334,7 @@ export function generateFrameworkPdf(
     ['Pillar #', 'Pillar Name', 'Analytical Mechanism', 'Primary Deliverable Output'],
     [22, 45, 68, 45],
     [
-      ['Pillar 01', 'Delivery Lifecycle Architecture', '7-Phase Oracle True Cloud Method (TCM) with CRP1, CRP2, SIT, UAT gates', 'Baseline WBS & Stage Gate Schedule'],
+      ['Pillar 01', 'Delivery Lifecycle & Testing Architecture', '7-Phase Oracle True Cloud Method (TCM) with CRP1, CRP2, SIT, UAT gates', 'Baseline WBS, Testing Strategy & Stage Gates'],
       ['Pillar 02', 'Functional 20-Q Depth Engine', '20 granular scoping questions per module across ERP, SCM, HCM, EPM, CX', 'Module T-Shirt Sizing (XS to XXL)'],
       ['Pillar 03', 'Rollout & Wave Architecture', '12-dimensional rollout strategy model analyzing regional coexistence', 'Multi-Wave Release Roadmap'],
       ['Pillar 04', 'CEMLI & Technical Sizing', 'Visual Integration Complexity Matrix and 4-Mock conversion sliding scale', 'Defensible Technical Workstream Hours'],

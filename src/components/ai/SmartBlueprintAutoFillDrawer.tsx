@@ -492,7 +492,7 @@ export const SmartBlueprintAutoFillDrawer: React.FC<SmartBlueprintAutoFillDrawer
                   </span>
                   <span className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-300">
                     <span className="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
-                    <strong>{attributionCounts.default} Industry Baseline</strong> (Oracle MBP Default)
+                    <strong>{attributionCounts.default} System Default</strong> (Standard MBP Rule)
                   </span>
                 </div>
               </div>

@@ -21,7 +21,7 @@ export const AttributionBadge: React.FC<AttributionBadgeProps> = ({
 }) => {
   let badgeStyle = 'bg-blue-50 text-blue-800 border-blue-300';
   let dotColor = 'bg-blue-500';
-  let label = 'Industry Baseline';
+  let label = 'System Default';
   let icon = <BookOpen size={10} className="shrink-0" />;
 
   if (type === 'direct') {

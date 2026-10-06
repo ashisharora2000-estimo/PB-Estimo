@@ -56,19 +56,20 @@ interface ScriptSection {
 const FRAMEWORK_SECTIONS: ScriptSection[] = [
   {
     id: 'sec_methodology',
-    title: 'Oracle True Cloud Method (TCM) & OUM 7-Phase Protocol',
-    subtitle: 'Stage-Gate Delivery Lifecycle',
+    title: 'Oracle True Cloud Method (TCM), OUM & Business Testing Protocol',
+    subtitle: 'Stage-Gate Delivery Lifecycle & Testing Assurance (SIT & UAT)',
     pillarNum: '01',
-    badge: 'Core Lifecycle',
+    badge: 'Lifecycle & Testing',
     colorClass: 'text-indigo-600 border-indigo-200 bg-indigo-50/50',
     bgLight: 'bg-indigo-500',
     icon: Layers,
     keyBullets: [
       '7 Sequential & Concurrency-enabled Phases: Enablement, Design, Build, Test 1 (SIT), Test 2 (UAT), Cutover, Hypercare',
-      'Mandatory 2-week Client Enablement & Cloud Sandbox provisioning baseline',
-      'Stage-gate milestone readiness gates (CRP1, CRP2, SIT sign-off, Go-Live authorization)'
+      'Comprehensive Business Testing Protocol: SIT cross-pillar validation & UAT business scenario sign-offs',
+      'Automated defect severity gates (zero Sev-1/Sev-2 defect exit criteria) and regression test coverage',
+      'Mandatory stage-gate milestone readiness gates (CRP1, CRP2, SIT sign-off, UAT authorization, Go-Live cutover)'
     ],
-    narrationText: 'Pillar one defines the delivery lifecycle. Our tool is anchored on the Oracle True Cloud Method and Oracle Unified Method Cloud protocol. It models a rigorous seven-phase stage-gate progression, beginning with a mandatory two-week client enablement, followed by iterative enterprise design, build sprints, System Integration Testing, User Acceptance Testing, dry-run cutover, and post-go-live hypercare.'
+    narrationText: 'Pillar one defines the delivery and testing lifecycle. Anchored on the Oracle True Cloud Method and Oracle Unified Method, it models a rigorous seven-phase stage-gate progression: mandatory two-week client enablement, iterative enterprise design, build sprints, System Integration Testing, User Acceptance Testing, dry-run cutover rehearsals, and post-go-live hypercare with strict testing quality and defect exit gates.'
   },
   {
     id: 'sec_scoping',

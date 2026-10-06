@@ -19,7 +19,8 @@ import {
   Calculator,
   Compass,
   Briefcase,
-  Layers
+  Layers,
+  Lock
 } from 'lucide-react';
 import { UserRolePreset } from './common/GuidedWorkflowFooter';
 
@@ -100,13 +101,13 @@ interface SidebarProps {
   hasPatchConflict: boolean;
   doaTier: number;
   onOpenComplexityStudio?: () => void;
-  onOpenNewProposal?: () => void;
   onOpenWhatIfSimulator?: () => void;
   onOpenDealDefense?: () => void;
   onOpenSlideDeck?: () => void;
   onOpenNotebookLmPodcast?: () => void;
   rolePreset?: UserRolePreset;
   onSelectRolePreset?: (role: UserRolePreset) => void;
+  onLockSession?: () => void;
 }
 
 export interface NavStageDefinition {
@@ -147,8 +148,8 @@ export const BID_LIFECYCLE_STAGES: NavStageDefinition[] = [
       {
         id: 'discovery',
         stepNumber: '1',
-        label: 'Scope & Architecture',
-        sub: 'Modules, 20-Q & RICEFW',
+        label: 'Scope, Architecture & Testing',
+        sub: 'Modules, 20-Q, RICEFW & Testing',
         icon: Target,
         roles: ['all', 'architect']
       },
@@ -288,13 +289,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   hasPatchConflict,
   doaTier,
   onOpenComplexityStudio,
-  onOpenNewProposal,
   onOpenWhatIfSimulator,
   onOpenDealDefense,
   onOpenSlideDeck,
   onOpenNotebookLmPodcast,
   rolePreset = 'all',
-  onSelectRolePreset
+  onSelectRolePreset,
+  onLockSession
 }) => {
   const [advancedExpanded, setAdvancedExpanded] = React.useState<boolean>(
     ['testing', 'delivery_confidence', 'framework_slider'].includes(activeTab)
@@ -310,25 +311,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside className="w-68 shrink-0 hidden md:block select-none">
       <div className="sticky top-20 max-h-[calc(100vh-5.5rem)] overflow-y-auto pr-1 pb-6 space-y-3 custom-scrollbar">
-        
-        {/* Quick Action: New Proposal Button */}
-        {onOpenNewProposal && (
+        {/* Lock / Switch Proposal Quick Button */}
+        {onLockSession && (
           <button
             type="button"
-            onClick={onOpenNewProposal}
-            className="w-full flex items-center justify-between p-2.5 rounded-sm bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs transition shadow-xs cursor-pointer border border-emerald-500 group"
+            onClick={onLockSession}
+            className="w-full flex items-center justify-between p-2 rounded-sm bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white font-medium text-xs transition border border-slate-800 cursor-pointer shadow-xs group"
+            title="Lock active proposal and return to front login screen (Master MPIN: 1909)"
           >
             <div className="flex items-center gap-2">
-              <div className="p-1 rounded-xs bg-white/20 text-white group-hover:rotate-90 transition-transform">
-                <Plus size={14} className="stroke-[3]" />
+              <div className="p-1 rounded-xs bg-slate-800 text-amber-400 group-hover:scale-105 transition-transform">
+                <Lock size={12} className="stroke-[2.5]" />
               </div>
               <div className="text-left">
-                <div className="text-xs font-bold leading-tight">+ New Proposal</div>
-                <div className="text-[10px] text-emerald-100 font-normal leading-tight">Clean-slate or template</div>
+                <div className="text-xs font-bold leading-tight">Proposal Security Gate</div>
+                <div className="text-[10px] text-slate-400 font-mono leading-tight">Lock & Switch Proposal</div>
               </div>
             </div>
-            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-emerald-800 text-emerald-100 rounded-xs uppercase">
-              Deal
+            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded-xs border border-amber-500/30">
+              1909
             </span>
           </button>
         )}

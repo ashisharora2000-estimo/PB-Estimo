@@ -41,7 +41,6 @@ interface DashboardViewProps {
   data: CalculatedProjectData;
   onNavigateTab: (tab: any) => void;
   onOpenTraceMath?: (target?: OracleModule | 'project_total') => void;
-  onOpenNewProposal?: () => void;
   onOpenWhatIfSimulator?: () => void;
   onOpenDealDefense?: () => void;
   onUpdateScenario?: (updater: (prev: ProjectScenario) => ProjectScenario) => void;
@@ -55,7 +54,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   data,
   onNavigateTab,
   onOpenTraceMath,
-  onOpenNewProposal,
   onOpenWhatIfSimulator,
   onOpenDealDefense,
   onUpdateScenario,
@@ -96,6 +94,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="flex items-center gap-2 mb-2">
               <span className="px-2.5 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-widest bg-slate-900 text-white">
                 {data.commercialModel}
+              </span>
+              <span className="px-2.5 py-0.5 rounded-sm text-[10px] font-bold tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 font-mono">
+                Hello World
               </span>
               <span className="text-xs text-slate-500 font-semibold">
                 {scenario.selectedModules.length} Fusion Modules Selected
@@ -154,16 +155,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               >
                 <RotateCcw size={13} />
                 <span className="hidden sm:inline">Reset Defaults</span>
-              </button>
-            )}
-            {onOpenNewProposal && (
-              <button
-                onClick={onOpenNewProposal}
-                className="px-3.5 py-2 rounded-sm bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                title="Create a new implementation proposal"
-              >
-                <Plus size={14} className="stroke-[2.5]" />
-                <span>New Proposal</span>
               </button>
             )}
             {onOpenWhatIfSimulator && (

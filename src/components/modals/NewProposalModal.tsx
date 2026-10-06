@@ -14,10 +14,11 @@ import {
   ShieldAlert,
   Globe,
   Upload,
-  Zap
+  Zap,
+  Lock,
+  Key
 } from 'lucide-react';
 import { ProjectScenario, OraclePillar, RolloutApproach } from '../../types';
-import { PRESET_SCENARIOS } from '../../data/templates';
 import { AIScopingAgentModal } from './AIScopingAgentModal';
 import { generateBlankSlateScenario } from '../../utils/technicalSync';
 
@@ -79,8 +80,7 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
   activeScenario,
   onCreateProposal
 }) => {
-  const [creationMode, setCreationMode] = useState<'scratch' | 'template' | 'clone' | 'ai_agent'>('scratch');
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(PRESET_SCENARIOS[0].id);
+  const [creationMode, setCreationMode] = useState<'scratch' | 'clone' | 'ai_agent'>('scratch');
   const [isAiAgentModalOpen, setIsAiAgentModalOpen] = useState(false);
 
   // Form Fields - Defaulting to pure Blank Slate (0 modules)
@@ -94,6 +94,8 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
   const [targetGoLiveDate, setTargetGoLiveDate] = useState('2027-06-30');
   const [rolloutApproach, setRolloutApproach] = useState<RolloutApproach>('phased_geo');
   const [selectedPillars, setSelectedPillars] = useState<string[]>([]); // Clean slate: 0 modules selected by default
+  const [mpin, setMpin] = useState('');
+  const [mpinError, setMpinError] = useState<string | null>(null);
   const [description, setDescription] = useState('Clean slate Oracle Cloud digital transformation roadmap and implementation sizing.');
 
   // Smart client name derivation helper
@@ -135,6 +137,8 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
       setTargetStartDate(activeScenario.targetStartDate || '2026-09-01');
       setTargetGoLiveDate(activeScenario.clientTargetGoLiveDate || '2027-06-30');
       setRolloutApproach('phased_geo');
+      setMpin('');
+      setMpinError(null);
       setDescription(`Clean slate Oracle Cloud digital transformation roadmap and implementation sizing for ${initialClient}.`);
     }
   }, [isOpen, activeScenario.thorId, activeScenario.clientName, activeScenario.industry, activeScenario.targetStartDate, activeScenario.clientTargetGoLiveDate]);
@@ -161,6 +165,10 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
       setClientNameError('Client name is mandatory. Please enter a valid client or enterprise account name.');
       hasError = true;
     }
+    if (mpin.trim() && (mpin.trim().length !== 4 || !/^\d{4}$/.test(mpin.trim()))) {
+      setMpinError('MPIN must be exactly 4 numeric digits (or leave blank to use default 0000).');
+      hasError = true;
+    }
     if (hasError) {
       return;
     }
@@ -175,16 +183,6 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
       baseScenario.clientName = clientName.trim();
       baseScenario.name = proposalName.trim() || `${activeScenario.name} (Copy)`;
       baseScenario.description = description.trim() || activeScenario.description;
-      baseScenario.targetStartDate = targetStartDate;
-      baseScenario.clientTargetGoLiveDate = targetGoLiveDate;
-    } else if (creationMode === 'template') {
-      const template = PRESET_SCENARIOS.find(p => p.id === selectedTemplateId) || PRESET_SCENARIOS[0];
-      baseScenario = JSON.parse(JSON.stringify(template));
-      baseScenario.id = newId;
-      baseScenario.thorId = thorId.trim();
-      baseScenario.clientName = clientName.trim();
-      baseScenario.name = proposalName.trim() || `${template.name} - ${clientName.trim()}`;
-      baseScenario.description = description.trim() || template.description;
       baseScenario.targetStartDate = targetStartDate;
       baseScenario.clientTargetGoLiveDate = targetGoLiveDate;
     } else {
@@ -240,6 +238,7 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
       }
     }
 
+    baseScenario.mpin = mpin.trim() || '0000';
     onCreateProposal(baseScenario);
     onClose();
   };
@@ -606,6 +605,55 @@ export const NewProposalModal: React.FC<NewProposalModalProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Proposal Security MPIN */}
+            <div className="bg-amber-50/70 border border-amber-200 rounded-sm p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                  <Lock size={14} className="text-amber-700" />
+                  <span>Proposal Security MPIN (4 Digits) <span className="text-red-500">*</span></span>
+                </label>
+                <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold">
+                  <span className="px-1.5 py-0.5 bg-slate-200 text-slate-800 rounded-xs">
+                    Default: 0000
+                  </span>
+                  <span className="px-1.5 py-0.5 bg-amber-200/80 text-amber-900 rounded-xs">
+                    Master MPIN: 1909
+                  </span>
+                </div>
+              </div>
+              <p className="text-[11px] text-amber-900 leading-tight">
+                Protects this proposal from unauthorized access on the front login portal. If left blank, the proposal defaults to <strong>0000</strong>. Master MPIN <strong>1909</strong> always grants universal supervisor access.
+              </p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="password"
+                  maxLength={4}
+                  pattern="[0-9]*"
+                  inputMode="numeric"
+                  value={mpin}
+                  onChange={(e) => {
+                    const clean = e.target.value.replace(/\D/g, '').slice(0, 4);
+                    setMpin(clean);
+                    if (clean.length === 4) setMpinError(null);
+                  }}
+                  placeholder="0000"
+                  className={`w-36 px-3 py-2 bg-white border ${
+                    mpinError ? 'border-red-500 ring-1 ring-red-400' : 'border-amber-300'
+                  } rounded-sm text-xs font-mono font-bold tracking-[0.25em] text-center text-slate-900 focus:outline-hidden focus:border-amber-600`}
+                />
+                <span className="text-xs text-slate-500 font-mono">
+                  {mpin.length === 4
+                    ? '✓ 4-digit custom MPIN'
+                    : mpin.length > 0
+                    ? `${4 - mpin.length} more digits`
+                    : 'Default MPIN: 0000'}
+                </span>
+              </div>
+              {mpinError && (
+                <p className="text-[11px] text-red-600 font-semibold">{mpinError}</p>
+              )}
+            </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
